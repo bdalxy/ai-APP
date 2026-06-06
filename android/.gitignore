@@ -1,0 +1,19 @@
+# Android 构建产物
+/build/
+/app/build/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# IDE
+.idea/
+*.iml
+local.properties
+
+# Gradle
+.gradle/
+
+# 签名密钥
+*.jks
+*.keystore
