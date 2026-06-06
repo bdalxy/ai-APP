@@ -1,69 +1,204 @@
-"""主动消息调度器 - P1 记录发送时间，P2 定时推送。"""
+"""主动消息调度器模块（简化版）。
+
+P1 阶段为手动触发模式，调度器仅负责记录上次发送时间到 JSON 文件。
+P2 阶段将实现定时推送功能。
+
+状态文件路径: data/proactive_state.json
+状态文件结构:
+    {
+        "last_sent_time": "2024-01-01T08:00:00+08:00",
+        "total_sent_count": 5,
+        "version": "1.0"
+    }
+
+依赖：
+    - src.config.settings: Settings 单例（获取 DATA_DIR）
+    - src.utils.logger: get_logger 日志实例
+    - src.utils.time_utils: now_cst, format_timestamp_iso
+"""
+
 from __future__ import annotations
+
 import json
 import threading
 from datetime import datetime
 from pathlib import Path
+
 from src.config.settings import settings
 from src.utils.logger import get_logger
 from src.utils.time_utils import now_cst, format_timestamp_iso
 
+
+# 状态文件路径（相对于 DATA_DIR）
 _STATE_FILENAME = "proactive_state.json"
-_DEFAULT_STATE: dict[str, object] = {"last_sent_time": None, "total_sent_count": 0, "version": "1.0"}
+
+# 默认状态
+_DEFAULT_STATE: dict[str, object] = {
+    "last_sent_time": None,
+    "total_sent_count": 0,
+    "version": "1.0",
+}
+
 
 class ProactiveScheduler:
+    """主动消息调度器。
+
+    P1 阶段：记录上次发送时间，提供状态查询和更新功能。
+    P2 阶段：将扩展定时检查与自动推送功能。
+
+    Attributes:
+        _file_path: 状态文件绝对路径。
+        _lock: 线程锁，保证并发安全。
+        _state: 当前状态的缓存。
+        _log: 日志实例。
+    """
+
     def __init__(self) -> None:
+        """初始化调度器，加载已有状态。"""
         self._file_path: Path = settings.DATA_DIR / _STATE_FILENAME
-        self._lock = threading.Lock()
+        self._lock: threading.Lock = threading.Lock()
         self._log = get_logger()
+
+        # 确保目录存在
         self._file_path.parent.mkdir(parents=True, exist_ok=True)
-        self._state = self._load()
+
+        # 加载状态
+        self._state: dict[str, object] = self._load()
+        self._log.info(
+            f"ProactiveScheduler 初始化完成: "
+            f"total_sent={self._state['total_sent_count']}, "
+            f"last_sent={self._state['last_sent_time']}"
+        )
+
+    # -------------------------------------------------------------------------
+    # 内部方法
+    # -------------------------------------------------------------------------
 
     def _load(self) -> dict[str, object]:
+        """从 JSON 文件加载状态。
+
+        Returns:
+            状态字典，如果文件不存在或损坏则返回默认值。
+        """
         if not self._file_path.exists():
+            self._log.info("状态文件不存在，使用默认状态")
             return dict(_DEFAULT_STATE)
+
         try:
             with open(self._file_path, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
+                loaded: dict[str, object] = json.load(f)
+
+            # 合并默认值，确保所有键存在
             state = dict(_DEFAULT_STATE)
             state.update(loaded)
+            self._log.debug(f"状态已加载: {self._file_path}")
             return state
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            self._log.error(f"加载状态文件失败: {e}，使用默认状态")
             return dict(_DEFAULT_STATE)
 
     def _save(self) -> None:
-        temp_path = self._file_path.with_suffix(".tmp")
-        with open(temp_path, "w", encoding="utf-8") as f:
-            json.dump(self._state, f, ensure_ascii=False, indent=2)
-        temp_path.replace(self._file_path)
+        """原子化保存当前状态到 JSON 文件。"""
+        try:
+            temp_path = self._file_path.with_suffix(".tmp")
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(self._state, f, ensure_ascii=False, indent=2)
+            temp_path.replace(self._file_path)
+            self._log.debug(f"状态已保存: {self._file_path}")
+        except OSError as e:
+            self._log.error(f"保存状态文件失败: {e}")
+            raise
+
+    # -------------------------------------------------------------------------
+    # 公开方法
+    # -------------------------------------------------------------------------
 
     def get_last_sent_time(self) -> datetime | None:
+        """获取上次发送时间。
+
+        Returns:
+            datetime 对象，如果从未发送过则返回 None。
+        """
         raw = self._state.get("last_sent_time")
         if raw is None or not isinstance(raw, str):
             return None
+
         try:
+            # 解析 ISO 8601 格式
             return datetime.fromisoformat(raw)
         except (ValueError, TypeError):
+            self._log.warning(f"无法解析上次发送时间: {raw}")
             return None
 
     def update_last_sent_time(self, sent_time: datetime | None = None) -> None:
+        """更新上次发送时间并递增计数。
+
+        Args:
+            sent_time: 发送时间，默认为当前北京时间。
+        """
         if sent_time is None:
             sent_time = now_cst()
+
         iso_time = format_timestamp_iso(sent_time)
+
         with self._lock:
             self._state["last_sent_time"] = iso_time
+            # 安全递增计数
             count = self._state.get("total_sent_count", 0)
-            self._state["total_sent_count"] = int(count) + 1 if isinstance(count, (int, float)) else 1
+            if isinstance(count, (int, float)):
+                self._state["total_sent_count"] = int(count) + 1
+            else:
+                self._state["total_sent_count"] = 1
             self._save()
 
+        self._log.info(
+            f"[调度器] 上次发送时间已更新: {iso_time}, "
+            f"累计发送: {self._state['total_sent_count']}"
+        )
+
+    def get_next_scheduled_time(self) -> datetime | None:
+        """获取下次计划发送时间。
+
+        P1 阶段返回 None（无自动调度），P2 扩展。
+
+        Returns:
+            None（P1 阶段）。
+        """
+        return None
+
+    def check_and_send(self) -> bool:
+        """检查并发送主动消息（P1 阶段为手动触发，此方法仅返回 False）。
+
+        P2 阶段将实现定时检查逻辑。
+
+        Returns:
+            False（P1 阶段无自动发送）。
+        """
+        self._log.debug("[调度器] P1 阶段仅支持手动触发，check_and_send() 返回 False")
+        return False
+
     def get_total_sent_count(self) -> int:
+        """获取累计发送次数。
+
+        Returns:
+            累计发送次数。
+        """
         count = self._state.get("total_sent_count", 0)
-        return int(count) if isinstance(count, (int, float)) else 0
+        if isinstance(count, (int, float)):
+            return int(count)
+        return 0
 
     def get_state(self) -> dict[str, object]:
+        """获取当前状态的副本。
+
+        Returns:
+            状态字典的浅拷贝。
+        """
         return dict(self._state)
 
     def reset(self) -> None:
+        """重置所有状态为默认值。"""
         with self._lock:
             self._state = dict(_DEFAULT_STATE)
             self._save()
+        self._log.info("[调度器] 状态已重置")
