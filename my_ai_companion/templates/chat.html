@@ -1,0 +1,556 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WeiXinAI - AI 聊天</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .character-selector {
+            position: relative;
+        }
+        
+        .character-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .character-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .character-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            min-width: 200px;
+            overflow: hidden;
+            display: none;
+            z-index: 200;
+        }
+        
+        .character-dropdown.show {
+            display: block;
+        }
+        
+        .character-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .character-item:last-child {
+            border-bottom: none;
+        }
+        
+        .character-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .character-item.active {
+            background: #eef2ff;
+        }
+        
+        .character-item.active::after {
+            content: '✓';
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+        
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message.assistant {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 20px;
+            position: relative;
+        }
+        
+        .user .message-bubble {
+            background: #07c160;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .assistant .message-bubble {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .message-content {
+            font-size: 15px;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+            text-align: right;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px 16px;
+            background: white;
+            border-radius: 20px;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #ccc;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 12px;
+        }
+        
+        .input-wrapper {
+            flex: 1;
+            background: #f0f0f0;
+            border-radius: 24px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .input-wrapper input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 0;
+            font-size: 15px;
+            outline: none;
+        }
+        
+        .send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .send-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: white;
+            text-align: center;
+        }
+        
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state p {
+            font-size: 15px;
+            opacity: 0.9;
+        }
+        
+        .clear-btn {
+            position: fixed;
+            top: 80px;
+            right: 16px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .clear-btn:hover {
+            background: white;
+        }
+        
+        .status-bar {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 WeiXinAI</h1>
+        <div class="character-selector">
+            <button class="character-btn" onclick="toggleCharacterDropdown()">
+                <span id="current-character">选择角色</span>
+                <span>▼</span>
+            </button>
+            <div class="character-dropdown" id="character-dropdown">
+                <div class="character-item" onclick="selectCharacter(null)">
+                    <span>无角色（通用模式）</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <button class="clear-btn" onclick="clearHistory()" style="display: none;" id="clear-btn">
+        清空记录
+    </button>
+    
+    <div class="status-bar" id="status-bar">
+        记忆级别: <span id="memory-level">标准</span> | 消息数: <span id="message-count">0</span>
+    </div>
+    
+    <div class="chat-container" id="chat-container">
+        <div class="empty-state" id="empty-state">
+            <h2>👋 你好！</h2>
+            <p>开始与 AI 对话吧<br>可以选择一个角色开启角色扮演</p>
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <div class="input-wrapper">
+            <input type="text" id="message-input" placeholder="输入消息..." onkeydown="handleKeyDown(event)">
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
+            →
+        </button>
+    </div>
+    
+    <script>
+        let ws;
+        let characters = [];
+        let messageCount = 0;
+        
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('WebSocket 连接成功');
+                fetchCharacters();
+                loadHistory();
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'response') {
+                    addMessage('assistant', data.response);
+                    document.getElementById('typing-indicator')?.remove();
+                    updateStats();
+                } else if (data.type === 'history') {
+                    loadHistoryMessages(data.history);
+                } else if (data.type === 'characters') {
+                    loadCharacters(data.characters);
+                } else if (data.type === 'character_selected') {
+                    document.getElementById('current-character').textContent = data.name || '选择角色';
+                    document.getElementById('character-dropdown').classList.remove('show');
+                } else if (data.type === 'history_cleared') {
+                    document.getElementById('chat-container').innerHTML = `
+                        <div class="empty-state" id="empty-state">
+                            <h2>👋 你好！</h2>
+                            <p>开始与 AI 对话吧<br>可以选择一个角色开启角色扮演</p>
+                        </div>
+                    `;
+                    document.getElementById('clear-btn').style.display = 'none';
+                    messageCount = 0;
+                    updateStats();
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket 错误:', error);
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket 连接关闭，5秒后重连');
+                setTimeout(initWebSocket, 5000);
+            };
+        }
+        
+        function fetchCharacters() {
+            sendWsMessage({ action: 'get_characters' });
+        }
+        
+        function loadCharacters(charList) {
+            characters = charList;
+            const dropdown = document.getElementById('character-dropdown');
+            const currentChar = document.getElementById('current-character').textContent;
+            
+            charList.forEach(char => {
+                const item = document.createElement('div');
+                item.className = 'character-item' + (char.name === currentChar ? ' active' : '');
+                item.textContent = char.name;
+                item.onclick = () => selectCharacter(char.name);
+                dropdown.appendChild(item);
+            });
+        }
+        
+        function selectCharacter(name) {
+            sendWsMessage({ action: 'select_character', name: name });
+        }
+        
+        function toggleCharacterDropdown() {
+            document.getElementById('character-dropdown').classList.toggle('show');
+        }
+        
+        function loadHistory() {
+            sendWsMessage({ action: 'get_history' });
+        }
+        
+        function loadHistoryMessages(messages) {
+            const container = document.getElementById('chat-container');
+            container.innerHTML = '';
+            
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" id="empty-state">
+                        <h2>👋 你好！</h2>
+                        <p>开始与 AI 对话吧<br>可以选择一个角色开启角色扮演</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            messages.forEach(msg => {
+                addMessage(msg.role, msg.content, msg.timestamp);
+            });
+            
+            messageCount = messages.length;
+            updateStats();
+            scrollToBottom();
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            input.value = '';
+            document.getElementById('send-btn').disabled = true;
+            
+            addMessage('user', message);
+            addTypingIndicator();
+            scrollToBottom();
+            
+            sendWsMessage({ action: 'send', message: message });
+        }
+        
+        function sendWsMessage(data) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(data));
+            } else {
+                console.error('WebSocket 未连接');
+            }
+        }
+        
+        function addMessage(role, content, timestamp) {
+            const container = document.getElementById('chat-container');
+            const emptyState = document.getElementById('empty-state');
+            if (emptyState) emptyState.remove();
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const time = timestamp ? formatTime(timestamp) : formatTime(new Date().toISOString());
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">
+                    <div class="message-content">${escapeHtml(content)}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            messageCount++;
+            
+            document.getElementById('clear-btn').style.display = 'block';
+        }
+        
+        function addTypingIndicator() {
+            const container = document.getElementById('chat-container');
+            const indicator = document.createElement('div');
+            indicator.className = 'message assistant';
+            indicator.id = 'typing-indicator';
+            indicator.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            container.appendChild(indicator);
+            scrollToBottom();
+        }
+        
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        function clearHistory() {
+            if (confirm('确定要清空所有聊天记录吗？')) {
+                sendWsMessage({ action: 'clear_history' });
+            }
+        }
+        
+        function scrollToBottom() {
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function updateStats() {
+            document.getElementById('message-count').textContent = messageCount;
+        }
+        
+        // 监听输入框
+        document.getElementById('message-input').addEventListener('input', function(e) {
+            document.getElementById('send-btn').disabled = !e.target.value.trim();
+        });
+        
+        // 点击外部关闭下拉菜单
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('character-dropdown');
+            const selector = document.querySelector('.character-selector');
+            if (!selector.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initWebSocket();
+        });
+    </script>
+</body>
+</html>
+    
