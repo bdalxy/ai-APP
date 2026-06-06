@@ -6,5 +6,5 @@ requests
 python-dotenv
 json5
 
-# 日志（Chaquopy 兼容性待验证）
-# loguru  # 如果 Chaquopy 不支持，改用标准库 logging
+# 日志（优先使用 loguru，Android 端自动降级为标准 logging）
+loguru

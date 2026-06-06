@@ -18,11 +18,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
+            // arm64-v8a: 真机；x86_64: 模拟器调试
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
         python {
-            buildPython("python3")
+            // 指定 Python 3.10 确保与 Chaquopy 内置版本一致
+            buildPython("3.10")
         }
     }
 

@@ -9,7 +9,9 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
+from utils.logger import get_logger
+
+logger = get_logger()
 
 from src.config.settings import settings
 

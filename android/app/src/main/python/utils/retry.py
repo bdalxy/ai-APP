@@ -10,7 +10,9 @@ import time
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from loguru import logger
+from utils.logger import get_logger
+
+logger = get_logger()
 
 F = TypeVar("F", bound=Callable[..., Any])
 

@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import ClassVar
 
 from dotenv import load_dotenv
-from loguru import logger
+from utils.logger import get_logger
+
+logger = get_logger()
 
 
 class Settings:
@@ -45,7 +47,9 @@ class Settings:
         # 确定项目根目录（src/config/settings.py 的上两级目录）
         self.PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 
-        # 加载 .env 文件
+        # 加载 .env 文件（PC 端）
+        # TODO(P3-P6): Android 端 .env 文件机制不可用，需通过 Kotlin 侧
+        # SharedPreferences 传递 API Key 给 Python 侧
         env_path = self.PROJECT_ROOT / ".env"
         if env_path.exists():
             load_dotenv(dotenv_path=env_path)
