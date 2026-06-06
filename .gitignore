@@ -1,0 +1,28 @@
+# Trae IDE 配置
+.trae/
+
+# 临时文档
+DeepSeek对项目的建议.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+dist/
+*.egg
+
+# 环境配置
+.env
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# 系统
+.DS_Store
+Thumbs.db
