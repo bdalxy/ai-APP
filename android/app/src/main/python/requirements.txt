@@ -1,0 +1,10 @@
+# Chaquopy Python 依赖配置
+# 这些包将在构建时由 Chaquopy 自动安装到 APK 中
+
+# 核心依赖（Chaquopy 兼容）
+requests
+python-dotenv
+json5
+
+# 日志（Chaquopy 兼容性待验证）
+# loguru  # 如果 Chaquopy 不支持，改用标准库 logging
