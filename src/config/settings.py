@@ -1,0 +1,95 @@
+"""基础配置类 - 从 .env 文件加载环境变量，提供 Settings 单例。
+
+使用 python-dotenv 加载 .env 文件，使用 loguru 做日志记录。
+所有敏感配置（API Key 等）通过环境变量管理，不硬编码。
+"""
+
+import os
+from pathlib import Path
+from typing import ClassVar
+
+from dotenv import load_dotenv
+from loguru import logger
+
+
+class Settings:
+    """全局配置单例类。
+
+    从项目根目录的 .env 文件加载所有配置项，提供类型安全的属性访问。
+    首次实例化时自动调用 _load_env() 完成初始化。
+
+    Attributes:
+        DEEPSEEK_API_KEY: DeepSeek API 密钥
+        DEEPSEEK_MODEL: 对话模型名称
+        DEEPSEEK_EMBEDDING_MODEL: Embedding 模型名称
+        DEEPSEEK_BASE_URL: API 基础 URL
+        LOG_LEVEL: 日志级别
+        DATA_DIR: 数据存储目录（绝对路径）
+        PROJECT_ROOT: 项目根目录
+    """
+
+    _instance: ClassVar["Settings | None"] = None
+    _initialized: ClassVar[bool] = False
+
+    def __new__(cls) -> "Settings":
+        """单例模式：确保全局只有一个 Settings 实例。"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self) -> None:
+        """初始化配置，仅执行一次。"""
+        if Settings._initialized:
+            return
+
+        # 确定项目根目录（src/config/settings.py 的上两级目录）
+        self.PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
+
+        # 加载 .env 文件
+        env_path = self.PROJECT_ROOT / ".env"
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path)
+            logger.info(f"已加载环境变量文件: {env_path}")
+        else:
+            logger.warning(f".env 文件不存在: {env_path}，将使用系统环境变量")
+
+        self._load_env()
+        Settings._initialized = True
+        logger.info("Settings 单例初始化完成")
+
+    def _load_env(self) -> None:
+        """从环境变量加载所有配置项，提供合理默认值。"""
+        # DeepSeek API 配置
+        self.DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
+        self.DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+        self.DEEPSEEK_EMBEDDING_MODEL: str = os.getenv(
+            "DEEPSEEK_EMBEDDING_MODEL", "deepseek-embedding-v2"
+        )
+        self.DEEPSEEK_BASE_URL: str = os.getenv(
+            "DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+        )
+
+        # 日志配置
+        self.LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+        # 数据存储路径（转换为绝对路径）
+        data_dir_raw = os.getenv("DATA_DIR", "./data")
+        self.DATA_DIR: Path = (self.PROJECT_ROOT / data_dir_raw).resolve()
+
+        # 确保数据目录存在
+        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    def validate(self) -> bool:
+        """验证必要配置是否完整。
+
+        Returns:
+            配置是否通过验证：DEEPSEEK_API_KEY 不能为空。
+        """
+        if not self.DEEPSEEK_API_KEY:
+            logger.error("DEEPSEEK_API_KEY 未设置，请在 .env 文件中配置")
+            return False
+        return True
+
+
+# 模块级快捷访问
+settings = Settings()
