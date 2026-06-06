@@ -1,0 +1,19 @@
+{
+  "export_type": "full",
+  "exported_at": "2026-06-05T14:36:28.645943+08:00",
+  "chat_history": {
+    "total_count": 2,
+    "messages": [{"role": "user", "content": "你好呀！"}, {"role": "assistant", "content": "你好~我是小美！"}]
+  },
+  "memories": {
+    "total_count": 6,
+    "memories": [
+      {"id": "99841a93-3109-4782-a0bb-01007994efe3", "memory_type": "user_fact", "content": "用户喜欢吃草莓蛋糕", "keywords": ["草莓","喜欢","吃草","喜欢吃","草莓蛋","吃草莓","户喜","用户","欢吃","蛋糕","户喜欢","用户喜","欢吃草","莓蛋","莓蛋糕"], "embedding": [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], "importance": 0.9, "created_at": "2026-06-05T14:31:59.684290+08:00", "last_accessed": "2026-06-05T14:36:28.625768+08:00", "access_count": 41, "decay_factor": 1.0, "source_turn_id": ""},
+      {"id": "d7e9929c-ab56-4009-bf81-4fe88b746254", "memory_type": "user_fact", "content": "用户名叫小明", "keywords": ["户名","叫小明","名叫","户名叫","叫小","用户","小明","用户名","名叫小"], "embedding": [0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2], "importance": 0.9, "created_at": "2026-06-05T14:31:59.732804+08:00", "last_accessed": "2026-06-05T14:36:28.627653+08:00", "access_count": 31, "decay_factor": 1.0, "source_turn_id": ""},
+      {"id": "79319247-46dd-418d-9ec7-73ffdd94b0b2", "memory_type": "user_fact", "content": "用户喜欢吃草莓蛋糕", "keywords": ["用户","吃草","用户喜","喜欢","吃草莓","草莓蛋","莓蛋糕","欢吃草","欢吃","户喜欢","草莓","莓蛋","蛋糕","户喜","喜欢吃"], "embedding": [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], "importance": 0.9, "created_at": "2026-06-05T14:34:25.032816+08:00", "last_accessed": "2026-06-05T14:36:28.628853+08:00", "access_count": 22, "decay_factor": 1.0, "source_turn_id": ""},
+      {"id": "c37f7278-bff8-4f55-bfee-1d06c5e25f35", "memory_type": "user_fact", "content": "用户名叫小明", "keywords": ["用户","用户名","户名叫","叫小","小明","叫小明","名叫小","户名","名叫"], "embedding": [0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2], "importance": 0.9, "created_at": "2026-06-05T14:34:25.060752+08:00", "last_accessed": "2026-06-05T14:36:28.629985+08:00", "access_count": 16, "decay_factor": 1.0, "source_turn_id": ""},
+      {"id": "910c6d02-790b-4106-b749-7b7dfb332cd3", "memory_type": "user_fact", "content": "用户喜欢吃草莓蛋糕", "keywords": ["户喜","吃草莓","欢吃草","蛋糕","用户","草莓","喜欢","吃草","欢吃","莓蛋糕","喜欢吃","莓蛋","户喜欢","草莓蛋","用户喜"], "embedding": [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1], "importance": 0.9, "created_at": "2026-06-05T14:36:28.596718+08:00", "last_accessed": "2026-06-05T14:36:28.631110+08:00", "access_count": 2, "decay_factor": 1.0, "source_turn_id": ""},
+      {"id": "09e0fde7-9581-41ff-85d8-2c71316821bb", "memory_type": "user_fact", "content": "用户名叫小明", "keywords": ["用户名","叫小","户名叫","小明","用户","名叫","户名","名叫小","叫小明"], "embedding": [0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2], "importance": 0.9, "created_at": "2026-06-05T14:36:28.633322+08:00", "last_accessed": "2026-06-05T14:36:28.633322+08:00", "access_count": 0, "decay_factor": 1.0, "source_turn_id": ""}
+    ]
+  }
+}

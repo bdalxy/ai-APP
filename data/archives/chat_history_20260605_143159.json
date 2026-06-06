@@ -1,0 +1,14 @@
+{
+  "export_type": "chat_history",
+  "total_count": 2,
+  "messages": [
+  {
+    "role": "user",
+    "content": "你好呀！"
+  },
+  {
+    "role": "assistant",
+    "content": "你好~我是小美！"
+  }
+  ]
+}
