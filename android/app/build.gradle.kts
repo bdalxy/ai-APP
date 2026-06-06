@@ -21,11 +21,6 @@ android {
             // arm64-v8a: 真机；x86_64: 模拟器调试
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
-
-        python {
-            // 指定 Python 3.10 确保与 Chaquopy 内置版本一致
-            buildPython("3.10")
-        }
     }
 
     buildTypes {
@@ -45,6 +40,14 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+}
+
+// Chaquopy 17.0.0 新 DSL：在 chaquopy 块中配置，而非 python 块
+chaquopy {
+    defaultConfig {
+        // 使用 Chaquopy 内置的 Python 3.10（默认版本，无需 buildPython）
+        version = "3.10"
     }
 }
 
