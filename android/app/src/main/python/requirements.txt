@@ -2,9 +2,9 @@
 # 这些包将在构建时由 Chaquopy 自动安装到 APK 中
 
 # 核心依赖（Chaquopy 兼容）
-requests
-python-dotenv
-json5
+requests>=2.32.0
+python-dotenv>=1.0.0
+json5>=0.9.0
 
 # 日志（优先使用 loguru，Android 端自动降级为标准 logging）
-loguru
+loguru>=0.7.0

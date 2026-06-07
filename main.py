@@ -661,7 +661,7 @@ class CompanionApp:
         except RolePlayerError as e:
             print(f"\n  [错误] 角色扮演错误: {e}")
         except Exception as e:
-            self._log.error(f"未预期的错误: {e}", exc_info=self._log.level("DEBUG").no <= self._log.level("DEBUG").no)
+            self._log.error(f"未预期的错误: {e}", exc_info=True)
             print(f"\n  [错误] 发生未预期的错误: {e}")
 
     # -------------------------------------------------------------------------
