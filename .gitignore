@@ -11,6 +11,7 @@ dist/
 # 环境配置
 .env
 *.local
+android/app/src/main/python/.env
 
 # Android
 *.apk

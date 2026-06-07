@@ -109,3 +109,23 @@ def get_card_info() -> dict:
         return {"status": "ok", "card": _player.get_card_info()}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+def set_api_key(key: str) -> dict:
+    """设置 DeepSeek API Key（运行时设置，不写入文件）。
+
+    用于 Android 端通过 SharedPreferences 等方式传入 API Key，
+    避免将密钥嵌入 APK 文件。
+
+    Args:
+        key: DeepSeek API Key。
+
+    Returns:
+        {"status": "ok"}
+    """
+    if not key or not key.strip():
+        return {"status": "error", "message": "API Key 不能为空"}
+    # 同时设置到环境变量和 Settings 单例
+    os.environ["DEEPSEEK_API_KEY"] = key.strip()
+    settings.DEEPSEEK_API_KEY = key.strip()
+    return {"status": "ok"}

@@ -76,8 +76,11 @@ class Settings:
         data_dir_raw = os.getenv("DATA_DIR", "./data")
         self.DATA_DIR: Path = (self.PROJECT_ROOT / data_dir_raw).resolve()
 
-        # 确保数据目录存在
-        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        # 确保数据目录存在（Android 环境可能只读，静默处理）
+        try:
+            self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
 
     def validate(self) -> bool:
         """验证必要配置是否完整。
