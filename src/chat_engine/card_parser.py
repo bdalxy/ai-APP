@@ -68,8 +68,16 @@ class Card:
     creator_notes: str = ""
     tags: list[str] = field(default_factory=list)
 
-    def to_prompt_text(self) -> str:
+    def to_prompt_text(
+        self,
+        max_example_dialogues: int = 2,
+        include_creator_notes: bool = False,
+    ) -> str:
         """将角色卡信息格式化为 System Prompt 可用的角色描述文本。
+
+        Args:
+            max_example_dialogues: 最多包含的示例对话条数，0 表示不包含。
+            include_creator_notes: 是否包含创作者备注。
 
         Returns:
             格式化的角色描述字符串，包含姓名、性别、年龄、性格、
@@ -107,17 +115,17 @@ class Card:
         if self.speaking_style:
             lines.append(f"\n### 说话风格\n{self.speaking_style}")
 
-        # === 示例对话 ===
-        if self.example_dialogues:
+        # === 示例对话（限制数量） ===
+        if self.example_dialogues and max_example_dialogues > 0:
             lines.append(f"\n### 示例对话")
-            for i, dialogue in enumerate(self.example_dialogues, 1):
+            for i, dialogue in enumerate(self.example_dialogues[:max_example_dialogues], 1):
                 user_text = dialogue.get("user", "")
                 char_text = dialogue.get("character", "")
                 lines.append(f"{i}. 用户：{user_text}")
                 lines.append(f"   {self.name}：{char_text}")
 
-        # === 创作者备注 ===
-        if self.creator_notes:
+        # === 创作者备注（可选） ===
+        if include_creator_notes and self.creator_notes:
             lines.append(f"\n### 创作者备注\n{self.creator_notes}")
 
         return "\n".join(lines)
@@ -217,14 +225,12 @@ class CardParser:
             CardParseError: 必填字段缺失时。
         """
         # 提取 card 子对象（如果有外层包装）
-        card_data = data.get("card", data)
-
-        # 如果 card 字段不存在，但 data 中可能直接就是 card 数据
-        if "card" in data and isinstance(data.get("card"), dict):
-            version = data.get("version", "1.0")
-            card_data = data["card"]
+        version = data.get("version", "1.0")
+        card_value = data.get("card")
+        if isinstance(card_value, dict):
+            card_data = card_value
         else:
-            version = data.get("version", "1.0")
+            card_data = data
 
         self._validate_required_fields(card_data, source)
 

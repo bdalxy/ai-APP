@@ -150,19 +150,3 @@ class ContextManager:
                 f"剩余 {len(self._history)} 条, "
                 f"估算 token={self.get_token_estimate()}/{self.max_tokens}"
             )
-
-    def _char_count_for_token(self, text: str) -> float:
-        """计算文本的等效 token 字符数。
-
-        根据字符类型分别估算：
-            - 中文字符：按 _CHARS_PER_TOKEN 计算
-            - 其他字符：按自身计算
-
-        Args:
-            text: 输入文本。
-
-        Returns:
-            等效字符数。
-        """
-        # 简化实现：直接返回字符长度
-        return len(text)

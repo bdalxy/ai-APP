@@ -1,8 +1,8 @@
 package com.aicompanion.app
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvTitle: TextView
     private lateinit var btnReset: Button
+    private lateinit var btnSettings: Button
     private lateinit var adapter: ChatAdapter
 
     private var isInitialized = false
@@ -43,7 +44,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         initViews()
-        initPython()
+
+        if (!AppConfig.hasApiKey(this)) {
+            showApiKeyDialog()
+        } else {
+            initPython()
+        }
     }
 
     private fun initViews() {
@@ -53,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvTitle = findViewById(R.id.tvTitle)
         btnReset = findViewById(R.id.btnReset)
+        btnSettings = findViewById(R.id.btnSettings)
 
         adapter = ChatAdapter(mutableListOf())
         rvMessages.layoutManager = LinearLayoutManager(this).apply {
@@ -60,10 +67,8 @@ class MainActivity : AppCompatActivity() {
         }
         rvMessages.adapter = adapter
 
-        // 发送按钮
         btnSend.setOnClickListener { sendMessage() }
 
-        // 键盘发送键
         etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage()
@@ -71,12 +76,102 @@ class MainActivity : AppCompatActivity() {
             } else false
         }
 
-        // 新对话按钮
         btnReset.setOnClickListener {
-            lifecycleScope.launch {
-                resetChat()
-            }
+            lifecycleScope.launch { resetChat() }
         }
+
+        btnSettings.setOnClickListener { showSettingsDialog() }
+    }
+
+    // ========================================================================
+    // API Key 输入对话框
+    // ========================================================================
+
+    private fun showApiKeyDialog() {
+        val input = EditText(this).apply {
+            hint = "输入 DeepSeek API Key (sk-...)"
+            setSingleLine()
+            setPadding(48, 32, 48, 32)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("配置 API Key")
+            .setMessage("请输入你的 DeepSeek API Key，\n可在 platform.deepseek.com 获取。\n\nKey 仅存储在本机，不会上传。")
+            .setView(input)
+            .setCancelable(false)
+            .setPositiveButton("确认") { _, _ ->
+                val key = input.text.toString().trim()
+                if (key.isNotBlank()) {
+                    AppConfig.setApiKey(this, key)
+                    initPython()
+                } else {
+                    setStatus("API Key 不能为空，请重新设置")
+                    showApiKeyDialog()
+                }
+            }
+            .setNegativeButton("退出") { _, _ -> finish() }
+            .show()
+    }
+
+    // ========================================================================
+    // 设置对话框（Token 预设 + API Key 修改）
+    // ========================================================================
+
+    private fun showSettingsDialog() {
+        val currentPreset = AppConfig.getTokenPreset(this)
+        val presetNames = arrayOf("聊天体验优先", "平衡", "省Token优先")
+        val presetValues = arrayOf("quality", "balanced", "economy")
+        val currentIndex = presetValues.indexOf(currentPreset).coerceAtLeast(0)
+
+        val items = arrayOf(
+            "Token 预设：${presetNames[currentIndex]}",
+            "修改 API Key",
+            "查看当前 API Key"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("设置")
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> showPresetDialog(presetNames, presetValues, currentIndex)
+                    1 -> showApiKeyDialog()
+                    2 -> showCurrentApiKey()
+                }
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun showPresetDialog(names: Array<String>, values: Array<String>, current: Int) {
+        AlertDialog.Builder(this)
+            .setTitle("Token 预设")
+            .setSingleChoiceItems(names, current) { dialog, which ->
+                AppConfig.setTokenPreset(this, values[which])
+                dialog.dismiss()
+                setStatus("Token 预设已切换为：${names[which]}，下次对话生效")
+                // 重新初始化以应用新预设
+                lifecycleScope.launch {
+                    isInitialized = false
+                    initPython()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showCurrentApiKey() {
+        val key = AppConfig.getApiKey(this)
+        val masked = if (key.length > 10) {
+            "${key.take(7)}...${key.takeLast(4)}"
+        } else {
+            key
+        }
+        AlertDialog.Builder(this)
+            .setTitle("当前 API Key")
+            .setMessage("$masked\n\nKey 仅存储在本机，不会上传。")
+            .setPositiveButton("修改") { _, _ -> showApiKeyDialog() }
+            .setNegativeButton("关闭", null)
+            .show()
     }
 
     // ========================================================================
@@ -87,23 +182,28 @@ class MainActivity : AppCompatActivity() {
         setStatus("正在初始化...")
         disableInput()
 
+        val apiKey = AppConfig.getApiKey(this)
+        val preset = AppConfig.getTokenPreset(this)
+
         lifecycleScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
-                    module.callAttr("init").toString()
+
+                    // 设置 API Key
+                    module.callAttr("set_api_key", apiKey)
+
+                    // 初始化引擎（传入预设模式）
+                    module.callAttr("init", preset).toString()
                 }
-                Log.i(TAG, "Python 初始化结果: $result")
+                Log.i(TAG, "Python 初始化结果 (预设=$preset): $result")
                 isInitialized = true
                 setStatus("就绪")
                 enableInput()
 
-                // 解析角色卡信息
                 val name = extractJsonValue(result, "name")
-                if (name != null) {
-                    tvTitle.text = name
-                }
+                if (name != null) tvTitle.text = name
             } catch (e: Exception) {
                 Log.e(TAG, "Python 初始化失败: ${e.message}", e)
                 setStatus("初始化失败: ${e.message}")
@@ -120,7 +220,6 @@ class MainActivity : AppCompatActivity() {
         val text = etInput.text.toString().trim()
         if (text.isEmpty() || !isInitialized || isWaitingReply) return
 
-        // 显示用户消息
         adapter.addMessage(Message(text, isUser = true))
         scrollToBottom()
         etInput.text.clear()
@@ -135,7 +234,7 @@ class MainActivity : AppCompatActivity() {
                     val module = py.getModule("chat_bridge")
                     module.callAttr("chat", text).toString()
                 }
-                Log.d(TAG, "AI 回复: $result")
+                Log.d(TAG, "AI 回复: ${result.take(100)}")
 
                 val reply = extractJsonValue(result, "reply")
                 val error = extractJsonValue(result, "message")
@@ -211,10 +310,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 从 Python 返回的 dict str 中提取字符串值。
-     * 简单解析 'key': 'value' 模式。
-     */
     private fun extractJsonValue(text: String, key: String): String? {
         val pattern = "'$key':\\s*'([^']*)'".toRegex()
         return pattern.find(text)?.groupValues?.getOrNull(1)

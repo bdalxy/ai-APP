@@ -37,6 +37,7 @@ from src.api_client.deepseek import ChatResponse, DeepSeekClient
 from src.chat_engine.card_parser import Card, CardParseError, CardParser
 from src.chat_engine.context_manager import ContextManager
 from src.chat_engine.prompt_builder import PromptBuilder
+from src.chat_engine.token_presets import TokenPreset, get_preset
 from src.utils.logger import get_logger
 
 
@@ -76,6 +77,7 @@ class RolePlayer:
         max_context_tokens: int = 4000,
         temperature: float = 0.9,
         max_tokens: int = 2000,
+        preset: str | TokenPreset | None = None,
     ) -> None:
         """初始化角色扮演对话实例。
 
@@ -84,11 +86,27 @@ class RolePlayer:
             max_context_tokens: 上下文管理器最大 token 数。
             temperature: API 采样温度 (0~2)，角色扮演建议 0.8~1.0。
             max_tokens: API 每次回复最大 token 数。
+            preset: Token 预设键名 ("quality"/"balanced"/"economy") 或 TokenPreset 实例。
+                    设置后将覆盖 max_context_tokens/temperature/max_tokens。
         """
         self.client: DeepSeekClient = client
+
+        # 如果提供了预设，应用预设配置
+        if preset is not None:
+            if isinstance(preset, str):
+                preset = get_preset(preset)
+            self._preset: TokenPreset = preset
+            max_context_tokens = preset.context_window
+            temperature = preset.temperature
+            max_tokens = preset.max_tokens
+            # 更新客户端的模型
+            self.client._chat_model = preset.model
+        else:
+            self._preset = None
+
         self.card: Card | None = None
         self.context: ContextManager = ContextManager(max_tokens=max_context_tokens)
-        self.prompt_builder: PromptBuilder = PromptBuilder()
+        self.prompt_builder: PromptBuilder = self._create_prompt_builder()
         self.world_book_entries: list[str] = []
         self.memories: list[str] = []
         self.temperature: float = temperature
@@ -99,7 +117,27 @@ class RolePlayer:
         self._log.info(
             f"RolePlayer 初始化完成: temperature={temperature}, "
             f"max_context_tokens={max_context_tokens}, max_tokens={max_tokens}"
+            + (f", preset={self._preset.key}" if self._preset else "")
         )
+
+    def _create_prompt_builder(self) -> PromptBuilder:
+        """根据预设配置创建 PromptBuilder。
+
+        Returns:
+            配置好的 PromptBuilder 实例。
+        """
+        if self._preset is not None:
+            return PromptBuilder(
+                max_system_prompt_chars=self._preset.system_prompt_chars,
+                card_max_chars=self._preset.card_max_chars,
+                world_book_max_chars=self._preset.world_book_max_chars,
+                memories_max_chars=self._preset.memories_max_chars,
+                guideline_max_chars=self._preset.guideline_max_chars,
+                max_example_dialogues=self._preset.max_example_dialogues,
+                include_guideline=self._preset.include_guideline,
+                include_creator_notes=self._preset.include_creator_notes,
+            )
+        return PromptBuilder()
 
     # -------------------------------------------------------------------------
     # 角色卡加载

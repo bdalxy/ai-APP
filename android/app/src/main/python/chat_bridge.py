@@ -7,13 +7,15 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
 数据流：
     Kotlin (MainActivity)
         → Chaquopy Python.getInstance()
-        → chat_bridge.init()     # 初始化：加载角色卡、配置 API
-        → chat_bridge.chat(msg)   # 发送消息，返回 AI 回复
-        → chat_bridge.reset()    # 重置对话上下文
+        → chat_bridge.set_api_key(key)   # 设置 API Key
+        → chat_bridge.init(preset)       # 初始化：加载角色卡、配置 API
+        → chat_bridge.chat(msg)          # 发送消息，返回 AI 回复
+        → chat_bridge.reset()            # 重置对话上下文
 """
 
 import os
 from pathlib import Path
+from typing import Any
 
 from src.api_client.deepseek import DeepSeekClient
 from src.chat_engine.role_player import RolePlayer, RolePlayerError
@@ -21,34 +23,51 @@ from src.config.settings import settings
 
 # 全局单例，整个应用生命周期内复用
 _player: "RolePlayer | None" = None
+_current_preset: str = "balanced"
 
 # Android 上的角色卡路径（与 Python 源码同目录的 data/role_cards/）
 _BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 _CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"
 
 
-def init() -> dict:
+def init(preset: str = "balanced") -> dict:
     """初始化聊天引擎。
 
     加载角色卡、配置 API 客户端。首次调用时自动完成。
+    如果已初始化，先关闭旧客户端再创建新实例。
+
+    Args:
+        preset: Token 预设模式 ("quality"/"balanced"/"economy")。
 
     Returns:
         {"status": "ok", "card": {"name": str, "nickname": str, "gender": str}}
         或 {"status": "error", "message": str}
     """
-    global _player
+    global _player, _current_preset
 
     try:
+        # 关闭旧客户端，避免资源泄露
+        if _player is not None:
+            try:
+                _player.client.close()
+            except Exception:
+                pass
+
         if not settings.DEEPSEEK_API_KEY:
-            return {"status": "error", "message": "API Key 未配置，请设置 DEEPSEEK_API_KEY 环境变量"}
+            return {"status": "error", "message": "API Key 未配置，请先设置 API Key"}
 
         client = DeepSeekClient()
-        _player = RolePlayer(client, max_context_tokens=4000, temperature=0.9, max_tokens=2000)
+        _current_preset = preset
+        _player = RolePlayer(
+            client,
+            preset=preset,
+        )
 
         # 使用与 chat_bridge.py 同目录下的角色卡
         _player.load_card(str(_CARD_PATH))
 
         info = _player.get_card_info()
+        info["preset"] = preset
         return {"status": "ok", "card": info}
     except FileNotFoundError as e:
         return {"status": "error", "message": f"角色卡文件不存在: {e}"}
@@ -106,7 +125,9 @@ def get_card_info() -> dict:
     if _player is None:
         return {"status": "error", "message": "引擎未初始化"}
     try:
-        return {"status": "ok", "card": _player.get_card_info()}
+        info: dict[str, Any] = dict(_player.get_card_info())
+        info["preset"] = _current_preset
+        return {"status": "ok", "card": info}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -129,3 +150,14 @@ def set_api_key(key: str) -> dict:
     os.environ["DEEPSEEK_API_KEY"] = key.strip()
     settings.DEEPSEEK_API_KEY = key.strip()
     return {"status": "ok"}
+
+
+def list_presets() -> dict:
+    """列出所有可用的 Token 预设。
+
+    Returns:
+        {"status": "ok", "presets": {...}}
+    """
+    from src.chat_engine.token_presets import list_presets as _list
+
+    return {"status": "ok", "presets": _list()}

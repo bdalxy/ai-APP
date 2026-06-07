@@ -213,6 +213,22 @@ class DeepSeekClient:
     # 内部方法：错误处理
     # -------------------------------------------------------------------------
 
+    @staticmethod
+    def _mask_sensitive(text: str) -> str:
+        """脱敏处理：隐藏 API Key 等敏感信息。
+
+        Args:
+            text: 原始文本。
+
+        Returns:
+            脱敏后的文本。
+        """
+        import re
+
+        # 掩码 sk- 开头的 key
+        text = re.sub(r"(sk-[a-zA-Z0-9]{4})[a-zA-Z0-9]+", r"\1****", text)
+        return text
+
     def _handle_http_error(self, response: requests.Response) -> None:
         """根据 HTTP 响应状态码抛出对应的异常。
 
@@ -243,7 +259,9 @@ class DeepSeekClient:
         else:
             error_msg = response.text
 
-        self._log.error(f"[API 错误] status={status_code}, body={str(error_msg)[:200]}")
+        self._log.error(
+            f"[API 错误] status={status_code}, body={self._mask_sensitive(str(error_msg)[:200])}"
+        )
 
         if status_code == 401:
             raise APIKeyError(f"认证失败 (401): {error_msg}")
