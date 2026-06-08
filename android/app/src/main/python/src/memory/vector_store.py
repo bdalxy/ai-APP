@@ -173,6 +173,7 @@ class VectorStore:
         self.db_path = str(db_path)
         self._log = get_logger()
         self._lock = Lock()
+        self._closed = False
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
@@ -180,7 +181,13 @@ class VectorStore:
         self._create_table()
         self.inverted_index = InvertedIndex()
         self._load_index()
+        self._add_count = 0  # WAL checkpoint 计数器
         self._log.info(f"VectorStore 初始化完成: db_path={self.db_path}, 记忆数={self.count()}, 索引关键词数={self.inverted_index.size()}")
+
+    def _check_closed(self) -> None:
+        """检查连接是否已关闭。"""
+        if self._closed:
+            raise MemoryStorageError("VectorStore 已关闭，无法执行操作")
 
     def _create_table(self) -> None:
         try:
@@ -206,6 +213,7 @@ class VectorStore:
             self._log.error(f"加载倒排索引失败: {e}")
 
     def add(self, entry: MemoryEntry) -> str:
+        self._check_closed()
         if not entry.keywords and entry.content:
             entry.keywords = extract_keywords(entry.content)
         if not entry.id:
@@ -215,7 +223,7 @@ class VectorStore:
             entry.created_at = format_timestamp_iso()
         if not entry.last_accessed:
             entry.last_accessed = entry.created_at
-        sql = f"""INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         params = (entry.id, entry.memory_type, entry.content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id)
         try:
             with self._lock:
@@ -225,10 +233,15 @@ class VectorStore:
                     self.inverted_index.add(entry.id, entry.keywords)
         except sqlite3.Error as e:
             raise MemoryStorageError(f"添加记忆失败: {e}", detail=f"id={entry.id}") from e
+        self._add_count += 1
+        # 每 100 次写入触发一次 WAL checkpoint，防止 wal 文件无限增长
+        if self._add_count % 100 == 0:
+            self._checkpoint()
         self._log.debug(f"记忆已添加: id={entry.id}, type={entry.memory_type}, content={entry.content[:50]}...")
         return entry.id
 
     def get(self, mem_id: str) -> MemoryEntry:
+        self._check_closed()
         sql = f"SELECT * FROM {self._TABLE_NAME} WHERE id = ?"
         try:
             with self._lock:
@@ -241,22 +254,50 @@ class VectorStore:
         return self._row_to_entry(row)
 
     def delete(self, mem_id: str) -> None:
-        try:
-            entry = self.get(mem_id)
-        except MemoryNotFoundError:
-            raise
+        """删除记忆（带 close 检查和 TOCTOU 保护）。
+
+        整个 get + delete + 索引更新在同一个锁内完成，
+        防止并发场景下数据不一致。
+        """
+        self._check_closed()
         sql = f"DELETE FROM {self._TABLE_NAME} WHERE id = ?"
         try:
             with self._lock:
+                # 在锁内先获取记忆，确认存在后再删除，防止 TOCTOU 竞态
+                cursor = self._conn.execute(f"SELECT * FROM {self._TABLE_NAME} WHERE id = ?", (mem_id,))
+                row = cursor.fetchone()
+                if row is None:
+                    raise MemoryNotFoundError(f"记忆不存在: {mem_id}", detail=f"id={mem_id}")
+                entry = self._row_to_entry(row)
                 self._conn.execute(sql, (mem_id,))
                 self._conn.commit()
                 if entry.keywords:
                     self.inverted_index.remove(mem_id, entry.keywords)
+        except MemoryNotFoundError:
+            raise
         except sqlite3.Error as e:
             raise MemoryStorageError(f"删除记忆失败: {e}", detail=f"id={mem_id}") from e
         self._log.debug(f"记忆已删除: id={mem_id}")
 
-    def search(self, query_embedding: list[float], query_text: str = "", top_k: int = 5) -> list[MemoryEntry]:
+    def search(self, query_embedding: list[float], query_text: str = "", top_k: int = 10) -> list[tuple[MemoryEntry, float]]:
+        """搜索与查询最相似的记忆。
+
+        混合检索流程：
+        1. 提取 query_text 关键词
+        2. 倒排索引预过滤 → 候选集
+        3. 如果候选集为空，回退到全量余弦相似度
+        4. 余弦相似度精排
+        5. 返回 top_k 结果，每项为 (MemoryEntry, similarity_score)
+
+        Args:
+            query_embedding: 查询文本的向量表示。
+            query_text: 查询原始文本（用于关键词提取和倒排索引预过滤）。
+            top_k: 返回的最大记忆数。
+
+        Returns:
+            list[tuple[MemoryEntry, float]]: 结果列表，每项为 (记忆条目, 余弦相似度分数)。
+        """
+        self._check_closed()
         candidates: list[MemoryEntry] = []
         if query_text:
             query_keywords = extract_keywords(query_text)
@@ -280,8 +321,8 @@ class VectorStore:
                 sim = 0.0
             scored.append((entry, sim))
         scored.sort(key=lambda x: x[1], reverse=True)
-        result = [entry for entry, _ in scored[:top_k]]
-        for entry in result:
+        result = scored[:top_k]
+        for entry, _score in result:
             self._record_access(entry)
         self._log.info(f"[检索] 完成: 候选={len(candidates)}, 返回={len(result)}, top_k={top_k}")
         return result
@@ -297,7 +338,7 @@ class VectorStore:
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
             self._log.error(f"批量查询记忆失败: {e}")
-            return []
+            raise MemoryStorageError(f"批量查询记忆失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
     def _get_all(self) -> list[MemoryEntry]:
@@ -308,7 +349,7 @@ class VectorStore:
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
             self._log.error(f"查询所有记忆失败: {e}")
-            return []
+            raise MemoryStorageError(f"查询所有记忆失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
     def _record_access(self, entry: MemoryEntry) -> None:
@@ -324,15 +365,17 @@ class VectorStore:
             self._log.debug(f"记录访问信息失败: {e}")
 
     def count(self) -> int:
+        self._check_closed()
         try:
             with self._lock:
                 cursor = self._conn.execute(f"SELECT COUNT(*) FROM {self._TABLE_NAME}")
                 return cursor.fetchone()[0]
         except sqlite3.Error as e:
             self._log.error(f"计数失败: {e}")
-            return 0
+            raise MemoryStorageError(f"计数失败: {e}") from e
 
     def clear(self) -> None:
+        self._check_closed()
         try:
             with self._lock:
                 self._conn.execute(f"DELETE FROM {self._TABLE_NAME}")
@@ -343,6 +386,7 @@ class VectorStore:
         self._log.info("所有记忆已清空")
 
     def get_by_type(self, memory_type: str) -> list[MemoryEntry]:
+        self._check_closed()
         sql = f"SELECT * FROM {self._TABLE_NAME} WHERE type = ?"
         try:
             with self._lock:
@@ -350,10 +394,11 @@ class VectorStore:
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
             self._log.error(f"按类型查询失败: {e}")
-            return []
+            raise MemoryStorageError(f"按类型查询失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
     def get_all(self) -> list[MemoryEntry]:
+        self._check_closed()
         return self._get_all()
 
     @staticmethod
@@ -374,8 +419,25 @@ class VectorStore:
         )
 
     def close(self) -> None:
+        """关闭数据库连接。
+
+        关闭后所有操作将抛出 MemoryStorageError。
+        """
+        if self._closed:
+            return
         try:
+            # 关闭前执行一次 checkpoint，确保 WAL 数据写入主数据库
+            self._checkpoint()
             self._conn.close()
+            self._closed = True
             self._log.info("VectorStore 数据库连接已关闭")
         except sqlite3.Error as e:
             self._log.error(f"关闭数据库连接失败: {e}")
+
+    def _checkpoint(self) -> None:
+        """执行 WAL checkpoint，将 WAL 日志合并到主数据库。"""
+        try:
+            with self._lock:
+                self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except sqlite3.Error as e:
+            self._log.debug(f"WAL checkpoint 失败（可忽略）: {e}")

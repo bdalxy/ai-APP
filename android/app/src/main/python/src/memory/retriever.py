@@ -46,27 +46,28 @@ class MemoryRetriever:
         except Exception:
             self._log.error("[检索] Embedding API 调用失败")
             raise
-        candidates = self.vector_store.search(query_embedding=query_embedding, query_text=query_text, top_k=top_k * 2)
-        if not candidates:
+        # VectorStore.search() 现在返回 list[tuple[MemoryEntry, float]]，自带分数
+        scored_candidates = self.vector_store.search(
+            query_embedding=query_embedding,
+            query_text=query_text,
+            top_k=top_k * 2,
+        )
+        if not scored_candidates:
             self._log.info("[检索] 无匹配结果")
             return []
         if apply_decay:
             now = datetime.now()
-            scored: list[tuple[MemoryEntry, float]] = []
-            for entry in candidates:
-                if entry.embedding and query_embedding:
-                    sim = cosine_similarity(query_embedding, entry.embedding)
-                else:
-                    sim = 0.0
+            combined: list[tuple[MemoryEntry, float]] = []
+            for entry, sim in scored_candidates:
                 weight = get_weight(entry, now)
                 combined_score = sim * 0.6 + weight * 0.4
-                scored.append((entry, combined_score))
-            scored.sort(key=lambda x: x[1], reverse=True)
-            filtered = [(entry, score) for entry, score in scored if score >= min_similarity]
+                combined.append((entry, combined_score))
+            combined.sort(key=lambda x: x[1], reverse=True)
+            filtered = [(entry, score) for entry, score in combined if score >= min_similarity]
             result = [entry for entry, _ in filtered[:top_k]]
         else:
-            result = candidates[:top_k]
-        self._log.info(f"[检索] 完成: 候选={len(candidates)}, 返回={len(result)}")
+            result = [entry for entry, _ in scored_candidates[:top_k]]
+        self._log.info(f"[检索] 完成: 候选={len(scored_candidates)}, 返回={len(result)}")
         return result
 
     def retrieve_by_type(self, query_text: str, memory_type: str, top_k: int = 5) -> list[MemoryEntry]:

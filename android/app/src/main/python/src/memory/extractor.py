@@ -334,8 +334,8 @@ class MemoryExtractor:
     def _deduplicate(self, new_entries: list[MemoryEntry]) -> list[MemoryEntry]:
         """去除与已有记忆高度相似的新条目。
 
-        对每条新记忆，检查是否与向量存储中已有记忆高度相似。
-        如果相似度超过阈值，则跳过该条目。
+        优先使用 embedding 余弦相似度进行语义去重（当新旧记忆都有 embedding 时），
+        回退到 bigram Jaccard 相似度进行字符级去重。
 
         Args:
             new_entries: 新提取的记忆条目列表。
@@ -350,17 +350,28 @@ class MemoryExtractor:
         if not existing_entries:
             return new_entries
 
+        # 按类型分组已有记忆，减少 O(n*m) 中的 n
+        existing_by_type: dict[str, list[MemoryEntry]] = {}
+        for e in existing_entries:
+            existing_by_type.setdefault(e.memory_type, []).append(e)
+
         kept: list[MemoryEntry] = []
 
         for new_entry in new_entries:
             is_duplicate = False
+            candidates = existing_by_type.get(new_entry.memory_type, [])
 
-            for existing in existing_entries:
-                if new_entry.memory_type != existing.memory_type:
-                    continue
+            for existing in candidates:
+                # 优先使用语义向量去重（如果双方都有 embedding）
+                if new_entry.embedding and existing.embedding:
+                    try:
+                        sim = cosine_similarity(new_entry.embedding, existing.embedding)
+                    except (ValueError, TypeError):
+                        sim = self._text_similarity(new_entry.content, existing.content)
+                else:
+                    # 回退到字符级 bigram Jaccard
+                    sim = self._text_similarity(new_entry.content, existing.content)
 
-                # 基于内容的简单相似度检查（字符级）
-                sim = self._text_similarity(new_entry.content, existing.content)
                 if sim >= self._DEDUP_SIMILARITY_THRESHOLD:
                     self._log.debug(
                         f"[去重] 跳过重复记忆: '{new_entry.content[:30]}...' "

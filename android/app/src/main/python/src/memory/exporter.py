@@ -14,12 +14,11 @@ from src.memory.vector_store import MemoryEntry
 from src.utils.logger import get_logger
 
 
-_DEFAULT_BATCH_SIZE: int = 100
 _EXPORT_ENCODING: str = "utf-8"
 _INDENT: int = 2
 
 
-def export_chat_history(messages: list[dict[str, str]], output_path: str | Path, batch_size: int = _DEFAULT_BATCH_SIZE) -> Path:
+def export_chat_history(messages: list[dict[str, str]], output_path: str | Path) -> Path:
     output_path = Path(output_path).resolve()
     temp_path = output_path.with_suffix(output_path.suffix + ".tmp")
     log = get_logger()
@@ -51,7 +50,7 @@ def export_chat_history(messages: list[dict[str, str]], output_path: str | Path,
     return output_path
 
 
-def export_memories(memories: list[MemoryEntry], output_path: str | Path, batch_size: int = _DEFAULT_BATCH_SIZE) -> Path:
+def export_memories(memories: list[MemoryEntry], output_path: str | Path) -> Path:
     output_path = Path(output_path).resolve()
     temp_path = output_path.with_suffix(output_path.suffix + ".tmp")
     log = get_logger()

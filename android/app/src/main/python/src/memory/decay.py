@@ -69,9 +69,27 @@ def calculate_decay(entry: MemoryEntry, current_time: datetime | None = None) ->
 
 
 def get_weight(entry: MemoryEntry, current_time: datetime | None = None) -> float:
+    """计算记忆的综合检索权重。
+
+    权重 = importance * decay * type_multiplier。
+    优先使用 entry.decay_factor（预计算值），
+    仅在 decay_factor 未设置或为 1.0 初始值时重新计算。
+
+    Args:
+        entry: 记忆条目。
+        current_time: 当前时间，默认东八区当前时间。
+
+    Returns:
+        综合权重（0.0 ~ 1.2）。
+    """
     if current_time is None:
         current_time = datetime.now(TZ_CST)
-    decay = calculate_decay(entry, current_time)
+    # 优先使用预计算的衰减因子（已通过 update_decay 设置）
+    # decay_factor == 1.0 是初始值，可能是未设置，需重新计算
+    if entry.decay_factor > 0 and entry.decay_factor < 1.0:
+        decay = entry.decay_factor
+    else:
+        decay = calculate_decay(entry, current_time)
     type_mult = TYPE_MULTIPLIERS.get(entry.memory_type, DEFAULT_TYPE_MULTIPLIER)
     weight = entry.importance * decay * type_mult
     return weight
