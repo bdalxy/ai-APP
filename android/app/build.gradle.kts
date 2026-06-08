@@ -19,8 +19,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // arm64-v8a: 真机；x86_64: 模拟器调试
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            // arm64-v8a: 真机（移除 x86_64 避免 Chaquopy move_to_common 冲突）
+            abiFilters += listOf("arm64-v8a")
         }
     }
 
@@ -47,8 +47,11 @@ android {
 // Chaquopy 17.0.0 新 DSL：在 chaquopy 块中配置，而非 python 块
 chaquopy {
     defaultConfig {
-        // 使用 Chaquopy 内置的 Python 3.10（默认版本，无需 buildPython）
+        // 使用 Python 3.10（运行时已缓存）
         version = "3.10"
+
+        // 不使用 pip {} 块和 buildPython，通过 requirements.txt 配置依赖
+        // 避免 Chaquopy 17.0.0 的 move_to_common bug 和 RECORD 文件兼容问题
     }
 }
 

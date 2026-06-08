@@ -14,8 +14,18 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
+
+# =============================================================================
+# Chaquopy 路径修复
+# 确保当前目录（src/main/python/）在 sys.path 中，
+# 这样 from src.xxx 的绝对导入才能正确解析。
+# =============================================================================
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _CURRENT_DIR not in sys.path:
+    sys.path.insert(0, _CURRENT_DIR)
 
 from src.api_client.deepseek import DeepSeekClient
 from src.chat_engine.role_player import RolePlayer, RolePlayerError

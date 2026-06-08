@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import json5
+import json
 
 from src.utils.logger import get_logger
 
@@ -202,7 +202,7 @@ class CardParser:
             raise CardParseError(f"读取文件失败: {e}", str(path))
 
         try:
-            data = json5.loads(raw_text)
+            data = json.loads(raw_text)
         except ValueError as e:
             raise CardParseError(f"JSON 解析失败: {e}", str(path))
 

@@ -34,21 +34,41 @@ class PromptBuilder:
     严格控制 System Prompt 长度，避免超出 context window。
 
     Attributes:
-        max_system_prompt_chars: System Prompt 最大字符数限制（默认 2000）。
+        max_system_prompt_chars: System Prompt 最大字符数限制。
         _log: 日志实例。
     """
 
-    # System Prompt 最大字符数限制
-    MAX_SYSTEM_PROMPT_CHARS: int = 2000
+    def __init__(
+        self,
+        max_system_prompt_chars: int = 2000,
+        card_max_chars: int = 1200,
+        world_book_max_chars: int = 400,
+        memories_max_chars: int = 300,
+        guideline_max_chars: int = 200,
+        max_example_dialogues: int = 3,
+        include_guideline: bool = True,
+        include_creator_notes: bool = False,
+    ) -> None:
+        """初始化 Prompt 组装器。
 
-    # 各部分的字符数上限
-    _CARD_MAX_CHARS: int = 1200
-    _WORLD_BOOK_MAX_CHARS: int = 400
-    _MEMORIES_MAX_CHARS: int = 300
-    _GUIDELINE_MAX_CHARS: int = 200
-
-    def __init__(self) -> None:
-        """初始化 Prompt 组装器。"""
+        Args:
+            max_system_prompt_chars: System Prompt 最大字符数限制。
+            card_max_chars: 角色卡部分最大字符数。
+            world_book_max_chars: 世界书部分最大字符数。
+            memories_max_chars: 记忆部分最大字符数。
+            guideline_max_chars: 对话指引部分最大字符数。
+            max_example_dialogues: 最多包含的示例对话条数（预留）。
+            include_guideline: 是否包含对话指引（预留）。
+            include_creator_notes: 是否包含创作者备注（预留）。
+        """
+        self.MAX_SYSTEM_PROMPT_CHARS: int = max_system_prompt_chars
+        self._CARD_MAX_CHARS: int = card_max_chars
+        self._WORLD_BOOK_MAX_CHARS: int = world_book_max_chars
+        self._MEMORIES_MAX_CHARS: int = memories_max_chars
+        self._GUIDELINE_MAX_CHARS: int = guideline_max_chars
+        self._max_example_dialogues: int = max_example_dialogues
+        self._include_guideline: bool = include_guideline
+        self._include_creator_notes: bool = include_creator_notes
         self._log = get_logger()
         self._log.debug("PromptBuilder 初始化完成")
 

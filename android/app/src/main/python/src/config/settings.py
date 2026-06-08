@@ -8,10 +8,19 @@ import os
 from pathlib import Path
 from typing import ClassVar
 
-from dotenv import load_dotenv
-from utils.logger import get_logger
+try:
+    from dotenv import load_dotenv as _load_dotenv
+except ImportError:
+    # Android 环境不需要 dotenv（API Key 通过 SharedPreferences 传入）
+    def _load_dotenv(*args: object, **kwargs: object) -> bool:
+        return False
 
-logger = get_logger()
+# 使用 loguru（已通过 pip 安装），失败则降级为标准 logging
+try:
+    from loguru import logger  # noqa: F401
+except ImportError:
+    import logging
+    logger = logging.getLogger("AICompanion")  # type: ignore[assignment]
 
 
 class Settings:
@@ -52,7 +61,7 @@ class Settings:
         # SharedPreferences 传递 API Key 给 Python 侧
         env_path = self.PROJECT_ROOT / ".env"
         if env_path.exists():
-            load_dotenv(dotenv_path=env_path)
+            _load_dotenv(dotenv_path=env_path)
             logger.info(f"已加载环境变量文件: {env_path}")
         else:
             logger.warning(f".env 文件不存在: {env_path}，将使用系统环境变量")
@@ -80,8 +89,11 @@ class Settings:
         data_dir_raw = os.getenv("DATA_DIR", "./data")
         self.DATA_DIR: Path = (self.PROJECT_ROOT / data_dir_raw).resolve()
 
-        # 确保数据目录存在
-        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        # 确保数据目录存在（Android 上可能是只读的，跳过）
+        try:
+            self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError):
+            pass
 
     def validate(self) -> bool:
         """验证必要配置是否完整。

@@ -1,6 +1,6 @@
 """基础配置类 - 从 .env 文件加载环境变量，提供 Settings 单例。
 
-使用 python-dotenv 加载 .env 文件，使用 loguru 做日志记录。
+使用 python-dotenv 加载 .env 文件（可选），使用 loguru 做日志记录。
 所有敏感配置（API Key 等）通过环境变量管理，不硬编码。
 """
 
@@ -8,7 +8,13 @@ import os
 from pathlib import Path
 from typing import ClassVar
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv as _load_dotenv
+except ImportError:
+    # Android 环境不需要 dotenv（API Key 通过 SharedPreferences 传入）
+    def _load_dotenv(*args: object, **kwargs: object) -> bool:
+        return False
+
 from loguru import logger
 
 
@@ -48,7 +54,7 @@ class Settings:
         # 加载 .env 文件
         env_path = self.PROJECT_ROOT / ".env"
         if env_path.exists():
-            load_dotenv(dotenv_path=env_path)
+            _load_dotenv(dotenv_path=env_path)
             logger.info(f"已加载环境变量文件: {env_path}")
         else:
             logger.warning(f".env 文件不存在: {env_path}，将使用系统环境变量")

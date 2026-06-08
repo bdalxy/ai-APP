@@ -231,10 +231,7 @@ class MainActivity : AppCompatActivity() {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
 
-                    // 设置 API Key
                     module.callAttr("set_api_key", apiKey)
-
-                    // 初始化引擎（传入预设模式 + 可选模型覆盖）
                     module.callAttr("init", preset, model).toString()
                 }
                 Log.i(TAG, "Python 初始化结果 (预设=$preset): $result")
@@ -248,6 +245,7 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Python 初始化失败: ${e.message}", e)
                 setStatus("初始化失败: ${e.message}")
                 isInitialized = false
+                enableInput()  // 即使失败也启用输入，让用户能操作设置
             }
         }
     }
