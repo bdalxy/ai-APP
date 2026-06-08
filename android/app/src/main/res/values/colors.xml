@@ -8,5 +8,6 @@
     <color name="onPrimary">#FFFFFFFF</color>
     <color name="onSecondary">#FF000000</color>
     <color name="onSurface">#FF1C1B1F</color>
+    <color name="surfaceVariant">#FFF5F5F5</color>
     <color name="onSurfaceVariant">#FF666666</color>
 </resources>
