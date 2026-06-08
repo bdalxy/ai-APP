@@ -78,6 +78,7 @@ class RolePlayer:
         temperature: float = 0.9,
         max_tokens: int = 2000,
         preset: str | TokenPreset | None = None,
+        model: str | None = None,
     ) -> None:
         """初始化角色扮演对话实例。
 
@@ -88,6 +89,7 @@ class RolePlayer:
             max_tokens: API 每次回复最大 token 数。
             preset: Token 预设键名 ("quality"/"balanced"/"economy") 或 TokenPreset 实例。
                     设置后将覆盖 max_context_tokens/temperature/max_tokens。
+            model: 模型名称，None 表示使用预设默认模型。
         """
         self.client: DeepSeekClient = client
 
@@ -99,10 +101,12 @@ class RolePlayer:
             max_context_tokens = preset.context_window
             temperature = preset.temperature
             max_tokens = preset.max_tokens
-            # 更新客户端的模型
-            self.client._chat_model = preset.model
+            # 用户指定的模型优先于预设模型
+            self.client._chat_model = model if model else preset.model
         else:
             self._preset = None
+            if model:
+                self.client._chat_model = model
 
         self.card: Card | None = None
         self.context: ContextManager = ContextManager(max_tokens=max_context_tokens)

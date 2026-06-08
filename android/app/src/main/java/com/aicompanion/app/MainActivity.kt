@@ -25,6 +25,9 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "AICompanion"
+        // 可用模型列表
+        private val MODELS = arrayOf("deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-lite")
+        private val MODEL_LABELS = arrayOf("v4-pro (最佳体验)", "v4-flash (平衡)", "v4-lite (最省)")
     }
 
     private lateinit var rvMessages: RecyclerView
@@ -123,8 +126,15 @@ class MainActivity : AppCompatActivity() {
         val presetValues = arrayOf("quality", "balanced", "economy")
         val currentIndex = presetValues.indexOf(currentPreset).coerceAtLeast(0)
 
+        val currentModel = AppConfig.getModel(this)
+        val modelLabel = if (currentModel.isNotBlank()) {
+            val idx = MODELS.indexOf(currentModel)
+            if (idx >= 0) MODEL_LABELS[idx] else currentModel
+        } else "跟随预设"
+
         val items = arrayOf(
             "Token 预设：${presetNames[currentIndex]}",
+            "模型：$modelLabel",
             "修改 API Key",
             "查看当前 API Key"
         )
@@ -134,11 +144,40 @@ class MainActivity : AppCompatActivity() {
             .setItems(items) { _, which ->
                 when (which) {
                     0 -> showPresetDialog(presetNames, presetValues, currentIndex)
-                    1 -> showApiKeyDialog()
-                    2 -> showCurrentApiKey()
+                    1 -> showModelDialog()
+                    2 -> showApiKeyDialog()
+                    3 -> showCurrentApiKey()
                 }
             }
             .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun showModelDialog() {
+        val currentModel = AppConfig.getModel(this)
+        val currentIdx = if (currentModel.isNotBlank()) {
+            MODELS.indexOf(currentModel).coerceAtLeast(0)
+        } else -1
+
+        val items = MODEL_LABELS + arrayOf("跟随预设（默认）")
+
+        AlertDialog.Builder(this)
+            .setTitle("选择模型")
+            .setSingleChoiceItems(items, if (currentIdx >= 0) currentIdx else 3) { dialog, which ->
+                dialog.dismiss()
+                if (which < MODELS.size) {
+                    AppConfig.setModel(this, MODELS[which])
+                    setStatus("模型已切换为：${MODEL_LABELS[which]}，下次对话生效")
+                } else {
+                    AppConfig.setModel(this, "")
+                    setStatus("模型已切换为：跟随预设，下次对话生效")
+                }
+                lifecycleScope.launch {
+                    isInitialized = false
+                    initPython()
+                }
+            }
+            .setNegativeButton("取消", null)
             .show()
     }
 
@@ -184,6 +223,7 @@ class MainActivity : AppCompatActivity() {
 
         val apiKey = AppConfig.getApiKey(this)
         val preset = AppConfig.getTokenPreset(this)
+        val model = AppConfig.getModel(this)
 
         lifecycleScope.launch {
             try {
@@ -194,8 +234,8 @@ class MainActivity : AppCompatActivity() {
                     // 设置 API Key
                     module.callAttr("set_api_key", apiKey)
 
-                    // 初始化引擎（传入预设模式）
-                    module.callAttr("init", preset).toString()
+                    // 初始化引擎（传入预设模式 + 可选模型覆盖）
+                    module.callAttr("init", preset, model).toString()
                 }
                 Log.i(TAG, "Python 初始化结果 (预设=$preset): $result")
                 isInitialized = true

@@ -12,6 +12,7 @@ object AppConfig {
     private const val PREFS_NAME = "ai_companion_prefs"
     private const val KEY_API_KEY = "api_key"
     private const val KEY_TOKEN_PRESET = "token_preset"
+    private const val KEY_MODEL = "model"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -35,5 +36,13 @@ object AppConfig {
 
     fun setTokenPreset(context: Context, preset: String) {
         getPrefs(context).edit().putString(KEY_TOKEN_PRESET, preset).apply()
+    }
+
+    fun getModel(context: Context): String {
+        return getPrefs(context).getString(KEY_MODEL, "") ?: ""
+    }
+
+    fun setModel(context: Context, model: String) {
+        getPrefs(context).edit().putString(KEY_MODEL, model).apply()
     }
 }

@@ -30,7 +30,7 @@ _BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 _CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"
 
 
-def init(preset: str = "balanced") -> dict:
+def init(preset: str = "balanced", model: str = "") -> dict:
     """初始化聊天引擎。
 
     加载角色卡、配置 API 客户端。首次调用时自动完成。
@@ -38,6 +38,7 @@ def init(preset: str = "balanced") -> dict:
 
     Args:
         preset: Token 预设模式 ("quality"/"balanced"/"economy")。
+        model: 模型名称，空字符串表示使用预设默认模型。
 
     Returns:
         {"status": "ok", "card": {"name": str, "nickname": str, "gender": str}}
@@ -61,6 +62,7 @@ def init(preset: str = "balanced") -> dict:
         _player = RolePlayer(
             client,
             preset=preset,
+            model=model if model else None,
         )
 
         # 使用与 chat_bridge.py 同目录下的角色卡
