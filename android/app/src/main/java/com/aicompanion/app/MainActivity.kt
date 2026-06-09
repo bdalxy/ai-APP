@@ -136,7 +136,8 @@ class MainActivity : AppCompatActivity() {
             "Token 预设：${presetNames[currentIndex]}",
             "模型：$modelLabel",
             "修改 API Key",
-            "查看当前 API Key"
+            "查看当前 API Key",
+            "记忆管理"
         )
 
         AlertDialog.Builder(this)
@@ -147,6 +148,7 @@ class MainActivity : AppCompatActivity() {
                     1 -> showModelDialog()
                     2 -> showApiKeyDialog()
                     3 -> showCurrentApiKey()
+                    4 -> showMemoryDialog()
                 }
             }
             .setNegativeButton("关闭", null)
@@ -241,6 +243,13 @@ class MainActivity : AppCompatActivity() {
 
                 val name = extractJsonValue(result, "name")
                 if (name != null) tvTitle.text = name
+
+                // 初始化记忆系统
+                try {
+                    initMemory()
+                } catch (e: Exception) {
+                    Log.w(TAG, "记忆系统初始化跳过: ${e.message}")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Python 初始化失败: ${e.message}", e)
                 setStatus("初始化失败: ${e.message}")
@@ -267,6 +276,13 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                // 检索相关记忆并注入 System Prompt
+                try {
+                    injectMemories(text)
+                } catch (e: Exception) {
+                    Log.w(TAG, "记忆注入跳过: ${e.message}")
+                }
+
                 val result = withContext(Dispatchers.IO) {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
@@ -351,5 +367,92 @@ class MainActivity : AppCompatActivity() {
     private fun extractJsonValue(text: String, key: String): String? {
         val pattern = "'$key':\\s*'([^']*)'".toRegex()
         return pattern.find(text)?.groupValues?.getOrNull(1)
+    }
+
+    private fun extractJsonInt(text: String, key: String): Int {
+        val pattern = "'$key':\\s*(\\d+)".toRegex()
+        return pattern.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+    }
+
+    // ========================================================================
+    // 记忆系统
+    // ========================================================================
+
+    /**
+     * 初始化记忆系统（在 initPython 成功后调用）。
+     */
+    private fun initMemory() {
+        lifecycleScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val py = com.chaquo.python.Python.getInstance()
+                    val module = py.getModule("chat_bridge")
+                    val dbPath = "${filesDir.absolutePath}/memory.db"
+                    module.callAttr("init_memory", dbPath).toString()
+                }
+                val count = extractJsonInt(result, "memory_count")
+                Log.i(TAG, "记忆系统初始化成功，已有 $count 条记忆")
+                if (count > 0) {
+                    setStatus("就绪 (已有 $count 条记忆)")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "记忆系统初始化失败（对话仍可用）: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * 检索相关记忆并注入到 System Prompt（在 sendMessage 前调用）。
+     */
+    private suspend fun injectMemories(queryText: String) {
+        val result = withContext(Dispatchers.IO) {
+            try {
+                val py = com.chaquo.python.Python.getInstance()
+                val module = py.getModule("chat_bridge")
+                module.callAttr("inject_memories", queryText).toString()
+            } catch (e: Exception) {
+                Log.w(TAG, "记忆检索失败: ${e.message}")
+                null
+            }
+        }
+        if (result != null) {
+            val count = extractJsonInt(result, "count")
+            if (count > 0) {
+                Log.d(TAG, "已注入 $count 条相关记忆")
+            }
+        }
+    }
+
+    /**
+     * 记忆管理对话框。
+     */
+    private fun showMemoryDialog() {
+        lifecycleScope.launch {
+            val stats = try {
+                withContext(Dispatchers.IO) {
+                    val py = com.chaquo.python.Python.getInstance()
+                    val module = py.getModule("chat_bridge")
+                    module.callAttr("get_memory_stats").toString()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "获取记忆统计失败: ${e.message}")
+                null
+            }
+
+            val total = if (stats != null) extractJsonInt(stats, "total") else -1
+            val message = if (stats != null) {
+                val byType = "'by_type':\\s*\\{([^}]+)\\}".toRegex().find(stats)?.groupValues?.getOrNull(1) ?: ""
+                "总记忆数：$total 条\n\n按类型分布：\n$byType".replace("'", "").replace(",", "\n")
+            } else {
+                "记忆系统未初始化\n\n请确保 API Key 已配置并重启 APP。"
+            }
+
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle("记忆管理")
+                .setMessage(message)
+                .setPositiveButton("同步统计") { _, _ -> setStatus("记忆统计已更新") }
+                .setNegativeButton("关闭", null)
+                .show()
+        }
     }
 }
