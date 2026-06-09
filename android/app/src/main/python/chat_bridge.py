@@ -111,7 +111,7 @@ def chat(user_input: str) -> dict:
         return {"status": "error", "message": "引擎未初始化，请先调用 init()"}
 
     if not user_input or not user_input.strip():
-        return {"status": "ok", "reply": ""}
+        return {"status": "error", "message": "消息不能为空"}
 
     try:
         user_input = user_input.strip()

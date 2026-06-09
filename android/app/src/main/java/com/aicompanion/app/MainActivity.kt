@@ -365,13 +365,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractJsonValue(text: String, key: String): String? {
-        val pattern = "'$key':\\s*'([^']*)'".toRegex()
-        return pattern.find(text)?.groupValues?.getOrNull(1)
+        // 优先用 JSONObject 解析（匹配 json.dumps 输出的双引号格式）
+        try {
+            val obj = org.json.JSONObject(text)
+            return if (obj.has(key)) obj.getString(key) else null
+        } catch (_: Exception) {}
+        // 降级：Python repr(dict) 单引号格式
+        val singleQuote = "'$key':\\s*'([^']*)'".toRegex()
+        return singleQuote.find(text)?.groupValues?.getOrNull(1)
     }
 
     private fun extractJsonInt(text: String, key: String): Int {
-        val pattern = "'$key':\\s*(\\d+)".toRegex()
-        return pattern.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+        // 优先用 JSONObject 解析（匹配 json.dumps 输出的双引号格式）
+        try {
+            val obj = org.json.JSONObject(text)
+            return obj.optInt(key, -1)
+        } catch (_: Exception) {}
+        // 降级：Python repr(dict) 单引号格式
+        val singleQuote = "'$key':\\s*(\\d+)".toRegex()
+        return singleQuote.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: -1
     }
 
     // ========================================================================
@@ -440,9 +452,17 @@ class MainActivity : AppCompatActivity() {
             }
 
             val total = if (stats != null) extractJsonInt(stats, "total") else -1
-            val message = if (stats != null) {
-                val byType = "'by_type':\\s*\\{([^}]+)\\}".toRegex().find(stats)?.groupValues?.getOrNull(1) ?: ""
-                "总记忆数：$total 条\n\n按类型分布：\n$byType".replace("'", "").replace(",", "\n")
+            val message = if (stats != null && total >= 0) {
+                val byTypeStr = try {
+                    val obj = org.json.JSONObject(stats)
+                    val byType = obj.getJSONObject("by_type")
+                    val sb = StringBuilder()
+                    byType.keys().forEach { key ->
+                        sb.append("  $key: ${byType.getInt(key)}\n")
+                    }
+                    sb.toString()
+                } catch (_: Exception) { "" }
+                "总记忆数：$total 条\n\n按类型分布：\n$byTypeStr"
             } else {
                 "记忆系统未初始化\n\n请确保 API Key 已配置并重启 APP。"
             }

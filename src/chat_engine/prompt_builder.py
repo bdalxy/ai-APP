@@ -207,7 +207,12 @@ class PromptBuilder:
         Returns:
             格式化的记忆文本。
         """
-        lines = ["## 相关记忆\n"]
+        lines = [
+            "## 关于对方的已知信息\n",
+            "以下是你之前了解到的关于对方的信息。请在对话中自然地运用，",
+            "不要逐条机械复述，也不要说"根据我的记忆"之类的话——",
+            "就像真正的朋友一样，在不经意间自然地提及。\n",
+        ]
         for i, memory in enumerate(memories, 1):
             lines.append(f"- {memory}")
         return "\n".join(lines)

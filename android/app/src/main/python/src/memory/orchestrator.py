@@ -55,7 +55,8 @@ class MemoryOrchestrator:
         self.client = deepseek_client
         self.extractor = MemoryExtractor(deepseek_client, vector_store)
         self.retriever = MemoryRetriever(vector_store, deepseek_client)
-        self._turn_count = 0  # 用于 LLM 提取节流
+        self._turn_count = 0          # 用于 LLM 提取节流
+        self._extract_interval = 5    # 每 N 轮启用一次 LLM 提取（P4 仅规则模式）
         self._log = get_logger()
         self._log.info("MemoryOrchestrator 初始化完成")
 

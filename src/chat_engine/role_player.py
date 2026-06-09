@@ -326,6 +326,10 @@ class RolePlayer:
         # 5. 将 AI 回复添加到上下文
         self.context.add_message("assistant", ai_reply)
 
+        # 6. 清空本轮注入的记忆，防止残留到下一轮
+        #    下一轮由 chat_bridge.inject_memories() 重新注入
+        self.memories = []
+
         self._log.debug(
             f"[对话] AI 回复: {ai_reply[:50]}... "
             f"(tokens={response.usage['total_tokens']})"
