@@ -2,33 +2,56 @@ package com.aicompanion.app
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
 /**
- * 应用配置管理（SharedPreferences）。
+ * 应用配置管理（EncryptedSharedPreferences）。
  *
- * 管理 API Key 和 Token 预设等持久化配置。
+ * API Key 使用 AES-256 加密存储，防止 root 设备直接读取。
+ * 其他非敏感配置（如 Token 预设、模型选择）使用普通 SharedPreferences。
  */
 object AppConfig {
     private const val PREFS_NAME = "ai_companion_prefs"
+    private const val SECURE_PREFS_NAME = "ai_companion_secure_prefs"
     private const val KEY_API_KEY = "api_key"
     private const val KEY_TOKEN_PRESET = "token_preset"
     private const val KEY_MODEL = "model"
 
+    /** 普通配置（非敏感） */
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    /** 加密配置（API Key 等敏感数据） */
+    private fun getSecurePrefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return EncryptedSharedPreferences.create(
+            context,
+            SECURE_PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    // ── API Key（加密存储）──
+
     fun getApiKey(context: Context): String {
-        return getPrefs(context).getString(KEY_API_KEY, "") ?: ""
+        return getSecurePrefs(context).getString(KEY_API_KEY, "") ?: ""
     }
 
     fun setApiKey(context: Context, key: String) {
-        getPrefs(context).edit().putString(KEY_API_KEY, key).apply()
+        getSecurePrefs(context).edit().putString(KEY_API_KEY, key).apply()
     }
 
     fun hasApiKey(context: Context): Boolean {
         return getApiKey(context).isNotBlank()
     }
+
+    // ── 非敏感配置（明文存储）──
 
     fun getTokenPreset(context: Context): String {
         return getPrefs(context).getString(KEY_TOKEN_PRESET, "balanced") ?: "balanced"

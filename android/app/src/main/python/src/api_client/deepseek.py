@@ -120,6 +120,19 @@ class DeepSeekClient:
         self._chat_model = model
         self._log.info(f"[模型] 已切换为: {model}")
 
+    def update_api_key(self, api_key: str) -> None:
+        """更新 API Key 并同步到 session header。
+        
+        当用户运行时修改 API Key 时调用此方法，
+        确保已存在的 DeepSeekClient 实例能使用新 Key。
+        
+        Args:
+            api_key: 新的 DeepSeek API Key。
+        """
+        self._api_key = api_key
+        self.session.headers["Authorization"] = f"Bearer {api_key}"
+        self._log.info("[API Key] session header 已更新")
+
     def _handle_http_error(self, response: requests.Response) -> None:
         status_code = response.status_code
         try:

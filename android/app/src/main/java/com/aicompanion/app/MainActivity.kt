@@ -236,7 +236,7 @@ class MainActivity : AppCompatActivity() {
                     module.callAttr("set_api_key", apiKey)
                     module.callAttr("init", preset, model).toString()
                 }
-                Log.i(TAG, "Python 初始化结果 (预设=$preset): $result")
+                Log.i(TAG, "Python 初始化结果 (预设=$preset): ${result.take(80)}")
                 isInitialized = true
                 setStatus("就绪")
                 enableInput()

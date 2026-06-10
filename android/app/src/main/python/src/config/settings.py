@@ -84,6 +84,9 @@ class Settings:
 
         # 日志配置
         self.LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+        # Android Release 构建默认 WARNING，避免 logcat 泄露用户对话
+        if os.getenv("ANDROID_BUILD_TYPE", "").lower() == "release":
+            self.LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
         # 数据存储路径（转换为绝对路径）
         data_dir_raw = os.getenv("DATA_DIR", "./data")

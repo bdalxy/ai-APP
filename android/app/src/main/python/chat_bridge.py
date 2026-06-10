@@ -172,9 +172,13 @@ def set_api_key(key: str) -> dict:
     """
     if not key or not key.strip():
         return {"status": "error", "message": "API Key 不能为空"}
+    key = key.strip()
     # 同时设置到环境变量和 Settings 单例
-    os.environ["DEEPSEEK_API_KEY"] = key.strip()
-    settings.DEEPSEEK_API_KEY = key.strip()
+    os.environ["DEEPSEEK_API_KEY"] = key
+    settings.DEEPSEEK_API_KEY = key
+    # 如果已有活跃的 DeepSeekClient，同步更新其 session header
+    if _player is not None and _player.client is not None:
+        _player.client.update_api_key(key)
     return {"status": "ok"}
 
 

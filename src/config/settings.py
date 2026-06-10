@@ -1,6 +1,6 @@
 """基础配置类 - 从 .env 文件加载环境变量，提供 Settings 单例。
 
-使用 python-dotenv 加载 .env 文件（可选），使用 loguru 做日志记录。
+使用 python-dotenv 加载 .env 文件，使用 loguru 做日志记录。
 所有敏感配置（API Key 等）通过环境变量管理，不硬编码。
 """
 
@@ -15,7 +15,12 @@ except ImportError:
     def _load_dotenv(*args: object, **kwargs: object) -> bool:
         return False
 
-from loguru import logger
+# 使用 loguru（已通过 pip 安装），失败则降级为标准 logging
+try:
+    from loguru import logger  # noqa: F401
+except ImportError:
+    import logging
+    logger = logging.getLogger("AICompanion")  # type: ignore[assignment]
 
 
 class Settings:
@@ -51,7 +56,9 @@ class Settings:
         # 确定项目根目录（src/config/settings.py 的上两级目录）
         self.PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 
-        # 加载 .env 文件
+        # 加载 .env 文件（PC 端）
+        # TODO(P3-P6): Android 端 .env 文件机制不可用，需通过 Kotlin 侧
+        # SharedPreferences 传递 API Key 给 Python 侧
         env_path = self.PROJECT_ROOT / ".env"
         if env_path.exists():
             _load_dotenv(dotenv_path=env_path)
@@ -77,15 +84,18 @@ class Settings:
 
         # 日志配置
         self.LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+        # Android Release 构建默认 WARNING，避免 logcat 泄露用户对话
+        if os.getenv("ANDROID_BUILD_TYPE", "").lower() == "release":
+            self.LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
         # 数据存储路径（转换为绝对路径）
         data_dir_raw = os.getenv("DATA_DIR", "./data")
         self.DATA_DIR: Path = (self.PROJECT_ROOT / data_dir_raw).resolve()
 
-        # 确保数据目录存在（Android 环境可能只读，静默处理）
+        # 确保数据目录存在（Android 上可能是只读的，跳过）
         try:
             self.DATA_DIR.mkdir(parents=True, exist_ok=True)
-        except OSError:
+        except (OSError, PermissionError):
             pass
 
     def validate(self) -> bool:
