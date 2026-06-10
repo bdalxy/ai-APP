@@ -34,21 +34,9 @@ class PromptBuilder:
     严格控制 System Prompt 长度，避免超出 context window。
 
     Attributes:
-        max_system_prompt_chars: System Prompt 最大字符数限制（默认 2000）。
-        max_example_dialogues: 最多包含的示例对话条数（默认 2）。
-        include_guideline: 是否包含对话指引（默认 True）。
-        include_creator_notes: 是否包含创作者备注（默认 False）。
+        max_system_prompt_chars: System Prompt 最大字符数限制。
         _log: 日志实例。
     """
-
-    # System Prompt 最大字符数限制
-    MAX_SYSTEM_PROMPT_CHARS: int = 2000
-
-    # 各部分的字符数上限
-    _CARD_MAX_CHARS: int = 1200
-    _WORLD_BOOK_MAX_CHARS: int = 400
-    _MEMORIES_MAX_CHARS: int = 300
-    _GUIDELINE_MAX_CHARS: int = 200
 
     def __init__(
         self,
@@ -57,35 +45,32 @@ class PromptBuilder:
         world_book_max_chars: int = 400,
         memories_max_chars: int = 300,
         guideline_max_chars: int = 200,
-        max_example_dialogues: int = 2,
+        max_example_dialogues: int = 3,
         include_guideline: bool = True,
         include_creator_notes: bool = False,
     ) -> None:
         """初始化 Prompt 组装器。
 
         Args:
-            max_system_prompt_chars: System Prompt 最大字符数。
+            max_system_prompt_chars: System Prompt 最大字符数限制。
             card_max_chars: 角色卡部分最大字符数。
             world_book_max_chars: 世界书部分最大字符数。
             memories_max_chars: 记忆部分最大字符数。
             guideline_max_chars: 对话指引部分最大字符数。
-            max_example_dialogues: 最多包含的示例对话条数。
-            include_guideline: 是否包含对话指引。
-            include_creator_notes: 是否包含创作者备注。
+            max_example_dialogues: 最多包含的示例对话条数（预留）。
+            include_guideline: 是否包含对话指引（预留）。
+            include_creator_notes: 是否包含创作者备注（预留）。
         """
-        self.max_system_prompt_chars = max_system_prompt_chars
-        self._card_max_chars = card_max_chars
-        self._world_book_max_chars = world_book_max_chars
-        self._memories_max_chars = memories_max_chars
-        self._guideline_max_chars = guideline_max_chars
-        self.max_example_dialogues = max_example_dialogues
-        self.include_guideline = include_guideline
-        self.include_creator_notes = include_creator_notes
+        self.MAX_SYSTEM_PROMPT_CHARS: int = max_system_prompt_chars
+        self._CARD_MAX_CHARS: int = card_max_chars
+        self._WORLD_BOOK_MAX_CHARS: int = world_book_max_chars
+        self._MEMORIES_MAX_CHARS: int = memories_max_chars
+        self._GUIDELINE_MAX_CHARS: int = guideline_max_chars
+        self._max_example_dialogues: int = max_example_dialogues
+        self._include_guideline: bool = include_guideline
+        self._include_creator_notes: bool = include_creator_notes
         self._log = get_logger()
-        self._log.debug(
-            f"PromptBuilder 初始化: system={max_system_prompt_chars}chars, "
-            f"card={card_max_chars}chars, example_dialogues<={max_example_dialogues}"
-        )
+        self._log.debug("PromptBuilder 初始化完成")
 
     # -------------------------------------------------------------------------
     # 公开方法
@@ -111,37 +96,33 @@ class PromptBuilder:
         """
         sections: list[tuple[str, str]] = []
 
-        # 1. 角色卡信息（最高优先级），限制示例对话数量
-        card_text = card.to_prompt_text(
-            max_example_dialogues=self.max_example_dialogues,
-            include_creator_notes=self.include_creator_notes,
-        )
-        sections.append(("card", self._truncate(card_text, self._card_max_chars)))
+        # 1. 角色卡信息（最高优先级）
+        card_text = card.to_prompt_text()
+        sections.append(("card", self._truncate(card_text, self._CARD_MAX_CHARS)))
 
         # 2. 世界书内容
         if world_book_entries:
             world_text = self._build_world_book_section(world_book_entries)
             sections.append(
-                ("world_book", self._truncate(world_text, self._world_book_max_chars))
+                ("world_book", self._truncate(world_text, self._WORLD_BOOK_MAX_CHARS))
             )
 
         # 3. 检索到的记忆
         if memories:
             memory_text = self._build_memories_section(memories)
             sections.append(
-                ("memories", self._truncate(memory_text, self._memories_max_chars))
+                ("memories", self._truncate(memory_text, self._MEMORIES_MAX_CHARS))
             )
 
-        # 4. 对话风格指引（可选）
-        if self.include_guideline:
-            guideline_text = self._build_guideline_section()
-            sections.append(
-                ("guideline", self._truncate(guideline_text, self._guideline_max_chars))
-            )
+        # 4. 对话风格指引
+        guideline_text = self._build_guideline_section()
+        sections.append(
+            ("guideline", self._truncate(guideline_text, self._GUIDELINE_MAX_CHARS))
+        )
 
         # 组装并做最终裁剪
         system_prompt = "\n\n".join(text for _, text in sections)
-        system_prompt = self._truncate(system_prompt, self.max_system_prompt_chars)
+        system_prompt = self._truncate(system_prompt, self.MAX_SYSTEM_PROMPT_CHARS)
 
         self._log.debug(
             f"System Prompt 构建完成: {len(system_prompt)} 字符, "
@@ -228,9 +209,15 @@ class PromptBuilder:
             "## 对话指引\n",
             "1. 严格遵循角色设定，以第一人称进行对话。",
             "2. 保持角色性格和说话风格的一致性。",
-            "3. 回应要自然、有情感，不要机械或过于正式。",
-            "4. 不要打破角色设定或提及角色设定本身，用角色的方式自然回应。",
-            "5. 回复长度适中，根据上下文灵活调整。",
+            "3. 不要打破角色设定，不要说作为AI之类的话。",
+            "4. 不要主动提及角色设定本身，用角色的方式自然地思考和回应。",
+            "",
+            "## 对话风格（非常重要）\n",
+            "- 你的回复必须简短自然，像微信聊天一样，一条消息只说一句话或半句话",
+            "- 不要写长篇大论，控制在5-30字以内",
+            "- 可以用口语化的语气词、省略号、问句",
+            "- 像真人朋友聊天，不是机器人客服",
+            "- 如果无话可说，一个表情或嗯嗯就够了",
         ]
         return "\n".join(lines)
 
