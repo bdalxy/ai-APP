@@ -290,9 +290,25 @@ class MemoryExtractor:
 
         try:
             items = json.loads(raw_text)
-        except json.JSONDecodeError as e:
-            self._log.error(f"LLM 返回的 JSON 解析失败: {e}, raw_text_len={len(raw_text)}")
-            return []
+        except json.JSONDecodeError:
+            # T-FIX-05: json.loads 失败后，尝试用正则提取 [{...}] 部分重试解析
+            match = re.search(r"\[[\s\S]*\]", raw_text)
+            if match:
+                try:
+                    items = json.loads(match.group(0))
+                    self._log.info("通过正则提取成功解析 JSON")
+                except json.JSONDecodeError as e2:
+                    self._log.warning(
+                        f"LLM 返回的 JSON 解析失败（正则重试也失败）: {e2}, "
+                        f"raw_text 前200字符: {raw_text[:200]}"
+                    )
+                    return []
+            else:
+                self._log.warning(
+                    f"LLM 返回的 JSON 解析失败，且未找到 JSON 数组, "
+                    f"raw_text 前200字符: {raw_text[:200]}"
+                )
+                return []
 
         if not isinstance(items, list):
             self._log.warning(f"LLM 返回格式异常，期望数组，实际: {type(items)}")
