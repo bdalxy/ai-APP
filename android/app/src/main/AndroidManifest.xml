@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <!-- 前台服务 + 通知权限（T5.2 主动推送） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".AICompanionApp"
         android:allowBackup="false"
@@ -26,6 +30,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".MemoryListActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- T5.2 主动推送前台服务 -->
+        <service
+            android:name=".ProactiveService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
     </application>
 
 </manifest>
