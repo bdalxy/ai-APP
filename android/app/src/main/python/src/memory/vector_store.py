@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import math
+import os
 import re
+import secrets
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
@@ -28,6 +31,109 @@ from threading import Lock
 
 from src.exceptions import MemoryException, MemoryNotFoundError, MemoryStorageError
 from src.utils.logger import get_logger
+
+
+# =============================================================================
+# 记忆内容加密工具（T-FIX-04）
+# =============================================================================
+
+# 加密密钥（懒加载，首次调用 _encrypt/_decrypt 时初始化）
+_ENCRYPTION_KEY: bytes | None = None
+_USE_FERNET: bool = False
+
+
+def _init_encryption() -> None:
+    """初始化加密密钥。
+
+    优先使用 cryptography.fernet（AES-CBC），不可用时回退到 base64 + XOR。
+    密钥从环境变量 MEMORY_ENCRYPTION_KEY 读取，不存在时生成随机密钥并输出警告日志。
+    """
+    global _ENCRYPTION_KEY, _USE_FERNET
+    _logger = get_logger()
+
+    # 尝试使用 Fernet（更安全的 AES-CBC 实现）
+    try:
+        from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+
+        _USE_FERNET = True
+        key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
+        if key_str:
+            _ENCRYPTION_KEY = key_str.encode("utf-8") if isinstance(key_str, str) else key_str
+        else:
+            _ENCRYPTION_KEY = Fernet.generate_key()
+            _logger.warning(
+                "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 Fernet 密钥。"
+                "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
+            )
+        _logger.info("[加密] 使用 cryptography.fernet (AES-CBC) 模式")
+        return
+    except ImportError:
+        _logger.info("[加密] cryptography 不可用，回退到 base64+XOR 模式")
+
+    # 回退到 base64 + XOR（MVP 方案）
+    key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
+    if key_str:
+        if isinstance(key_str, str):
+            key_str = key_str.encode("utf-8")
+        _ENCRYPTION_KEY = key_str
+    else:
+        _ENCRYPTION_KEY = secrets.token_bytes(32)
+        _logger.warning(
+            "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 XOR 密钥。"
+            "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
+        )
+
+
+def _encrypt(text: str) -> str:
+    """加密文本内容，返回 base64 编码的密文。
+
+    如果 text 为空字符串，直接返回空字符串（不加密）。
+    """
+    if not text:
+        return text
+    global _ENCRYPTION_KEY
+    if _ENCRYPTION_KEY is None:
+        _init_encryption()
+
+    if _USE_FERNET:
+        from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+
+        f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
+        return f.encrypt(text.encode("utf-8")).decode("ascii")
+    else:
+        # XOR + base64 MVP 方案
+        data = text.encode("utf-8")
+        key = _ENCRYPTION_KEY  # type: ignore[assignment]
+        encrypted = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])  # type: ignore[index]
+        return base64.b64encode(encrypted).decode("ascii")
+
+
+def _decrypt(encoded: str) -> str:
+    """解密文本内容。
+
+    如果 encoded 为空字符串，直接返回空字符串。
+    如果解密失败（例如旧明文数据），假定为明文直接返回。
+    """
+    if not encoded:
+        return encoded
+    global _ENCRYPTION_KEY
+    if _ENCRYPTION_KEY is None:
+        _init_encryption()
+
+    try:
+        if _USE_FERNET:
+            from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+
+            f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
+            return f.decrypt(encoded.encode("ascii")).decode("utf-8")
+        else:
+            encrypted = base64.b64decode(encoded)
+            key = _ENCRYPTION_KEY  # type: ignore[assignment]
+            decrypted = bytes([encrypted[i] ^ key[i % len(key)] for i in range(len(encrypted))])  # type: ignore[index]
+            return decrypted.decode("utf-8")
+    except Exception:
+        # 解密失败：可能是旧明文数据或密钥变更，直接返回原文
+        return encoded
 
 
 @dataclass
@@ -223,8 +329,10 @@ class VectorStore:
             entry.created_at = format_timestamp_iso()
         if not entry.last_accessed:
             entry.last_accessed = entry.created_at
+        # T-FIX-04: 加密 content 后再存储
+        encrypted_content = _encrypt(entry.content)
         sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        params = (entry.id, entry.memory_type, entry.content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id)
+        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id)
         try:
             with self._lock:
                 self._conn.execute(sql, params)
@@ -331,8 +439,8 @@ class VectorStore:
         if scored and all(s == 0.0 for _, s in scored):
             scored.sort(key=lambda x: x[0].last_accessed or "", reverse=True)
         result = scored[:top_k]
-        for entry, _score in result:
-            self._record_access(entry)
+        # T-FIX-06: 收集所有访问更新，使用 executemany 批量 UPDATE
+        self._batch_record_access([entry for entry, _ in result])
         self._log.info(f"[检索] 完成: 候选={len(candidates)}, 返回={len(result)}, top_k={top_k}")
         return result
 
@@ -372,6 +480,31 @@ class VectorStore:
                 self._conn.commit()
         except sqlite3.Error as e:
             self._log.debug(f"记录访问信息失败: {e}")
+
+    def _batch_record_access(self, entries: list[MemoryEntry]) -> None:
+        """T-FIX-06: 批量更新记忆访问信息，使用 executemany + 单次 COMMIT。
+
+        将原本 search() 中对每条结果逐一 UPDATE+COMMIT 的 N+1 模式，
+        改为收集所有更新后一次性批量提交。
+        """
+        if not entries:
+            return
+        from src.utils.time_utils import format_timestamp_iso
+
+        now = format_timestamp_iso()
+        updates: list[tuple[str, int, str]] = []
+        for entry in entries:
+            entry.access_count += 1
+            entry.last_accessed = now
+            updates.append((entry.last_accessed, entry.access_count, entry.id))
+
+        sql = f"UPDATE {self._TABLE_NAME} SET last_accessed = ?, access_count = ? WHERE id = ?"
+        try:
+            with self._lock:
+                self._conn.executemany(sql, updates)
+                self._conn.commit()
+        except sqlite3.Error as e:
+            self._log.debug(f"批量记录访问信息失败: {e}")
 
     def count(self) -> int:
         self._check_closed()
@@ -420,8 +553,10 @@ class VectorStore:
             embedding = json.loads(row[4])
         except (json.JSONDecodeError, TypeError):
             embedding = []
+        # T-FIX-04: 解密 content 字段
+        decrypted_content = _decrypt(row[2])
         return MemoryEntry(
-            id=row[0], memory_type=row[1], content=row[2], keywords=keywords,
+            id=row[0], memory_type=row[1], content=decrypted_content, keywords=keywords,
             embedding=embedding, importance=float(row[5]), created_at=row[6],
             last_accessed=row[7], access_count=int(row[8]), decay_factor=float(row[9]),
             source_turn_id=row[10],
