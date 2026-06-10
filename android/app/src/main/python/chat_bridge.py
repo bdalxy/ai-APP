@@ -35,7 +35,7 @@ from src.config.settings import settings
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
 
-_log = get_logger(__name__)
+_log = get_logger()
 
 # 全局应用上下文单例，统一管理 client/player/orchestrator 生命周期
 _ctx = AppContext.get_instance()
