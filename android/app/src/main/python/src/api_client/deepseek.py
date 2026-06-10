@@ -111,6 +111,15 @@ class DeepSeekClient:
         self._log = get_logger()
         self._log.info(f"DeepSeekClient 初始化完成 | base_url={self._base_url}, chat_model={self._chat_model}, embed_model={self._embed_model}")
 
+    def set_model(self, model: str) -> None:
+        """设置对话模型名称。
+        
+        Args:
+            model: 模型名称，如 "deepseek-chat"。
+        """
+        self._chat_model = model
+        self._log.info(f"[模型] 已切换为: {model}")
+
     def _handle_http_error(self, response: requests.Response) -> None:
         status_code = response.status_code
         try:

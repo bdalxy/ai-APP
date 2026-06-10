@@ -102,11 +102,11 @@ class RolePlayer:
             temperature = preset.temperature
             max_tokens = preset.max_tokens
             # 用户指定的模型优先于预设模型
-            self.client._chat_model = model if model else preset.model
+            self.client.set_model(model if model else preset.model)
         else:
             self._preset = None
             if model:
-                self.client._chat_model = model
+                self.client.set_model(model)
 
         self.card: Card | None = None
         self.context: ContextManager = ContextManager(max_tokens=max_context_tokens)
@@ -314,21 +314,23 @@ class RolePlayer:
         # 3. 组装完整 messages
         messages = self.prompt_builder.build_messages(system_prompt, self.context)
 
-        # 4. 调用 DeepSeek API
-        response: ChatResponse = self.client.chat(
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+        try:
+            # 4. 调用 DeepSeek API
+            response: ChatResponse = self.client.chat(
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
 
-        ai_reply = response.content
+            ai_reply = response.content
 
-        # 5. 将 AI 回复添加到上下文
-        self.context.add_message("assistant", ai_reply)
-
-        # 6. 清空本轮注入的记忆，防止残留到下一轮
-        #    下一轮由 chat_bridge.inject_memories() 重新注入
-        self.memories = []
+            # 5. 将 AI 回复添加到上下文
+            self.context.add_message("assistant", ai_reply)
+        finally:
+            # 6. 清空本轮注入的记忆，防止残留到下一轮
+            #    下一轮由 chat_bridge.inject_memories() 重新注入
+            #    使用 finally 确保即使 API 调用异常也能清空，防止幽灵记忆
+            self.memories = []
 
         self._log.debug(
             f"[对话] AI 回复: {ai_reply[:50]}... "

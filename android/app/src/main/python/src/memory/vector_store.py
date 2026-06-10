@@ -311,16 +311,25 @@ class VectorStore:
         if not candidates:
             return []
         scored: list[tuple[MemoryEntry, float]] = []
+        has_embedding = bool(query_embedding)
         for entry in candidates:
-            if entry.embedding:
+            if has_embedding and entry.embedding:
                 try:
                     sim = cosine_similarity(query_embedding, entry.embedding)
                 except ValueError:
                     sim = 0.0
+            elif not has_embedding and query_text:
+                # 无 embedding 时用关键词命中数作为分数（归一化）
+                entry_kw = set(entry.keywords) if entry.keywords else set()
+                match_count = len(query_keywords & entry_kw) if query_keywords else 0
+                sim = min(match_count / max(len(query_keywords), 1), 1.0)
             else:
                 sim = 0.0
             scored.append((entry, sim))
         scored.sort(key=lambda x: x[1], reverse=True)
+        # 如果所有分数都是 0（无 embedding 且无关键词匹配），按最近访问时间排序
+        if scored and all(s == 0.0 for _, s in scored):
+            scored.sort(key=lambda x: x[0].last_accessed or "", reverse=True)
         result = scored[:top_k]
         for entry, _score in result:
             self._record_access(entry)

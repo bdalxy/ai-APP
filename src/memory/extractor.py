@@ -31,13 +31,13 @@ from src.utils.time_utils import format_timestamp_iso
 
 # 用户事实的提取规则
 _USER_FACT_PATTERNS: list[tuple[re.Pattern, str]] = [
-    # "我是..." / "我叫..."
-    (re.compile(r"我是([\u4e00-\u9fff\w]{1,20})[，。；.!?！？\s]*$"), "user_fact"),
-    (re.compile(r"我叫([\u4e00-\u9fff\w]{1,20})[，。；.!?！？\s]*$"), "user_fact"),
-    # "我喜欢..." / "我不喜欢..."
-    (re.compile(r"我(喜欢|不喜欢|讨厌|爱)([\u4e00-\u9fff\w，,、\s]{2,50})"), "user_fact"),
-    # "我住在..." / "我的家乡是..."
-    (re.compile(r"我(住在|家在|的家乡是|在)([\u4e00-\u9fff\w，,、\s]{2,30})"), "user_fact"),
+    # "我是..." / "我叫..."（去掉 $ 锚点，支持句子中间出现）
+    (re.compile(r"我是([\u4e00-\u9fff\w]{1,20})"), "user_fact"),
+    (re.compile(r"我叫([\u4e00-\u9fff\w]{1,20})"), "user_fact"),
+    # "我喜欢..." / "我不喜欢..."（"我"可选，支持省略主语的流水句）
+    (re.compile(r"我?(喜欢|不喜欢|讨厌|爱)([\u4e00-\u9fff\w，,、\s]{2,30}?)(?:[，。；.!?！？]|$)"), "user_fact"),
+    # "我住在..." / "我的家乡是..."（"我"可选，支持省略主语的流水句）
+    (re.compile(r"我?(住在|家在|的家乡是|在)([\u4e00-\u9fff\w，,、\s]{2,30}?)(?:[，。；.!?！？]|$)"), "user_fact"),
     # "我[是/做/当]..." 职业/身份
     (re.compile(r"我(是|做|当|从事)([一个位名]*[\u4e00-\u9fff\w，,、\s]{2,30})"), "user_fact"),
     # "我[有/养]..." 宠物等
@@ -203,10 +203,13 @@ class MemoryExtractor:
             if not text:
                 continue
 
+            self._log.info(f"[规则提取] 处理消息: repr={repr(text[:80])}, len={len(text)}")
+
             # 提取用户事实
             for pattern, mem_type in _USER_FACT_PATTERNS:
                 for match in pattern.finditer(text):
                     content = match.group(0).strip()
+                    self._log.info(f"[规则提取] 匹配到: '{content}' (len={len(content)}, type={mem_type})")
                     if content and len(content) >= 3:
                         entry = MemoryEntry(
                             memory_type=mem_type,
@@ -222,6 +225,7 @@ class MemoryExtractor:
             for pattern in _EPISODIC_PATTERNS:
                 for match in pattern.finditer(text):
                     content = match.group(0).strip()
+                    self._log.info(f"[规则提取-事件] 匹配到: '{content}' (len={len(content)})")
                     if content and len(content) >= 5:
                         entry = MemoryEntry(
                             memory_type="episodic",
@@ -233,7 +237,7 @@ class MemoryExtractor:
                         )
                         entries.append(entry)
 
-        self._log.debug(f"[规则提取] 从 {len(user_messages)} 条消息中提取 {len(entries)} 条记忆")
+        self._log.info(f"[规则提取] 从 {len(user_messages)} 条消息中提取 {len(entries)} 条记忆")
         return entries
 
     # -------------------------------------------------------------------------
@@ -266,7 +270,7 @@ class MemoryExtractor:
             if msg.get("role") in ("user", "assistant")
         )
 
-        prompt = _MEMORY_EXTRACTION_PROMPT.format(conversation=conversation)
+        prompt = _MEMORY_EXTRACTION_PROMPT.replace("{conversation}", conversation)
 
         # 调用 LLM
         llm_messages = [{"role": "user", "content": prompt}]
@@ -334,8 +338,8 @@ class MemoryExtractor:
     def _deduplicate(self, new_entries: list[MemoryEntry]) -> list[MemoryEntry]:
         """去除与已有记忆高度相似的新条目。
 
-        对每条新记忆，检查是否与向量存储中已有记忆高度相似。
-        如果相似度超过阈值，则跳过该条目。
+        优先使用 embedding 余弦相似度进行语义去重（当新旧记忆都有 embedding 时），
+        回退到 bigram Jaccard 相似度进行字符级去重。
 
         Args:
             new_entries: 新提取的记忆条目列表。
@@ -350,17 +354,28 @@ class MemoryExtractor:
         if not existing_entries:
             return new_entries
 
+        # 按类型分组已有记忆，减少 O(n*m) 中的 n
+        existing_by_type: dict[str, list[MemoryEntry]] = {}
+        for e in existing_entries:
+            existing_by_type.setdefault(e.memory_type, []).append(e)
+
         kept: list[MemoryEntry] = []
 
         for new_entry in new_entries:
             is_duplicate = False
+            candidates = existing_by_type.get(new_entry.memory_type, [])
 
-            for existing in existing_entries:
-                if new_entry.memory_type != existing.memory_type:
-                    continue
+            for existing in candidates:
+                # 优先使用语义向量去重（如果双方都有 embedding）
+                if new_entry.embedding and existing.embedding:
+                    try:
+                        sim = cosine_similarity(new_entry.embedding, existing.embedding)
+                    except (ValueError, TypeError):
+                        sim = self._text_similarity(new_entry.content, existing.content)
+                else:
+                    # 回退到字符级 bigram Jaccard
+                    sim = self._text_similarity(new_entry.content, existing.content)
 
-                # 基于内容的简单相似度检查（字符级）
-                sim = self._text_similarity(new_entry.content, existing.content)
                 if sim >= self._DEDUP_SIMILARITY_THRESHOLD:
                     self._log.debug(
                         f"[去重] 跳过重复记忆: '{new_entry.content[:30]}...' "

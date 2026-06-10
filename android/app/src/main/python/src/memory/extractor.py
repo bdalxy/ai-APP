@@ -31,13 +31,13 @@ from src.utils.time_utils import format_timestamp_iso
 
 # 用户事实的提取规则
 _USER_FACT_PATTERNS: list[tuple[re.Pattern, str]] = [
-    # "我是..." / "我叫..."
-    (re.compile(r"我是([\u4e00-\u9fff\w]{1,20})[，。；.!?！？\s]*$"), "user_fact"),
-    (re.compile(r"我叫([\u4e00-\u9fff\w]{1,20})[，。；.!?！？\s]*$"), "user_fact"),
-    # "我喜欢..." / "我不喜欢..."
-    (re.compile(r"我(喜欢|不喜欢|讨厌|爱)([\u4e00-\u9fff\w，,、\s]{2,50})"), "user_fact"),
-    # "我住在..." / "我的家乡是..."
-    (re.compile(r"我(住在|家在|的家乡是|在)([\u4e00-\u9fff\w，,、\s]{2,30})"), "user_fact"),
+    # "我是..." / "我叫..."（去掉 $ 锚点，支持句子中间出现）
+    (re.compile(r"我是([\u4e00-\u9fff\w]{1,20})"), "user_fact"),
+    (re.compile(r"我叫([\u4e00-\u9fff\w]{1,20})"), "user_fact"),
+    # "我喜欢..." / "我不喜欢..."（"我"可选，支持省略主语的流水句）
+    (re.compile(r"我?(喜欢|不喜欢|讨厌|爱)([\u4e00-\u9fff\w，,、\s]{2,30}?)(?:[，。；.!?！？]|$)"), "user_fact"),
+    # "我住在..." / "我的家乡是..."（"我"可选，支持省略主语的流水句）
+    (re.compile(r"我?(住在|家在|的家乡是|在)([\u4e00-\u9fff\w，,、\s]{2,30}?)(?:[，。；.!?！？]|$)"), "user_fact"),
     # "我[是/做/当]..." 职业/身份
     (re.compile(r"我(是|做|当|从事)([一个位名]*[\u4e00-\u9fff\w，,、\s]{2,30})"), "user_fact"),
     # "我[有/养]..." 宠物等
@@ -203,10 +203,13 @@ class MemoryExtractor:
             if not text:
                 continue
 
+            self._log.info(f"[规则提取] 处理消息: repr={repr(text[:80])}, len={len(text)}")
+
             # 提取用户事实
             for pattern, mem_type in _USER_FACT_PATTERNS:
                 for match in pattern.finditer(text):
                     content = match.group(0).strip()
+                    self._log.info(f"[规则提取] 匹配到: '{content}' (len={len(content)}, type={mem_type})")
                     if content and len(content) >= 3:
                         entry = MemoryEntry(
                             memory_type=mem_type,
@@ -222,6 +225,7 @@ class MemoryExtractor:
             for pattern in _EPISODIC_PATTERNS:
                 for match in pattern.finditer(text):
                     content = match.group(0).strip()
+                    self._log.info(f"[规则提取-事件] 匹配到: '{content}' (len={len(content)})")
                     if content and len(content) >= 5:
                         entry = MemoryEntry(
                             memory_type="episodic",
@@ -233,7 +237,7 @@ class MemoryExtractor:
                         )
                         entries.append(entry)
 
-        self._log.debug(f"[规则提取] 从 {len(user_messages)} 条消息中提取 {len(entries)} 条记忆")
+        self._log.info(f"[规则提取] 从 {len(user_messages)} 条消息中提取 {len(entries)} 条记忆")
         return entries
 
     # -------------------------------------------------------------------------
@@ -266,7 +270,7 @@ class MemoryExtractor:
             if msg.get("role") in ("user", "assistant")
         )
 
-        prompt = _MEMORY_EXTRACTION_PROMPT.format(conversation=conversation)
+        prompt = _MEMORY_EXTRACTION_PROMPT.replace("{conversation}", conversation)
 
         # 调用 LLM
         llm_messages = [{"role": "user", "content": prompt}]

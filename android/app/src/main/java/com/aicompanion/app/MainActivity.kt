@@ -392,24 +392,30 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * 初始化记忆系统（在 initPython 成功后调用）。
+     * suspend 函数，与 initPython 在同一协程中执行。
      */
-    private fun initMemory() {
-        lifecycleScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-                    val dbPath = "${filesDir.absolutePath}/memory.db"
-                    module.callAttr("init_memory", dbPath).toString()
-                }
+    private suspend fun initMemory() {
+        try {
+            val result = withContext(Dispatchers.IO) {
+                val py = com.chaquo.python.Python.getInstance()
+                val module = py.getModule("chat_bridge")
+                // 传目录路径（filesDir），Python 端会在目录下创建 memories.db
+                module.callAttr("init_memory", filesDir.absolutePath).toString()
+            }
+            // 检查 status 字段，区分成功和失败
+            val status = extractJsonValue(result, "status")
+            if (status == "ok") {
                 val count = extractJsonInt(result, "memory_count")
                 Log.i(TAG, "记忆系统初始化成功，已有 $count 条记忆")
                 if (count > 0) {
                     setStatus("就绪 (已有 $count 条记忆)")
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "记忆系统初始化失败（对话仍可用）: ${e.message}")
+            } else {
+                val errorMsg = extractJsonValue(result, "message") ?: "未知错误"
+                Log.w(TAG, "记忆系统初始化失败: $errorMsg")
             }
+        } catch (e: Exception) {
+            Log.w(TAG, "记忆系统初始化失败（对话仍可用）: ${e.message}")
         }
     }
 
@@ -471,8 +477,31 @@ class MainActivity : AppCompatActivity() {
                 .setTitle("记忆管理")
                 .setMessage(message)
                 .setPositiveButton("同步统计") { _, _ -> setStatus("记忆统计已更新") }
+                .setNeutralButton("重置记忆") { _, _ -> resetMemories() }
                 .setNegativeButton("关闭", null)
                 .show()
+        }
+    }
+
+    private fun resetMemories() {
+        lifecycleScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    val py = com.chaquo.python.Python.getInstance()
+                    val module = py.getModule("chat_bridge")
+                    module.callAttr("reset_memories").toString()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "重置记忆失败: ${e.message}")
+                null
+            }
+            val deleted = if (result != null) extractJsonInt(result, "deleted") else -1
+            if (deleted >= 0) {
+                setStatus("已清除 $deleted 条记忆")
+                Log.i(TAG, "记忆已重置，删除了 $deleted 条")
+            } else {
+                Log.w(TAG, "记忆重置失败: $result")
+            }
         }
     }
 }

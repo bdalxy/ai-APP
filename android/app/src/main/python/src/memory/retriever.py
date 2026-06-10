@@ -42,10 +42,14 @@ class MemoryRetriever:
         self._log.debug(f"[检索] 开始: query='{query_text[:50]}...', top_k={top_k}")
         try:
             embed_resp = self.client.embed(query_text)
-            query_embedding = embed_resp.embeddings[0]
+            if embed_resp.embeddings:
+                query_embedding = embed_resp.embeddings[0]
+            else:
+                self._log.warning("[检索] Embedding API 返回空数据，降级为关键词检索")
+                query_embedding = []
         except Exception:
-            self._log.error("[检索] Embedding API 调用失败")
-            raise
+            self._log.warning("[检索] Embedding API 不可用，降级为关键词检索")
+            query_embedding = []  # 空向量 → vector_store 用关键词匹配
         # VectorStore.search() 现在返回 list[tuple[MemoryEntry, float]]，自带分数
         scored_candidates = self.vector_store.search(
             query_embedding=query_embedding,
@@ -77,7 +81,11 @@ class MemoryRetriever:
             return []
         try:
             embed_resp = self.client.embed(query_text)
-            query_embedding = embed_resp.embeddings[0]
+            if embed_resp.embeddings:
+                query_embedding = embed_resp.embeddings[0]
+            else:
+                self._log.error("[检索] Embedding API 返回空数据")
+                raise ValueError("Embedding API 返回空数据")
         except Exception:
             self._log.error("[检索] Embedding API 调用失败")
             raise
