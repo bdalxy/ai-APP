@@ -429,7 +429,8 @@ class VectorStore:
             elif not has_embedding and query_text:
                 # 无 embedding 时用关键词命中数作为分数（归一化）
                 entry_kw = set(entry.keywords) if entry.keywords else set()
-                match_count = len(query_keywords & entry_kw) if query_keywords else 0
+                query_kw = set(query_keywords) if query_keywords else set()
+                match_count = len(query_kw & entry_kw)
                 sim = min(match_count / max(len(query_keywords), 1), 1.0)
             else:
                 sim = 0.0
@@ -459,6 +460,11 @@ class VectorStore:
         return [self._row_to_entry(row) for row in rows]
 
     def _get_all(self) -> list[MemoryEntry]:
+        """全量加载所有记忆条目（内部方法）。
+        
+        警告：记忆量 > 2000 条时存在 OOM 风险，外部调用应优先使用
+        get_page() 分页加载或通过 search() 的混合检索路径。
+        """
         sql = f"SELECT * FROM {self._TABLE_NAME}"
         try:
             with self._lock:
@@ -469,119 +475,32 @@ class VectorStore:
             raise MemoryStorageError(f"查询所有记忆失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
-    def _record_access(self, entry: MemoryEntry) -> None:
-        from src.utils.time_utils import format_timestamp_iso
-        entry.access_count += 1
-        entry.last_accessed = format_timestamp_iso()
-        sql = f"UPDATE {self._TABLE_NAME} SET last_accessed = ?, access_count = ? WHERE id = ?"
-        try:
-            with self._lock:
-                self._conn.execute(sql, (entry.last_accessed, entry.access_count, entry.id))
-                self._conn.commit()
-        except sqlite3.Error as e:
-            self._log.debug(f"记录访问信息失败: {e}")
+    def get_page(self, offset: int, limit: int) -> list[MemoryEntry]:
+        """分页加载记忆条目（T4.6 OOM 防护）。
 
-    def _batch_record_access(self, entries: list[MemoryEntry]) -> None:
-        """T-FIX-06: 批量更新记忆访问信息，使用 executemany + 单次 COMMIT。
+        用于全量回退检索时的分页加载，避免一次性加载大量记忆导致 OOM。
+        每页独立从数据库加载，不在内存中累积已加载页。
 
-        将原本 search() 中对每条结果逐一 UPDATE+COMMIT 的 N+1 模式，
-        改为收集所有更新后一次性批量提交。
+        Args:
+            offset: 分页偏移量（从 0 开始）。
+            limit: 每页最大条数。
+
+        Returns:
+            MemoryEntry 列表，按 rowid 升序排列。
+
+        Raises:
+            MemoryStorageError: 数据库操作失败时抛出。
         """
-        if not entries:
-            return
-        from src.utils.time_utils import format_timestamp_iso
-
-        now = format_timestamp_iso()
-        updates: list[tuple[str, int, str]] = []
-        for entry in entries:
-            entry.access_count += 1
-            entry.last_accessed = now
-            updates.append((entry.last_accessed, entry.access_count, entry.id))
-
-        sql = f"UPDATE {self._TABLE_NAME} SET last_accessed = ?, access_count = ? WHERE id = ?"
-        try:
-            with self._lock:
-                self._conn.executemany(sql, updates)
-                self._conn.commit()
-        except sqlite3.Error as e:
-            self._log.debug(f"批量记录访问信息失败: {e}")
-
-    def count(self) -> int:
         self._check_closed()
+        sql = f"SELECT * FROM {self._TABLE_NAME} ORDER BY rowid LIMIT ? OFFSET ?"
         try:
             with self._lock:
-                cursor = self._conn.execute(f"SELECT COUNT(*) FROM {self._TABLE_NAME}")
-                return cursor.fetchone()[0]
-        except sqlite3.Error as e:
-            self._log.error(f"计数失败: {e}")
-            raise MemoryStorageError(f"计数失败: {e}") from e
-
-    def clear(self) -> None:
-        self._check_closed()
-        try:
-            with self._lock:
-                self._conn.execute(f"DELETE FROM {self._TABLE_NAME}")
-                self._conn.commit()
-                self.inverted_index.clear()
-        except sqlite3.Error as e:
-            raise MemoryStorageError(f"清空记忆失败: {e}") from e
-        self._log.info("所有记忆已清空")
-
-    def get_by_type(self, memory_type: str) -> list[MemoryEntry]:
-        self._check_closed()
-        sql = f"SELECT * FROM {self._TABLE_NAME} WHERE type = ?"
-        try:
-            with self._lock:
-                cursor = self._conn.execute(sql, (memory_type,))
+                cursor = self._conn.execute(sql, (limit, offset))
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
-            self._log.error(f"按类型查询失败: {e}")
-            raise MemoryStorageError(f"按类型查询失败: {e}") from e
+            self._log.error(f"分页加载记忆失败 (offset={offset}, limit={limit}): {e}")
+            raise MemoryStorageError(
+                f"分页加载记忆失败: {e}", detail=f"offset={offset}, limit={limit}"
+            ) from e
+        self._log.debug(f"[分页加载] offset={offset}, limit={limit}, 实际={len(rows)}")
         return [self._row_to_entry(row) for row in rows]
-
-    def get_all(self) -> list[MemoryEntry]:
-        self._check_closed()
-        return self._get_all()
-
-    @staticmethod
-    def _row_to_entry(row: tuple) -> MemoryEntry:
-        try:
-            keywords = json.loads(row[3])
-        except (json.JSONDecodeError, TypeError):
-            keywords = []
-        try:
-            embedding = json.loads(row[4])
-        except (json.JSONDecodeError, TypeError):
-            embedding = []
-        # T-FIX-04: 解密 content 字段
-        decrypted_content = _decrypt(row[2])
-        return MemoryEntry(
-            id=row[0], memory_type=row[1], content=decrypted_content, keywords=keywords,
-            embedding=embedding, importance=float(row[5]), created_at=row[6],
-            last_accessed=row[7], access_count=int(row[8]), decay_factor=float(row[9]),
-            source_turn_id=row[10],
-        )
-
-    def close(self) -> None:
-        """关闭数据库连接。
-
-        关闭后所有操作将抛出 MemoryStorageError。
-        """
-        if self._closed:
-            return
-        try:
-            # 关闭前执行一次 checkpoint，确保 WAL 数据写入主数据库
-            self._checkpoint()
-            self._conn.close()
-            self._closed = True
-            self._log.info("VectorStore 数据库连接已关闭")
-        except sqlite3.Error as e:
-            self._log.error(f"关闭数据库连接失败: {e}")
-
-    def _checkpoint(self) -> None:
-        """执行 WAL checkpoint，将 WAL 日志合并到主数据库。"""
-        try:
-            with self._lock:
-                self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        except sqlite3.Error as e:
-            self._log.debug(f"WAL checkpoint 失败（可忽略）: {e}")
