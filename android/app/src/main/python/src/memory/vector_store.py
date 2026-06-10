@@ -429,7 +429,8 @@ class VectorStore:
             elif not has_embedding and query_text:
                 # 无 embedding 时用关键词命中数作为分数（归一化）
                 entry_kw = set(entry.keywords) if entry.keywords else set()
-                match_count = len(query_keywords & entry_kw) if query_keywords else 0
+                query_kw = set(query_keywords) if query_keywords else set()
+                match_count = len(query_kw & entry_kw)
                 sim = min(match_count / max(len(query_keywords), 1), 1.0)
             else:
                 sim = 0.0
