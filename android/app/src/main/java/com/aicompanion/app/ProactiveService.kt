@@ -7,6 +7,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -56,7 +57,7 @@ class ProactiveService : Service() {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy")
-        serviceScope.coroutineContext.cancelChildren()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
