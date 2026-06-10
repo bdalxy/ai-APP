@@ -27,6 +27,7 @@ from src.exceptions import (
     APITimeoutError,
 )
 from src.utils.logger import get_logger
+from src.utils.lru_cache import LRUCache
 from src.utils.retry import retry
 
 
@@ -108,8 +109,9 @@ class DeepSeekClient:
             "Content-Type": "application/json",
         })
         self.cost_tracker = CostTracker()
+        self._embed_cache = LRUCache(capacity=500)
         self._log = get_logger()
-        self._log.info(f"DeepSeekClient 初始化完成 | base_url={self._base_url}, chat_model={self._chat_model}, embed_model={self._embed_model}")
+        self._log.info(f"DeepSeekClient 初始化完成 | base_url={self._base_url}, chat_model={self._chat_model}, embed_model={self._embed_model}, embed_cache=LRU(500)")
 
     def set_model(self, model: str) -> None:
         """设置对话模型名称。
@@ -235,6 +237,113 @@ class DeepSeekClient:
         vec_dim = len(all_embeddings[0]) if all_embeddings else 0
         self._log.info(f"[Embed] 成功: 文本={len(texts)}, 批次={batch_count}, 向量维度={vec_dim}, tokens={total_prompt_tokens}")
         return result
+
+    def embed_cached(self, texts: str | list[str]) -> EmbeddingResponse:
+        """带 LRU 缓存获取文本 Embedding 向量。
+
+        先查缓存，命中直接返回；未命中调用 embed() 后存入缓存。
+        支持单文本（str）和批量文本（list[str]）。
+
+        批量模式：逐条检查缓存，只对未缓存的文本调用 API，
+        然后按原始顺序合并缓存命中和新请求的结果。
+
+        Args:
+            texts: 单个文本或文本列表。
+
+        Returns:
+            EmbeddingResponse，包含 embeddings、model 和 usage。
+        """
+        # ---- 单文本模式 ----
+        if isinstance(texts, str):
+            cached = self._embed_cache.get(texts)
+            if cached is not None:
+                self._log.info(
+                    f"[EmbedCache] 命中: text='{texts[:30]}...'"
+                )
+                return EmbeddingResponse(
+                    embeddings=[cached],
+                    model=self._embed_model,
+                    usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                )
+            # 未命中，调用 API
+            self._log.info(
+                f"[EmbedCache] 未命中: text='{texts[:30]}...'"
+            )
+            result = self.embed(texts)
+            # 存入缓存
+            if result.embeddings:
+                self._embed_cache.put(texts, result.embeddings[0])
+            return result
+
+        # ---- 批量模式 ----
+        if not texts:
+            raise ValueError("texts 不能为空")
+
+        # 逐条检查缓存
+        cached_indices: dict[int, list[float]] = {}   # 索引 → 命中向量
+        uncached_indices: list[int] = []               # 未命中的索引
+        uncached_texts: list[str] = []                 # 未命中的文本
+
+        for i, t in enumerate(texts):
+            vec = self._embed_cache.get(t)
+            if vec is not None:
+                cached_indices[i] = vec
+            else:
+                uncached_indices.append(i)
+                uncached_texts.append(t)
+
+        hits = len(cached_indices)
+        misses = len(uncached_texts)
+        self._log.info(
+            f"[EmbedCache] 批量: 总数={len(texts)}, "
+            f"缓存命中={hits}, 未命中={misses}"
+        )
+
+        # 全部命中，直接返回
+        if not uncached_texts:
+            all_embeddings = [
+                cached_indices[i] for i in range(len(texts))
+            ]
+            return EmbeddingResponse(
+                embeddings=all_embeddings,
+                model=self._embed_model,
+                usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            )
+
+        # 只对未缓存的文本调用 API
+        new_result = self.embed(uncached_texts)
+
+        # 将新结果按原始索引插入
+        all_embeddings: list[list[float]] = []
+        new_idx = 0
+        for i in range(len(texts)):
+            if i in cached_indices:
+                all_embeddings.append(cached_indices[i])
+            else:
+                vec = new_result.embeddings[new_idx]
+                all_embeddings.append(vec)
+                # 存入缓存
+                self._embed_cache.put(texts[i], vec)
+                new_idx += 1
+
+        return EmbeddingResponse(
+            embeddings=all_embeddings,
+            model=self._embed_model,
+            usage=new_result.usage,
+        )
+
+    def get_embed_cache_stats(self) -> dict:
+        """获取 Embedding 缓存命中率统计。
+
+        Returns:
+            dict: 包含 hits、misses、total_queries、hit_rate、cache_size、capacity。
+        """
+        return self._embed_cache.stats()
+
+    def reset_embed_cache(self) -> None:
+        """重置 Embedding 缓存（清空缓存和统计计数器）。"""
+        self._embed_cache.reset()
+        self._log.info("[EmbedCache] 缓存已重置")
 
     def get_total_cost(self) -> float:
         return self.cost_tracker.get_total_cost()

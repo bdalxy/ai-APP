@@ -168,7 +168,7 @@ class MemoryOrchestrator:
             try:
                 # 3. 补充向量（失败不阻断）
                 try:
-                    embed_resp = self.client.embed(entry.content)
+                    embed_resp = self.client.embed_cached(entry.content)
                     entry.embedding = embed_resp.embeddings[0]
                 except Exception as e:
                     self._log.warning(
