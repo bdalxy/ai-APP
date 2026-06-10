@@ -213,7 +213,13 @@ class DeepSeekClient:
             except requests.exceptions.ConnectionError as e:
                 raise APIException(f"连接失败: {e}")
             if response.status_code != 200:
-                self._handle_http_error(response)
+                self._log.warning(
+                    f"[Embed] API 不可用 (status={response.status_code})，"
+                    f"记忆存储仍会继续(无向量索引): {response.text[:100]}"
+                )
+                raise APIException(
+                    f"Embedding API 不可用 (status={response.status_code})"
+                )
             data = response.json()
             batch_tokens = data.get("usage", {}).get("total_tokens", 0)
             total_prompt_tokens += batch_tokens
