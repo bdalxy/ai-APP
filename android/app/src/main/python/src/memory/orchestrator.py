@@ -61,6 +61,29 @@ class MemoryOrchestrator:
         self._log.info("MemoryOrchestrator 初始化完成")
 
     # =========================================================================
+    # 提取间隔配置
+    # =========================================================================
+
+    def set_extract_interval(self, n: int) -> None:
+        """设置 LLM 提取的间隔轮数。
+
+        每 N 轮对话触发一次 LLM 提取，其余轮次使用规则模式（rule）。
+        设置为 0 表示始终使用 LLM 模式。
+        设置为 1 表示每轮都使用 LLM 模式。
+        设置为非常大的值（如 999999）表示始终使用规则模式。
+
+        Args:
+            n: LLM 提取间隔轮数，必须 >= 0。
+        """
+        if n < 0:
+            raise ValueError(f"提取间隔不能为负数: {n}")
+        old = self._extract_interval
+        self._extract_interval = n
+        self._log.info(
+            f"[提取间隔] 已更新: {old} -> {n}"
+        )
+
+    # =========================================================================
     # 记忆存储
     # =========================================================================
 
@@ -74,7 +97,10 @@ class MemoryOrchestrator:
 
         流程：
             1. 构建本轮对话 messages（user + assistant）
-            2. 调用 extractor.extract() 提取记忆（MVP 阶段只用 rule 模式）
+            2. 根据节流策略决定提取模式：
+               - 每 _extract_interval 轮触发一次 LLM 提取（mode="llm"）
+               - 其余轮次使用规则模式（mode="rule"，零 API 开销）
+               - _extract_interval <= 0 时始终使用 LLM 模式
             3. 对新记忆调用 client.embed() 补充向量
             4. 调用 vector_store.add() 逐条存储
 
@@ -101,11 +127,27 @@ class MemoryOrchestrator:
             {"role": "assistant", "content": ai_reply},
         ]
 
-        # 2. 提取记忆（MVP 阶段只用规则模式，零 API 开销）
+        # 2. 提取记忆：根据节流策略决定使用 LLM 还是规则模式
+        #    每 _extract_interval 轮启用一次 LLM 提取，其余轮次使用规则模式
+        #    _extract_interval == 0 始终使用 LLM
+        use_llm: bool
+        if self._extract_interval <= 0:
+            use_llm = True
+        elif self._extract_interval == 1:
+            use_llm = True
+        else:
+            use_llm = (self._turn_count % self._extract_interval == 0)
+
+        extract_mode = "llm" if use_llm else "rule"
+        self._log.info(
+            f"[记忆存储] 第 {self._turn_count} 轮，"
+            f"节流间隔={self._extract_interval}，使用 {extract_mode} 模式提取"
+        )
+
         try:
             entries = self.extractor.extract(
                 messages,
-                mode="rule",
+                mode=extract_mode,
                 source_turn_id=turn_id,
             )
         except Exception as e:

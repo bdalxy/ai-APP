@@ -544,6 +544,223 @@ class VectorStore:
         self._check_closed()
         return self._get_all()
 
+    # =========================================================================
+    # 记忆 CRUD 扩展方法（T4.2）
+    # 使用 SQLite 隐式 rowid（整数）作为对外暴露的记忆 ID。
+    # =========================================================================
+
+    def get_by_rowid(self, rowid: int) -> MemoryEntry:
+        """按 rowid（整数 ID）获取单条记忆。
+
+        Args:
+            rowid: SQLite 隐式行 ID（从 1 开始）。
+
+        Returns:
+            对应的 MemoryEntry 实例。
+
+        Raises:
+            MemoryNotFoundError: rowid 不存在时抛出。
+            MemoryStorageError: 数据库操作失败时抛出。
+        """
+        self._check_closed()
+        sql = f"SELECT rowid, * FROM {self._TABLE_NAME} WHERE rowid = ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (rowid,))
+                row = cursor.fetchone()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"按 rowid 查询记忆失败: {e}", detail=f"rowid={rowid}") from e
+        if row is None:
+            raise MemoryNotFoundError(f"记忆不存在: rowid={rowid}", detail=f"rowid={rowid}")
+        return self._row_to_entry(row[1:])  # 跳过 rowid 列
+
+    def delete_by_rowid(self, rowid: int) -> MemoryEntry:
+        """按 rowid（整数 ID）删除记忆，返回被删除的条目。
+
+        先获取完整条目（用于清理倒排索引），再执行 DELETE。
+        整个操作在同一个锁内完成。
+
+        Args:
+            rowid: SQLite 隐式行 ID。
+
+        Returns:
+            被删除的 MemoryEntry。
+
+        Raises:
+            MemoryNotFoundError: rowid 不存在时抛出。
+            MemoryStorageError: 数据库操作失败时抛出。
+        """
+        self._check_closed()
+        sql_delete = f"DELETE FROM {self._TABLE_NAME} WHERE rowid = ?"
+        sql_select = f"SELECT rowid, * FROM {self._TABLE_NAME} WHERE rowid = ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql_select, (rowid,))
+                row = cursor.fetchone()
+                if row is None:
+                    raise MemoryNotFoundError(f"记忆不存在: rowid={rowid}", detail=f"rowid={rowid}")
+                entry = self._row_to_entry(row[1:])
+                self._conn.execute(sql_delete, (rowid,))
+                self._conn.commit()
+                if entry.keywords:
+                    self.inverted_index.remove(entry.id, entry.keywords)
+        except MemoryNotFoundError:
+            raise
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"按 rowid 删除记忆失败: {e}", detail=f"rowid={rowid}") from e
+        self._log.debug(f"记忆已按 rowid 删除: rowid={rowid}, id={entry.id}")
+        return entry
+
+    def update(
+        self,
+        rowid: int,
+        entry: MemoryEntry,
+    ) -> None:
+        """按 rowid 更新记忆条目。
+
+        更新所有字段（content, keywords, embedding, importance 等），
+        同时更新倒排索引（先移除旧关键词，再添加新关键词）。
+
+        Args:
+            rowid: SQLite 隐式行 ID。
+            entry: 包含更新后数据的 MemoryEntry。
+
+        Raises:
+            MemoryNotFoundError: rowid 不存在时抛出。
+            MemoryStorageError: 数据库操作失败时抛出。
+        """
+        self._check_closed()
+        if not entry.keywords and entry.content:
+            entry.keywords = extract_keywords(entry.content)
+        encrypted_content = _encrypt(entry.content)
+        sql_select = f"SELECT rowid, * FROM {self._TABLE_NAME} WHERE rowid = ?"
+        sql_update = f"""UPDATE {self._TABLE_NAME} SET
+            type = ?, content = ?, keywords = ?, embedding = ?,
+            importance = ?, created_at = ?, last_accessed = ?,
+            access_count = ?, decay_factor = ?, source_turn_id = ?
+            WHERE rowid = ?"""
+        params = (
+            entry.memory_type, encrypted_content,
+            json.dumps(entry.keywords, ensure_ascii=False),
+            json.dumps(entry.embedding),
+            entry.importance, entry.created_at, entry.last_accessed,
+            entry.access_count, entry.decay_factor, entry.source_turn_id,
+            rowid,
+        )
+        try:
+            with self._lock:
+                # 先查询旧条目（用于清理旧关键词）
+                cursor = self._conn.execute(sql_select, (rowid,))
+                row = cursor.fetchone()
+                if row is None:
+                    raise MemoryNotFoundError(f"记忆不存在: rowid={rowid}", detail=f"rowid={rowid}")
+                old_entry = self._row_to_entry(row[1:])
+                # 执行更新
+                self._conn.execute(sql_update, params)
+                self._conn.commit()
+                # 更新倒排索引
+                if old_entry.keywords:
+                    self.inverted_index.remove(old_entry.id, old_entry.keywords)
+                if entry.keywords:
+                    self.inverted_index.add(entry.id, entry.keywords)
+        except MemoryNotFoundError:
+            raise
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"更新记忆失败: {e}", detail=f"rowid={rowid}") from e
+        self._log.debug(f"记忆已更新: rowid={rowid}, id={entry.id}, content={entry.content[:50]}...")
+
+    def list_with_rowid(
+        self,
+        type_filter: str = "",
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[dict]:
+        """分页列出记忆，返回包含 rowid 的字典列表。
+
+        Args:
+            type_filter: 记忆类型过滤。空字符串表示不过滤。
+            offset: 分页偏移量（从 0 开始）。
+            limit: 每页最大条数。
+
+        Returns:
+            dict 列表，每项包含 rowid 和 MemoryEntry.to_dict() 的所有字段。
+        """
+        self._check_closed()
+        if type_filter:
+            sql = (
+                f"SELECT rowid, * FROM {self._TABLE_NAME} "
+                f"WHERE type = ? ORDER BY rowid DESC LIMIT ? OFFSET ?"
+            )
+            params = (type_filter, limit, offset)
+        else:
+            sql = (
+                f"SELECT rowid, * FROM {self._TABLE_NAME} "
+                f"ORDER BY rowid DESC LIMIT ? OFFSET ?"
+            )
+            params = (limit, offset)
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, params)
+                rows = cursor.fetchall()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"分页查询记忆失败: {e}") from e
+        results: list[dict] = []
+        for row in rows:
+            entry = self._row_to_entry(row[1:])
+            item = entry.to_dict()
+            item["rowid"] = row[0]
+            # 不返回完整 embedding（太大，前端不需要），只返回维度信息
+            item["embedding_dim"] = len(entry.embedding)
+            item.pop("embedding", None)
+            results.append(item)
+        return results
+
+    def search_by_keyword(self, keyword: str) -> list[dict]:
+        """按关键字在 content 字段中模糊搜索（LIKE）。
+
+        用于前端记忆可视化页面的关键字搜索。
+
+        Args:
+            keyword: 搜索关键字。
+
+        Returns:
+            dict 列表，每项包含 rowid 和 MemoryEntry.to_dict() 的所有字段。
+            按创建时间降序排列。
+        """
+        self._check_closed()
+        if not keyword or not keyword.strip():
+            return []
+        keyword = keyword.strip()
+        # 使用 LIKE 进行模糊匹配，search 内容是在加密之前，所以需要在解密后的 content 上搜索
+        # 策略：先获取所有记忆，在 Python 侧过滤
+        # 对于少量记忆（<1000条）这是可接受的
+        all_entries = self._get_all()
+        results: list[dict] = []
+        # 获取 rowid 映射：用 id 关联 rowid
+        id_to_rowid: dict[str, int] = {}
+        try:
+            with self._lock:
+                cursor = self._conn.execute(
+                    f"SELECT rowid, id FROM {self._TABLE_NAME}"
+                )
+                for row in cursor:
+                    id_to_rowid[row[1]] = row[0]
+        except sqlite3.Error as e:
+            self._log.error(f"获取 rowid 映射失败: {e}")
+            # 降级：只返回不带 rowid 的结果
+            id_to_rowid = {}
+
+        for entry in all_entries:
+            if keyword.lower() in entry.content.lower():
+                item = entry.to_dict()
+                item["rowid"] = id_to_rowid.get(entry.id, -1)
+                item["embedding_dim"] = len(entry.embedding)
+                item.pop("embedding", None)
+                results.append(item)
+        # 按创建时间降序
+        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return results
+
     @staticmethod
     def _row_to_entry(row: tuple) -> MemoryEntry:
         try:

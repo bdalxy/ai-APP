@@ -32,6 +32,7 @@ if _CURRENT_DIR not in sys.path:
 from src.app_context import AppContext
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
+from src.exceptions import MemoryNotFoundError
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
 
@@ -274,6 +275,33 @@ def reset_memories() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
+def set_extract_interval(n: int) -> dict:
+    """设置 LLM 提取的间隔轮数。
+
+    每 N 轮对话触发一次 LLM 提取，其余轮次使用规则模式。
+    - 默认值：5（每 5 轮触发一次 LLM 提取）
+    - 设为 0：始终使用 LLM 模式
+    - 设为 1：每轮都使用 LLM 模式
+    - 设为非常大的值（如 999999）：始终使用规则模式
+
+    Args:
+        n: LLM 提取间隔轮数，必须 >= 0。
+
+    Returns:
+        {"status": "ok", "extract_interval": int}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        orchestrator.set_extract_interval(n)
+        return json.dumps({"status": "ok", "extract_interval": n})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
 def inject_memories(query_text: str = "") -> dict:
     """检索相关记忆并注入到 RolePlayer 的 System Prompt。
 
@@ -342,5 +370,206 @@ def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> 
 
         stored_count = orchestrator.remember(turn_id, user_msg.strip(), ai_reply.strip())
         return json.dumps({"status": "ok", "stored_count": stored_count})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 记忆 CRUD 接口（T4.2）
+# 为前端记忆可视化页面提供增删改查接口。
+# 使用 SQLite rowid（整数 ID）作为对外暴露的记忆标识。
+# =============================================================================
+
+
+def list_memories(type_filter: str = "", page: int = 1, page_size: int = 50) -> dict:
+    """分页列出记忆，支持按类型筛选。
+
+    Args:
+        type_filter: 记忆类型过滤（"episodic"/"semantic"/"user_fact"）。空字符串表示不过滤。
+        page: 页码（从 1 开始）。
+        page_size: 每页条数（默认 50）。
+
+    Returns:
+        {"status": "ok", "items": [...], "total": int, "page": int, "page_size": int}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        page = max(1, page)
+        page_size = max(1, min(page_size, 200))
+        offset = (page - 1) * page_size
+        items = orchestrator.vector_store.list_with_rowid(
+            type_filter=type_filter if type_filter else "",
+            offset=offset,
+            limit=page_size,
+        )
+        total = orchestrator.vector_store.count()
+        return json.dumps({
+            "status": "ok",
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        })
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_memory(memory_id: int) -> dict:
+    """获取单条记忆详情。
+
+    Args:
+        memory_id: 记忆 rowid（整数 ID）。
+
+    Returns:
+        {"status": "ok", "memory": {...}}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        entry = orchestrator.vector_store.get_by_rowid(memory_id)
+        item = entry.to_dict()
+        item["rowid"] = memory_id
+        item["embedding_dim"] = len(entry.embedding)
+        item.pop("embedding", None)
+        return json.dumps({"status": "ok", "memory": item})
+    except MemoryNotFoundError:
+        return json.dumps({"status": "error", "message": f"记忆不存在: {memory_id}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def update_memory(memory_id: int, content: str) -> dict:
+    """更新记忆内容，重新生成 embedding。
+
+    流程：
+        1. 按 rowid 获取旧条目
+        2. 更新 content 并调用 embed API 重新向量化
+        3. 自动重新提取关键词
+        4. 写入数据库并更新倒排索引
+
+    Args:
+        memory_id: 记忆 rowid（整数 ID）。
+        content: 新的记忆内容。
+
+    Returns:
+        {"status": "ok", "memory": {...}}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    if not content or not content.strip():
+        return json.dumps({"status": "error", "message": "内容不能为空"})
+
+    try:
+        # 1. 获取旧条目
+        old_entry = orchestrator.vector_store.get_by_rowid(memory_id)
+        # 2. 更新内容
+        old_entry.content = content.strip()
+        old_entry.keywords = []  # 清空，让 update() 方法重新提取
+        # 3. 重新生成 embedding（失败不阻断，保留旧向量）
+        try:
+            embed_resp = orchestrator.client.embed(old_entry.content)
+            old_entry.embedding = embed_resp.embeddings[0]
+            _log.debug(f"[更新记忆] embedding 已重新生成: rowid={memory_id}")
+        except Exception as e:
+            _log.warning(f"[更新记忆] embedding 失败，保留旧向量: {e}")
+        # 4. 更新存储
+        orchestrator.vector_store.update(memory_id, old_entry)
+        # 5. 构建返回
+        item = old_entry.to_dict()
+        item["rowid"] = memory_id
+        item["embedding_dim"] = len(old_entry.embedding)
+        item.pop("embedding", None)
+        return json.dumps({"status": "ok", "memory": item})
+    except MemoryNotFoundError:
+        return json.dumps({"status": "error", "message": f"记忆不存在: {memory_id}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def delete_memory(memory_id: int) -> dict:
+    """删除单条记忆。
+
+    Args:
+        memory_id: 记忆 rowid（整数 ID）。
+
+    Returns:
+        {"status": "ok", "deleted": {"rowid": int, "id": str, "content": str}}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        deleted = orchestrator.vector_store.delete_by_rowid(memory_id)
+        content_preview = deleted.content[:50] + "..." if len(deleted.content) > 50 else deleted.content
+        return json.dumps({
+            "status": "ok",
+            "deleted": {
+                "rowid": memory_id,
+                "id": deleted.id,
+                "content": content_preview,
+            },
+        })
+    except MemoryNotFoundError:
+        return json.dumps({"status": "error", "message": f"记忆不存在: {memory_id}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def clear_memories() -> dict:
+    """清空全部记忆（不重置 _turn_counter）。
+
+    与 reset_memories() 的区别：
+        - reset_memories(): 清空记忆 + 重置 _turn_counter（用于调试/重置用户数据）
+        - clear_memories(): 仅清空记忆，保留 turn_counter（用于前端"清空全部"按钮）
+
+    Returns:
+        {"status": "ok", "deleted": int}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        count = orchestrator.vector_store.count()
+        orchestrator.vector_store.clear()
+        _log.info(f"[清空记忆] 已清空 {count} 条记忆，未重置 turn_counter")
+        return json.dumps({"status": "ok", "deleted": count})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def search_memories(keyword: str) -> dict:
+    """按关键字模糊搜索记忆（在 content 字段中不区分大小写搜索）。
+
+    Args:
+        keyword: 搜索关键字。
+
+    Returns:
+        {"status": "ok", "items": [...], "count": int}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    if not keyword or not keyword.strip():
+        return json.dumps({"status": "ok", "items": [], "count": 0})
+
+    try:
+        results = orchestrator.vector_store.search_by_keyword(keyword.strip())
+        return json.dumps({"status": "ok", "items": results, "count": len(results)})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
