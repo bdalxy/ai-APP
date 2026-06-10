@@ -365,25 +365,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractJsonValue(text: String, key: String): String? {
-        // 优先用 JSONObject 解析（匹配 json.dumps 输出的双引号格式）
-        try {
+        return try {
             val obj = org.json.JSONObject(text)
-            return if (obj.has(key)) obj.getString(key) else null
-        } catch (_: Exception) {}
-        // 降级：Python repr(dict) 单引号格式
-        val singleQuote = "'$key':\\s*'([^']*)'".toRegex()
-        return singleQuote.find(text)?.groupValues?.getOrNull(1)
+            if (obj.has(key)) obj.getString(key) else null
+        } catch (e: Exception) {
+            Log.w(TAG, "extractJsonValue 解析失败 (key=$key): ${e.message}")
+            null
+        }
     }
 
     private fun extractJsonInt(text: String, key: String): Int {
-        // 优先用 JSONObject 解析（匹配 json.dumps 输出的双引号格式）
-        try {
+        return try {
             val obj = org.json.JSONObject(text)
-            return obj.optInt(key, -1)
-        } catch (_: Exception) {}
-        // 降级：Python repr(dict) 单引号格式
-        val singleQuote = "'$key':\\s*(\\d+)".toRegex()
-        return singleQuote.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: -1
+            obj.optInt(key, -1)
+        } catch (e: Exception) {
+            Log.w(TAG, "extractJsonInt 解析失败 (key=$key): ${e.message}")
+            -1
+        }
     }
 
     // ========================================================================

@@ -13,6 +13,7 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
         → chat_bridge.reset()            # 重置对话上下文
 """
 
+import json
 import os
 import sys
 import threading
@@ -60,7 +61,7 @@ def init(preset: str = "balanced", model: str = "") -> dict:
     """
     try:
         if not settings.DEEPSEEK_API_KEY:
-            return {"status": "error", "message": "API Key 未配置，请先设置 API Key"}
+            return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
         # AppContext.initialize() 会先调用 shutdown() 清理旧资源（包括
         # orchestrator），再创建新的 client 和 player，从根本上解决切换
@@ -72,13 +73,13 @@ def init(preset: str = "balanced", model: str = "") -> dict:
 
         info = player.get_card_info()
         info["preset"] = preset
-        return {"status": "ok", "card": info}
+        return json.dumps({"status": "ok", "card": info})
     except FileNotFoundError as e:
-        return {"status": "error", "message": f"角色卡文件不存在: {e}"}
+        return json.dumps({"status": "error", "message": f"角色卡文件不存在: {e}"})
     except RolePlayerError as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def chat(user_input: str) -> dict:
@@ -94,10 +95,10 @@ def chat(user_input: str) -> dict:
     orchestrator = _ctx.orchestrator
 
     if player is None:
-        return {"status": "error", "message": "引擎未初始化，请先调用 init()"}
+        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
 
     if not user_input or not user_input.strip():
-        return {"status": "error", "message": "消息不能为空"}
+        return json.dumps({"status": "error", "message": "消息不能为空"})
 
     try:
         user_input = user_input.strip()
@@ -113,11 +114,11 @@ def chat(user_input: str) -> dict:
                 daemon=True,
             ).start()
 
-        return {"status": "ok", "reply": reply}
+        return json.dumps({"status": "ok", "reply": reply})
     except RolePlayerError as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def reset() -> dict:
@@ -129,7 +130,7 @@ def reset() -> dict:
     player = _ctx.player
     if player is not None:
         player.clear_context()
-    return {"status": "ok"}
+    return json.dumps({"status": "ok"})
 
 
 def get_card_info() -> dict:
@@ -140,13 +141,13 @@ def get_card_info() -> dict:
     """
     player = _ctx.player
     if player is None:
-        return {"status": "error", "message": "引擎未初始化"}
+        return json.dumps({"status": "error", "message": "引擎未初始化"})
     try:
         info: dict[str, Any] = dict(player.get_card_info())
         info["preset"] = _ctx.current_preset
-        return {"status": "ok", "card": info}
+        return json.dumps({"status": "ok", "card": info})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def set_api_key(key: str) -> dict:
@@ -162,7 +163,7 @@ def set_api_key(key: str) -> dict:
         {"status": "ok"}
     """
     if not key or not key.strip():
-        return {"status": "error", "message": "API Key 不能为空"}
+        return json.dumps({"status": "error", "message": "API Key 不能为空"})
     key = key.strip()
     # 同时设置到环境变量和 Settings 单例
     os.environ["DEEPSEEK_API_KEY"] = key
@@ -171,7 +172,7 @@ def set_api_key(key: str) -> dict:
     client = _ctx.client
     if client is not None:
         client.update_api_key(key)
-    return {"status": "ok"}
+    return json.dumps({"status": "ok"})
 
 
 def list_presets() -> dict:
@@ -182,7 +183,7 @@ def list_presets() -> dict:
     """
     from src.chat_engine.token_presets import list_presets as _list
 
-    return {"status": "ok", "presets": _list()}
+    return json.dumps({"status": "ok", "presets": _list()})
 
 
 # =============================================================================
@@ -231,14 +232,14 @@ def init_memory(db_path: str) -> dict:
         或 {"status": "error", "message": str}
     """
     if _ctx.player is None:
-        return {"status": "error", "message": "聊天引擎未初始化，请先调用 init()"}
+        return json.dumps({"status": "error", "message": "聊天引擎未初始化，请先调用 init()"})
 
     try:
         orchestrator = _ctx.init_memory(db_path)
         memory_count = orchestrator.vector_store.count()
-        return {"status": "ok", "memory_count": memory_count}
+        return json.dumps({"status": "ok", "memory_count": memory_count})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def get_memory_stats() -> dict:
@@ -250,27 +251,27 @@ def get_memory_stats() -> dict:
     """
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
-        return {"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"}
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
 
     try:
         stats = orchestrator.get_stats()
-        return {"status": "ok", **stats}
+        return json.dumps({"status": "ok", **stats})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def reset_memories() -> dict:
     """清除所有记忆（调试用）。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
-        return {"status": "error", "message": "记忆系统未初始化"}
+        return json.dumps({"status": "error", "message": "记忆系统未初始化"})
     try:
         count = orchestrator.vector_store.count()
         orchestrator.vector_store.clear()
         _ctx.reset_turn_counter()
-        return {"status": "ok", "deleted": count}
+        return json.dumps({"status": "ok", "deleted": count})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def inject_memories(query_text: str = "") -> dict:
@@ -291,13 +292,13 @@ def inject_memories(query_text: str = "") -> dict:
     player = _ctx.player
 
     if orchestrator is None:
-        return {"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"}
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
 
     if player is None:
-        return {"status": "error", "message": "聊天引擎未初始化，请先调用 init()"}
+        return json.dumps({"status": "error", "message": "聊天引擎未初始化，请先调用 init()"})
 
     if not query_text or not query_text.strip():
-        return {"status": "ok", "count": 0, "memories": []}
+        return json.dumps({"status": "ok", "count": 0, "memories": []})
 
     try:
         # 从记忆库检索
@@ -306,9 +307,9 @@ def inject_memories(query_text: str = "") -> dict:
         # 注入到 RolePlayer
         player.inject_memories(memories)
 
-        return {"status": "ok", "count": len(memories), "memories": memories}
+        return json.dumps({"status": "ok", "count": len(memories), "memories": memories})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> dict:
@@ -329,10 +330,10 @@ def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> 
     """
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
-        return {"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"}
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
 
     if not user_msg or not ai_reply:
-        return {"status": "error", "message": "user_msg 和 ai_reply 不能为空"}
+        return json.dumps({"status": "error", "message": "user_msg 和 ai_reply 不能为空"})
 
     try:
         if not turn_id:
@@ -340,6 +341,6 @@ def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> 
             turn_id = f"turn_{turn_num}_{format_timestamp_iso()}"
 
         stored_count = orchestrator.remember(turn_id, user_msg.strip(), ai_reply.strip())
-        return {"status": "ok", "stored_count": stored_count}
+        return json.dumps({"status": "ok", "stored_count": stored_count})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return json.dumps({"status": "error", "message": str(e)})
