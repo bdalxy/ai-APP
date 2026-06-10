@@ -33,6 +33,9 @@ from src.config.settings import settings
 from src.memory.vector_store import VectorStore
 from src.memory.orchestrator import MemoryOrchestrator
 from src.utils.time_utils import format_timestamp_iso
+from src.utils.logger import get_logger
+
+_log = get_logger(__name__)
 
 # 全局单例，整个应用生命周期内复用
 _player: "RolePlayer | None" = None
