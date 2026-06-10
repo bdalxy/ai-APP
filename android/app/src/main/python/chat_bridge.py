@@ -15,6 +15,7 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
 
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -27,27 +28,11 @@ _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _CURRENT_DIR not in sys.path:
     sys.path.insert(0, _CURRENT_DIR)
 
-from src.api_client.deepseek import DeepSeekClient
-from src.chat_engine.role_player import RolePlayer, RolePlayerError
+from src.app_context import AppContext
 from src.config.settings import settings
-from src.memory.vector_store import VectorStore
-from src.memory.orchestrator import MemoryOrchestrator
 from src.utils.time_utils import format_timestamp_iso
-from src.utils.logger import get_logger
 
-_log = get_logger(__name__)
-
-# 全局单例，整个应用生命周期内复用
-_player: "RolePlayer | None" = None
-_current_preset: str = "balanced"
-
-# 记忆系统全局单例
-_orchestrator: "MemoryOrchestrator | None" = None
-_turn_counter: int = 0
-
-# Android 上的角色卡路径（与 Python 源码同目录的 data/role_cards/）
-_BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
-_CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"
+_ctx = AppContext.get_instance()
 
 
 def init(preset: str = "balanced", model: str = "") -> dict:
@@ -64,37 +49,22 @@ def init(preset: str = "balanced", model: str = "") -> dict:
         {"status": "ok", "card": {"name": str, "nickname": str, "gender": str}}
         或 {"status": "error", "message": str}
     """
-    global _player, _current_preset
+    try:
+        player = _ctx.initialize(preset, model)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
 
     try:
-        # 关闭旧客户端，避免资源泄露
-        if _player is not None:
-            try:
-                _player.client.close()
-            except Exception:
-                _log.warning("[清理] 关闭旧客户端时忽略异常（通常无害）")
-
-        if not settings.DEEPSEEK_API_KEY:
-            return {"status": "error", "message": "API Key 未配置，请先设置 API Key"}
-
-        client = DeepSeekClient()
-        _current_preset = preset
-        _player = RolePlayer(
-            client,
-            preset=preset,
-            model=model if model else None,
-        )
-
         # 使用与 chat_bridge.py 同目录下的角色卡
-        _player.load_card(str(_CARD_PATH))
+        _BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
+        _CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"
+        player.load_card(str(_CARD_PATH))
 
-        info = _player.get_card_info()
+        info = player.get_card_info()
         info["preset"] = preset
         return {"status": "ok", "card": info}
     except FileNotFoundError as e:
         return {"status": "error", "message": f"角色卡文件不存在: {e}"}
-    except RolePlayerError as e:
-        return {"status": "error", "message": str(e)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -108,9 +78,12 @@ def chat(user_input: str) -> dict:
     Returns:
         {"status": "ok", "reply": str} 或 {"status": "error", "message": str}
     """
-    global _player
+    from src.chat_engine.role_player import RolePlayerError
 
-    if _player is None:
+    player = _ctx.player
+    orchestrator = _ctx.orchestrator
+
+    if player is None:
         return {"status": "error", "message": "引擎未初始化，请先调用 init()"}
 
     if not user_input or not user_input.strip():
@@ -118,12 +91,17 @@ def chat(user_input: str) -> dict:
 
     try:
         user_input = user_input.strip()
-        reply = _player.chat(user_input)
+        reply = player.chat(user_input)
 
-        # 记忆存储：对话完成后自动提取并存储本轮记忆
+        # 记忆存储：异步执行，不阻塞对话回复
+        # 使用 daemon 线程，主进程退出时自动结束
         # 记忆存储失败不影响对话，仅在 orchestrator 已初始化时执行
-        if _orchestrator is not None and reply:
-            _auto_remember(user_input, reply)
+        if orchestrator is not None and reply:
+            threading.Thread(
+                target=_auto_remember,
+                args=(user_input, reply),
+                daemon=True,
+            ).start()
 
         return {"status": "ok", "reply": reply}
     except RolePlayerError as e:
@@ -138,10 +116,9 @@ def reset() -> dict:
     Returns:
         {"status": "ok"}
     """
-    global _player
-
-    if _player is not None:
-        _player.clear_context()
+    player = _ctx.player
+    if player is not None:
+        player.clear_context()
     return {"status": "ok"}
 
 
@@ -151,11 +128,12 @@ def get_card_info() -> dict:
     Returns:
         {"status": "ok", "card": {...}} 或 {"status": "error", "message": str}
     """
-    if _player is None:
+    player = _ctx.player
+    if player is None:
         return {"status": "error", "message": "引擎未初始化"}
     try:
-        info: dict[str, Any] = dict(_player.get_card_info())
-        info["preset"] = _current_preset
+        info: dict[str, Any] = dict(player.get_card_info())
+        info["preset"] = _ctx.current_preset
         return {"status": "ok", "card": info}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -180,8 +158,9 @@ def set_api_key(key: str) -> dict:
     os.environ["DEEPSEEK_API_KEY"] = key
     settings.DEEPSEEK_API_KEY = key
     # 如果已有活跃的 DeepSeekClient，同步更新其 session header
-    if _player is not None and _player.client is not None:
-        _player.client.update_api_key(key)
+    client = _ctx.client
+    if client is not None:
+        client.update_api_key(key)
     return {"status": "ok"}
 
 
@@ -211,12 +190,14 @@ def _auto_remember(user_input: str, ai_reply: str) -> None:
         user_input: 用户输入文本。
         ai_reply: AI 回复文本。
     """
-    global _turn_counter
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return
 
     try:
-        _turn_counter += 1
-        turn_id = f"turn_{_turn_counter}_{format_timestamp_iso()}"
-        _orchestrator.remember(turn_id, user_input, ai_reply)
+        turn_num = _ctx.increment_turn()
+        turn_id = f"turn_{turn_num}_{format_timestamp_iso()}"
+        orchestrator.remember(turn_id, user_input, ai_reply)
     except Exception as e:
         # 记忆存储失败不阻断对话，但记录日志便于排查
         from src.utils.logger import get_logger as _get_logger
@@ -238,33 +219,12 @@ def init_memory(db_path: str) -> dict:
         {"status": "ok", "memory_count": int}
         或 {"status": "error", "message": str}
     """
-    global _orchestrator, _turn_counter
-
-    if _player is None:
+    if _ctx.player is None:
         return {"status": "error", "message": "聊天引擎未初始化，请先调用 init()"}
 
     try:
-        # 关闭旧的 orchestrator，避免资源泄露
-        if _orchestrator is not None:
-            try:
-                _orchestrator.close()
-            except Exception:
-                _log.warning("[清理] 关闭旧 orchestrator 时忽略异常（通常无害）")
-
-        # 构建数据库文件路径
-        db_file = os.path.join(db_path.rstrip("/").rstrip("\\"), "memories.db")
-
-        # 创建 VectorStore（使用_player 共享的 DeepSeekClient）
-        vector_store = VectorStore(db_file)
-
-        # 创建 MemoryOrchestrator
-        _orchestrator = MemoryOrchestrator(
-            vector_store=vector_store,
-            deepseek_client=_player.client,
-        )
-        _turn_counter = 0
-
-        memory_count = vector_store.count()
+        orchestrator = _ctx.init_memory(db_path)
+        memory_count = orchestrator.vector_store.count()
         return {"status": "ok", "memory_count": memory_count}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -277,11 +237,12 @@ def get_memory_stats() -> dict:
         {"status": "ok", "total": int, "by_type": dict, "turn_count": int}
         或 {"status": "error", "message": str}（当记忆系统未初始化时）。
     """
-    if _orchestrator is None:
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
         return {"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"}
 
     try:
-        stats = _orchestrator.get_stats()
+        stats = orchestrator.get_stats()
         return {"status": "ok", **stats}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -289,12 +250,13 @@ def get_memory_stats() -> dict:
 
 def reset_memories() -> dict:
     """清除所有记忆（调试用）。"""
-    if _orchestrator is None:
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
         return {"status": "error", "message": "记忆系统未初始化"}
     try:
-        count = _orchestrator.vector_store.count()
-        _orchestrator.vector_store.clear()
-        _turn_counter = 0
+        count = orchestrator.vector_store.count()
+        orchestrator.vector_store.clear()
+        _ctx.reset_turn_counter()
         return {"status": "ok", "deleted": count}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -314,10 +276,13 @@ def inject_memories(query_text: str = "") -> dict:
         {"status": "ok", "count": int, "memories": list[str]}
         或 {"status": "error", "message": str}
     """
-    if _orchestrator is None:
+    orchestrator = _ctx.orchestrator
+    player = _ctx.player
+
+    if orchestrator is None:
         return {"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"}
 
-    if _player is None:
+    if player is None:
         return {"status": "error", "message": "聊天引擎未初始化，请先调用 init()"}
 
     if not query_text or not query_text.strip():
@@ -325,10 +290,10 @@ def inject_memories(query_text: str = "") -> dict:
 
     try:
         # 从记忆库检索
-        memories = _orchestrator.recall(query_text.strip())
+        memories = orchestrator.recall(query_text.strip())
 
         # 注入到 RolePlayer
-        _player.inject_memories(memories)
+        player.inject_memories(memories)
 
         return {"status": "ok", "count": len(memories), "memories": memories}
     except Exception as e:
@@ -351,20 +316,19 @@ def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> 
         {"status": "ok", "stored_count": int}
         或 {"status": "error", "message": str}
     """
-    if _orchestrator is None:
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
         return {"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"}
 
     if not user_msg or not ai_reply:
         return {"status": "error", "message": "user_msg 和 ai_reply 不能为空"}
 
-    global _turn_counter
-
     try:
         if not turn_id:
-            _turn_counter += 1
-            turn_id = f"turn_{_turn_counter}_{format_timestamp_iso()}"
+            turn_num = _ctx.increment_turn()
+            turn_id = f"turn_{turn_num}_{format_timestamp_iso()}"
 
-        stored_count = _orchestrator.remember(turn_id, user_msg.strip(), ai_reply.strip())
+        stored_count = orchestrator.remember(turn_id, user_msg.strip(), ai_reply.strip())
         return {"status": "ok", "stored_count": stored_count}
     except Exception as e:
         return {"status": "error", "message": str(e)}
