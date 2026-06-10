@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import math
+import os
 import re
+import secrets
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
@@ -31,8 +34,106 @@ from src.utils.logger import get_logger
 
 
 # =============================================================================
-# 数据结构
+# 记忆内容加密工具（T-FIX-04）
 # =============================================================================
+
+# 加密密钥（懒加载，首次调用 _encrypt/_decrypt 时初始化）
+_ENCRYPTION_KEY: bytes | None = None
+_USE_FERNET: bool = False
+
+
+def _init_encryption() -> None:
+    """初始化加密密钥。
+
+    优先使用 cryptography.fernet（AES-CBC），不可用时回退到 base64 + XOR。
+    密钥从环境变量 MEMORY_ENCRYPTION_KEY 读取，不存在时生成随机密钥并输出警告日志。
+    """
+    global _ENCRYPTION_KEY, _USE_FERNET
+    _logger = get_logger()
+
+    # 尝试使用 Fernet（更安全的 AES-CBC 实现）
+    try:
+        from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+
+        _USE_FERNET = True
+        key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
+        if key_str:
+            _ENCRYPTION_KEY = key_str.encode("utf-8") if isinstance(key_str, str) else key_str
+        else:
+            _ENCRYPTION_KEY = Fernet.generate_key()
+            _logger.warning(
+                "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 Fernet 密钥。"
+                "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
+            )
+        _logger.info("[加密] 使用 cryptography.fernet (AES-CBC) 模式")
+        return
+    except ImportError:
+        _logger.info("[加密] cryptography 不可用，回退到 base64+XOR 模式")
+
+    # 回退到 base64 + XOR（MVP 方案）
+    key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
+    if key_str:
+        if isinstance(key_str, str):
+            key_str = key_str.encode("utf-8")
+        _ENCRYPTION_KEY = key_str
+    else:
+        _ENCRYPTION_KEY = secrets.token_bytes(32)
+        _logger.warning(
+            "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 XOR 密钥。"
+            "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
+        )
+
+
+def _encrypt(text: str) -> str:
+    """加密文本内容，返回 base64 编码的密文。
+
+    如果 text 为空字符串，直接返回空字符串（不加密）。
+    """
+    if not text:
+        return text
+    global _ENCRYPTION_KEY
+    if _ENCRYPTION_KEY is None:
+        _init_encryption()
+
+    if _USE_FERNET:
+        from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+
+        f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
+        return f.encrypt(text.encode("utf-8")).decode("ascii")
+    else:
+        # XOR + base64 MVP 方案
+        data = text.encode("utf-8")
+        key = _ENCRYPTION_KEY  # type: ignore[assignment]
+        encrypted = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])  # type: ignore[index]
+        return base64.b64encode(encrypted).decode("ascii")
+
+
+def _decrypt(encoded: str) -> str:
+    """解密文本内容。
+
+    如果 encoded 为空字符串，直接返回空字符串。
+    如果解密失败（例如旧明文数据），假定为明文直接返回。
+    """
+    if not encoded:
+        return encoded
+    global _ENCRYPTION_KEY
+    if _ENCRYPTION_KEY is None:
+        _init_encryption()
+
+    try:
+        if _USE_FERNET:
+            from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+
+            f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
+            return f.decrypt(encoded.encode("ascii")).decode("utf-8")
+        else:
+            encrypted = base64.b64decode(encoded)
+            key = _ENCRYPTION_KEY  # type: ignore[assignment]
+            decrypted = bytes([encrypted[i] ^ key[i % len(key)] for i in range(len(encrypted))])  # type: ignore[index]
+            return decrypted.decode("utf-8")
+    except Exception:
+        # 解密失败：可能是旧明文数据或密钥变更，直接返回原文
+        return encoded
 
 
 @dataclass
@@ -66,137 +167,59 @@ class MemoryEntry:
     source_turn_id: str = ""
 
     def to_dict(self) -> dict:
-        """转换为字典（用于 JSON 序列化）。"""
         return {
-            "id": self.id,
-            "memory_type": self.memory_type,
-            "content": self.content,
-            "keywords": self.keywords,
-            "embedding": self.embedding,
-            "importance": self.importance,
-            "created_at": self.created_at,
-            "last_accessed": self.last_accessed,
-            "access_count": self.access_count,
-            "decay_factor": self.decay_factor,
-            "source_turn_id": self.source_turn_id,
+            "id": self.id, "memory_type": self.memory_type, "content": self.content,
+            "keywords": self.keywords, "embedding": self.embedding,
+            "importance": self.importance, "created_at": self.created_at,
+            "last_accessed": self.last_accessed, "access_count": self.access_count,
+            "decay_factor": self.decay_factor, "source_turn_id": self.source_turn_id,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "MemoryEntry":
-        """从字典创建 MemoryEntry 实例。
-
-        Args:
-            data: 包含所有字段的字典。
-
-        Returns:
-            MemoryEntry 实例。
-        """
         return cls(
-            id=data.get("id", ""),
-            memory_type=data.get("memory_type", "semantic"),
-            content=data.get("content", ""),
-            keywords=data.get("keywords", []),
-            embedding=data.get("embedding", []),
-            importance=data.get("importance", 0.5),
-            created_at=data.get("created_at", ""),
-            last_accessed=data.get("last_accessed", ""),
-            access_count=data.get("access_count", 0),
-            decay_factor=data.get("decay_factor", 1.0),
+            id=data.get("id", ""), memory_type=data.get("memory_type", "semantic"),
+            content=data.get("content", ""), keywords=data.get("keywords", []),
+            embedding=data.get("embedding", []), importance=data.get("importance", 0.5),
+            created_at=data.get("created_at", ""), last_accessed=data.get("last_accessed", ""),
+            access_count=data.get("access_count", 0), decay_factor=data.get("decay_factor", 1.0),
             source_turn_id=data.get("source_turn_id", ""),
         )
 
 
-# =============================================================================
-# 工具函数
-# =============================================================================
-
-
 def extract_keywords(text: str) -> list[str]:
-    """从文本中提取关键词（bigram/trigram）。
-
-    移除标点符号后，提取所有 2-gram 和 3-gram 作为关键词。
-    这是纯 Python 实现，Chaquopy 兼容。
-
-    Args:
-        text: 输入文本。
-
-    Returns:
-        去重后的关键词列表。
-    """
     if not text:
         return []
-
-    # 移除标点，保留中文字符、字母、数字
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]", "", text)
     if len(cleaned) < 2:
         return []
-
     keywords: list[str] = []
-
-    # 提取 bigram（2-gram）
     for i in range(len(cleaned) - 1):
         keywords.append(cleaned[i : i + 2])
-
-    # 提取 trigram（3-gram）
     for i in range(len(cleaned) - 2):
         keywords.append(cleaned[i : i + 3])
-
     return list(set(keywords))
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    """纯 Python 余弦相似度计算。
-
-    计算两个向量之间的余弦相似度，范围 [-1, 1]。
-    对于语义向量，通常在 [0, 1] 之间。
-
-    Args:
-        a: 第一个向量（float 列表）。
-        b: 第二个向量（float 列表）。
-
-    Returns:
-        余弦相似度值。若任一向量模长为零，返回 0.0。
-    """
     if len(a) != len(b):
         raise ValueError(f"向量维度不一致: {len(a)} vs {len(b)}")
-
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
-
     if norm_a == 0.0 or norm_b == 0.0:
         return 0.0
-
     return dot / (norm_a * norm_b)
 
 
-# =============================================================================
-# 倒排索引
-# =============================================================================
-
-
 class InvertedIndex:
-    """纯 Python 倒排索引，用于关键词预过滤。
-
-    维护 keyword -> set of memory IDs 的映射，
-    支持快速添加、删除和查询。
-
-    Attributes:
-        _index: 关键词到记忆 ID 集合的映射。
-    """
+    """纯 Python 倒排索引，用于关键词预过滤。"""
 
     def __init__(self) -> None:
-        """初始化空的倒排索引。"""
         self._index: dict[str, set[str]] = {}
         self._log = get_logger()
 
     def add(self, mem_id: str, keywords: list[str]) -> None:
-        """向索引中添加一个记忆的关键词映射。
-
-        Args:
-            mem_id: 记忆唯一标识符。
-            keywords: 关键词列表。
-        """
         for kw in keywords:
             if kw not in self._index:
                 self._index[kw] = set()
@@ -204,29 +227,14 @@ class InvertedIndex:
         self._log.debug(f"[倒排索引] 添加记忆 {mem_id}, 关键词数={len(keywords)}")
 
     def remove(self, mem_id: str, keywords: list[str]) -> None:
-        """从索引中移除一个记忆的关键词映射。
-
-        Args:
-            mem_id: 记忆唯一标识符。
-            keywords: 关键词列表。
-        """
         for kw in keywords:
             if kw in self._index:
                 self._index[kw].discard(mem_id)
-                # 清理空集合
                 if not self._index[kw]:
                     del self._index[kw]
         self._log.debug(f"[倒排索引] 移除记忆 {mem_id}")
 
     def search(self, query_keywords: list[str]) -> set[str]:
-        """检索包含任意查询关键词的记忆 ID 集合。
-
-        Args:
-            query_keywords: 查询关键词列表。
-
-        Returns:
-            包含任意关键词的记忆 ID 集合。
-        """
         result: set[str] = set()
         for kw in query_keywords:
             if kw in self._index:
@@ -234,22 +242,11 @@ class InvertedIndex:
         return result
 
     def clear(self) -> None:
-        """清空索引。"""
         self._index.clear()
         self._log.info("[倒排索引] 已清空")
 
     def size(self) -> int:
-        """获取索引中不同关键词的数量。
-
-        Returns:
-            关键词数量。
-        """
         return len(self._index)
-
-
-# =============================================================================
-# 向量存储
-# =============================================================================
 
 
 class VectorStore:
@@ -257,18 +254,11 @@ class VectorStore:
 
     使用 SQLite 数据库持久化记忆条目，配合倒排索引实现
     高效的混合检索（关键词预过滤 + 余弦相似度精排）。
-
     线程安全：所有数据库操作通过 threading.Lock 保护。
-
-    Attributes:
-        db_path: SQLite 数据库文件路径。
-        inverted_index: 倒排索引实例。
     """
 
-    # SQLite 表名
     _TABLE_NAME = "memories"
 
-    # 建表 SQL
     _CREATE_TABLE_SQL = f"""
     CREATE TABLE IF NOT EXISTS {_TABLE_NAME} (
         id TEXT PRIMARY KEY,
@@ -286,49 +276,36 @@ class VectorStore:
     """
 
     def __init__(self, db_path: str | Path = ":memory:") -> None:
-        """初始化向量存储。
-
-        Args:
-            db_path: SQLite 数据库文件路径。默认为 ":memory:"（内存数据库）。
-                     可使用磁盘路径持久化存储。
-        """
         self.db_path = str(db_path)
         self._log = get_logger()
         self._lock = Lock()
-
-        # 初始化数据库连接和表
+        self._closed = False
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._create_table()
-
-        # 初始化倒排索引并从数据库加载
         self.inverted_index = InvertedIndex()
         self._load_index()
+        self._add_count = 0  # WAL checkpoint 计数器
+        self._log.info(f"VectorStore 初始化完成: db_path={self.db_path}, 记忆数={self.count()}, 索引关键词数={self.inverted_index.size()}")
 
-        self._log.info(
-            f"VectorStore 初始化完成: db_path={self.db_path}, "
-            f"记忆数={self.count()}, 索引关键词数={self.inverted_index.size()}"
-        )
+    def _check_closed(self) -> None:
+        """检查连接是否已关闭。"""
+        if self._closed:
+            raise MemoryStorageError("VectorStore 已关闭，无法执行操作")
 
     def _create_table(self) -> None:
-        """创建记忆表（如果不存在）。"""
         try:
             self._conn.execute(self._CREATE_TABLE_SQL)
             self._conn.commit()
             self._log.debug("数据库表已就绪")
         except sqlite3.Error as e:
-            raise MemoryStorageError(
-                f"创建数据库表失败: {e}", detail=self.db_path
-            ) from e
+            raise MemoryStorageError(f"创建数据库表失败: {e}", detail=self.db_path) from e
 
     def _load_index(self) -> None:
-        """从数据库加载所有记忆的关键词到倒排索引。"""
         try:
-            cursor = self._conn.execute(
-                f"SELECT id, keywords FROM {self._TABLE_NAME}"
-            )
+            cursor = self._conn.execute(f"SELECT id, keywords FROM {self._TABLE_NAME}")
             for row in cursor:
                 mem_id = row[0]
                 try:
@@ -337,362 +314,210 @@ class VectorStore:
                     keywords = []
                 if keywords:
                     self.inverted_index.add(mem_id, keywords)
-            self._log.debug(f"倒排索引已从数据库加载")
+            self._log.debug("倒排索引已从数据库加载")
         except sqlite3.Error as e:
             self._log.error(f"加载倒排索引失败: {e}")
 
-    # -------------------------------------------------------------------------
-    # CRUD 操作
-    # -------------------------------------------------------------------------
-
     def add(self, entry: MemoryEntry) -> str:
-        """添加一条记忆到数据库。
-
-        自动提取关键词（如果未提供）并更新倒排索引。
-
-        Args:
-            entry: 记忆条目。
-
-        Returns:
-            记忆的 ID。
-
-        Raises:
-            MemoryStorageError: 数据库写入失败时。
-        """
-        # 自动提取关键词（如果为空）
+        self._check_closed()
         if not entry.keywords and entry.content:
             entry.keywords = extract_keywords(entry.content)
-
-        # 确保 ID 存在
         if not entry.id:
             entry.id = str(uuid.uuid4())
-
-        # 设置时间戳（如果为空）
         if not entry.created_at:
             from src.utils.time_utils import format_timestamp_iso
-
             entry.created_at = format_timestamp_iso()
         if not entry.last_accessed:
             entry.last_accessed = entry.created_at
-
-        sql = f"""
-        INSERT OR REPLACE INTO {self._TABLE_NAME}
-        (id, type, content, keywords, embedding, importance,
-         created_at, last_accessed, access_count, decay_factor, source_turn_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        params = (
-            entry.id,
-            entry.memory_type,
-            entry.content,
-            json.dumps(entry.keywords, ensure_ascii=False),
-            json.dumps(entry.embedding),
-            entry.importance,
-            entry.created_at,
-            entry.last_accessed,
-            entry.access_count,
-            entry.decay_factor,
-            entry.source_turn_id,
-        )
-
+        # T-FIX-04: 加密 content 后再存储
+        encrypted_content = _encrypt(entry.content)
+        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id)
         try:
             with self._lock:
                 self._conn.execute(sql, params)
                 self._conn.commit()
-                # 更新倒排索引
                 if entry.keywords:
                     self.inverted_index.add(entry.id, entry.keywords)
         except sqlite3.Error as e:
-            raise MemoryStorageError(
-                f"添加记忆失败: {e}", detail=f"id={entry.id}, content={entry.content[:50]}"
-            ) from e
-
-        self._log.debug(
-            f"记忆已添加: id={entry.id}, type={entry.memory_type}, "
-            f"content={entry.content[:50]}..."
-        )
+            raise MemoryStorageError(f"添加记忆失败: {e}", detail=f"id={entry.id}") from e
+        self._add_count += 1
+        # 每 100 次写入触发一次 WAL checkpoint，防止 wal 文件无限增长
+        if self._add_count % 100 == 0:
+            self._checkpoint()
+        self._log.debug(f"记忆已添加: id={entry.id}, type={entry.memory_type}, content={entry.content[:50]}...")
         return entry.id
 
     def get(self, mem_id: str) -> MemoryEntry:
-        """根据 ID 获取单条记忆。
-
-        Args:
-            mem_id: 记忆唯一标识符。
-
-        Returns:
-            MemoryEntry 实例。
-
-        Raises:
-            MemoryNotFoundError: 记忆不存在时。
-            MemoryStorageError: 数据库查询失败时。
-        """
+        self._check_closed()
         sql = f"SELECT * FROM {self._TABLE_NAME} WHERE id = ?"
-
         try:
             with self._lock:
                 cursor = self._conn.execute(sql, (mem_id,))
                 row = cursor.fetchone()
         except sqlite3.Error as e:
-            raise MemoryStorageError(
-                f"查询记忆失败: {e}", detail=f"id={mem_id}"
-            ) from e
-
+            raise MemoryStorageError(f"查询记忆失败: {e}", detail=f"id={mem_id}") from e
         if row is None:
             raise MemoryNotFoundError(f"记忆不存在: {mem_id}", detail=f"id={mem_id}")
-
         return self._row_to_entry(row)
 
     def delete(self, mem_id: str) -> None:
-        """删除指定记忆。
+        """删除记忆（带 close 检查和 TOCTOU 保护）。
 
-        Args:
-            mem_id: 记忆唯一标识符。
-
-        Raises:
-            MemoryNotFoundError: 记忆不存在时。
-            MemoryStorageError: 数据库操作失败时。
+        整个 get + delete + 索引更新在同一个锁内完成，
+        防止并发场景下数据不一致。
         """
-        # 先获取记忆以拿到关键词（用于更新索引）
-        try:
-            entry = self.get(mem_id)
-        except MemoryNotFoundError:
-            raise
-
+        self._check_closed()
         sql = f"DELETE FROM {self._TABLE_NAME} WHERE id = ?"
-
         try:
             with self._lock:
+                # 在锁内先获取记忆，确认存在后再删除，防止 TOCTOU 竞态
+                cursor = self._conn.execute(f"SELECT * FROM {self._TABLE_NAME} WHERE id = ?", (mem_id,))
+                row = cursor.fetchone()
+                if row is None:
+                    raise MemoryNotFoundError(f"记忆不存在: {mem_id}", detail=f"id={mem_id}")
+                entry = self._row_to_entry(row)
                 self._conn.execute(sql, (mem_id,))
                 self._conn.commit()
-                # 更新倒排索引
                 if entry.keywords:
                     self.inverted_index.remove(mem_id, entry.keywords)
-        except sqlite3.Error as e:
-            raise MemoryStorageError(
-                f"删除记忆失败: {e}", detail=f"id={mem_id}"
-            ) from e
-
-        self._log.debug(f"记忆已删除: id={mem_id}")
-
-    def update(self, entry: MemoryEntry) -> None:
-        """更新记忆条目。
-
-        Args:
-            entry: 包含新数据的记忆条目（按 id 匹配更新）。
-
-        Raises:
-            MemoryNotFoundError: 记忆不存在时。
-            MemoryStorageError: 数据库操作失败时。
-        """
-        # 先获取旧记忆以清理旧关键词
-        try:
-            old_entry = self.get(entry.id)
         except MemoryNotFoundError:
             raise
-
-        sql = f"""
-        UPDATE {self._TABLE_NAME}
-        SET type = ?, content = ?, keywords = ?, embedding = ?, importance = ?,
-            created_at = ?, last_accessed = ?, access_count = ?, decay_factor = ?,
-            source_turn_id = ?
-        WHERE id = ?
-        """
-        params = (
-            entry.memory_type,
-            entry.content,
-            json.dumps(entry.keywords, ensure_ascii=False),
-            json.dumps(entry.embedding),
-            entry.importance,
-            entry.created_at,
-            entry.last_accessed,
-            entry.access_count,
-            entry.decay_factor,
-            entry.source_turn_id,
-            entry.id,
-        )
-
-        try:
-            with self._lock:
-                self._conn.execute(sql, params)
-                self._conn.commit()
-                # 更新倒排索引：先移除旧关键词，再添加新关键词
-                if old_entry.keywords:
-                    self.inverted_index.remove(entry.id, old_entry.keywords)
-                if entry.keywords:
-                    self.inverted_index.add(entry.id, entry.keywords)
         except sqlite3.Error as e:
-            raise MemoryStorageError(
-                f"更新记忆失败: {e}", detail=f"id={entry.id}"
-            ) from e
+            raise MemoryStorageError(f"删除记忆失败: {e}", detail=f"id={mem_id}") from e
+        self._log.debug(f"记忆已删除: id={mem_id}")
 
-        self._log.debug(f"记忆已更新: id={entry.id}")
+    def search(self, query_embedding: list[float], query_text: str = "", top_k: int = 10) -> list[tuple[MemoryEntry, float]]:
+        """搜索与查询最相似的记忆。
 
-    def search(
-        self,
-        query_embedding: list[float],
-        query_text: str = "",
-        top_k: int = 5,
-    ) -> list[MemoryEntry]:
-        """混合检索：倒排索引预过滤 + 余弦相似度精排。
-
-        检索流程：
-        1. 如果提供了 query_text，提取关键词并通过倒排索引获取候选集。
-        2. 如果候选集为空，回退到全量余弦相似度检索。
-        3. 对候选集计算余弦相似度并排序。
-        4. 返回 top_k 结果。
+        混合检索流程：
+        1. 提取 query_text 关键词
+        2. 倒排索引预过滤 → 候选集
+        3. 如果候选集为空，回退到全量余弦相似度
+        4. 余弦相似度精排
+        5. 返回 top_k 结果，每项为 (MemoryEntry, similarity_score)
 
         Args:
             query_embedding: 查询文本的向量表示。
-            query_text: 查询文本（用于关键词预过滤，可选）。
-            top_k: 返回结果数量。
+            query_text: 查询原始文本（用于关键词提取和倒排索引预过滤）。
+            top_k: 返回的最大记忆数。
 
         Returns:
-            按相似度降序排列的记忆条目列表。
+            list[tuple[MemoryEntry, float]]: 结果列表，每项为 (记忆条目, 余弦相似度分数)。
         """
-        # 步骤1：获取候选集
+        self._check_closed()
         candidates: list[MemoryEntry] = []
-
         if query_text:
-            # 提取查询关键词
             query_keywords = extract_keywords(query_text)
-            # 倒排索引预过滤
             candidate_ids = self.inverted_index.search(query_keywords)
-
             if candidate_ids:
-                # 根据候选 ID 批量获取记忆
                 candidates = self._get_by_ids(list(candidate_ids))
-                self._log.debug(
-                    f"[检索] 倒排索引命中 {len(candidates)} 条候选"
-                )
-
-        # 步骤2：如果候选集为空，回退到全量
+                self._log.debug(f"[检索] 倒排索引命中 {len(candidates)} 条候选")
         if not candidates:
             candidates = self._get_all()
-            self._log.debug(
-                f"[检索] 倒排索引无命中，回退到全量检索 ({len(candidates)} 条)"
-            )
-
+            self._log.debug(f"[检索] 倒排索引无命中，回退到全量检索 ({len(candidates)} 条)")
         if not candidates:
             return []
-
-        # 步骤3：余弦相似度精排
         scored: list[tuple[MemoryEntry, float]] = []
+        has_embedding = bool(query_embedding)
         for entry in candidates:
-            if entry.embedding:
+            if has_embedding and entry.embedding:
                 try:
                     sim = cosine_similarity(query_embedding, entry.embedding)
                 except ValueError:
                     sim = 0.0
+            elif not has_embedding and query_text:
+                # 无 embedding 时用关键词命中数作为分数（归一化）
+                entry_kw = set(entry.keywords) if entry.keywords else set()
+                match_count = len(query_keywords & entry_kw) if query_keywords else 0
+                sim = min(match_count / max(len(query_keywords), 1), 1.0)
             else:
                 sim = 0.0
             scored.append((entry, sim))
-
-        # 按相似度降序排序
         scored.sort(key=lambda x: x[1], reverse=True)
-
-        # 步骤4：返回 top_k
-        result = [entry for entry, _ in scored[:top_k]]
-
-        # 更新访问信息
-        for entry in result:
-            self._record_access(entry)
-
-        self._log.info(
-            f"[检索] 完成: 候选={len(candidates)}, 返回={len(result)}, top_k={top_k}"
-        )
+        # 如果所有分数都是 0（无 embedding 且无关键词匹配），按最近访问时间排序
+        if scored and all(s == 0.0 for _, s in scored):
+            scored.sort(key=lambda x: x[0].last_accessed or "", reverse=True)
+        result = scored[:top_k]
+        # T-FIX-06: 收集所有访问更新，使用 executemany 批量 UPDATE
+        self._batch_record_access([entry for entry, _ in result])
+        self._log.info(f"[检索] 完成: 候选={len(candidates)}, 返回={len(result)}, top_k={top_k}")
         return result
 
     def _get_by_ids(self, mem_ids: list[str]) -> list[MemoryEntry]:
-        """批量根据 ID 获取记忆条目。
-
-        Args:
-            mem_ids: 记忆 ID 列表。
-
-        Returns:
-            记忆条目列表。
-        """
         if not mem_ids:
             return []
-
         placeholders = ",".join("?" for _ in mem_ids)
         sql = f"SELECT * FROM {self._TABLE_NAME} WHERE id IN ({placeholders})"
-
         try:
             with self._lock:
                 cursor = self._conn.execute(sql, mem_ids)
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
             self._log.error(f"批量查询记忆失败: {e}")
-            return []
-
+            raise MemoryStorageError(f"批量查询记忆失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
     def _get_all(self) -> list[MemoryEntry]:
-        """获取所有记忆条目。
-
-        Returns:
-            所有记忆条目列表。
-        """
         sql = f"SELECT * FROM {self._TABLE_NAME}"
-
         try:
             with self._lock:
                 cursor = self._conn.execute(sql)
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
             self._log.error(f"查询所有记忆失败: {e}")
-            return []
-
+            raise MemoryStorageError(f"查询所有记忆失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
     def _record_access(self, entry: MemoryEntry) -> None:
-        """记录记忆访问（更新 last_accessed 和 access_count）。
-
-        这是一个轻量级更新，不影响检索性能。
-
-        Args:
-            entry: 被访问的记忆条目。
-        """
         from src.utils.time_utils import format_timestamp_iso
-
         entry.access_count += 1
         entry.last_accessed = format_timestamp_iso()
-
-        sql = f"""
-        UPDATE {self._TABLE_NAME}
-        SET last_accessed = ?, access_count = ?
-        WHERE id = ?
-        """
+        sql = f"UPDATE {self._TABLE_NAME} SET last_accessed = ?, access_count = ? WHERE id = ?"
         try:
             with self._lock:
-                self._conn.execute(
-                    sql, (entry.last_accessed, entry.access_count, entry.id)
-                )
+                self._conn.execute(sql, (entry.last_accessed, entry.access_count, entry.id))
                 self._conn.commit()
         except sqlite3.Error as e:
-            # 访问记录更新失败不应影响检索流程
             self._log.debug(f"记录访问信息失败: {e}")
 
-    # -------------------------------------------------------------------------
-    # 批量/辅助操作
-    # -------------------------------------------------------------------------
+    def _batch_record_access(self, entries: list[MemoryEntry]) -> None:
+        """T-FIX-06: 批量更新记忆访问信息，使用 executemany + 单次 COMMIT。
+
+        将原本 search() 中对每条结果逐一 UPDATE+COMMIT 的 N+1 模式，
+        改为收集所有更新后一次性批量提交。
+        """
+        if not entries:
+            return
+        from src.utils.time_utils import format_timestamp_iso
+
+        now = format_timestamp_iso()
+        updates: list[tuple[str, int, str]] = []
+        for entry in entries:
+            entry.access_count += 1
+            entry.last_accessed = now
+            updates.append((entry.last_accessed, entry.access_count, entry.id))
+
+        sql = f"UPDATE {self._TABLE_NAME} SET last_accessed = ?, access_count = ? WHERE id = ?"
+        try:
+            with self._lock:
+                self._conn.executemany(sql, updates)
+                self._conn.commit()
+        except sqlite3.Error as e:
+            self._log.debug(f"批量记录访问信息失败: {e}")
 
     def count(self) -> int:
-        """获取记忆总数。
-
-        Returns:
-            记忆条目数量。
-        """
+        self._check_closed()
         try:
             with self._lock:
                 cursor = self._conn.execute(f"SELECT COUNT(*) FROM {self._TABLE_NAME}")
                 return cursor.fetchone()[0]
         except sqlite3.Error as e:
             self._log.error(f"计数失败: {e}")
-            return 0
+            raise MemoryStorageError(f"计数失败: {e}") from e
 
     def clear(self) -> None:
-        """清空所有记忆。"""
+        self._check_closed()
         try:
             with self._lock:
                 self._conn.execute(f"DELETE FROM {self._TABLE_NAME}")
@@ -700,82 +525,63 @@ class VectorStore:
                 self.inverted_index.clear()
         except sqlite3.Error as e:
             raise MemoryStorageError(f"清空记忆失败: {e}") from e
-
         self._log.info("所有记忆已清空")
 
     def get_by_type(self, memory_type: str) -> list[MemoryEntry]:
-        """按类型获取记忆列表。
-
-        Args:
-            memory_type: 记忆类型（"episodic" | "semantic" | "user_fact"）。
-
-        Returns:
-            匹配的记忆条目列表。
-        """
+        self._check_closed()
         sql = f"SELECT * FROM {self._TABLE_NAME} WHERE type = ?"
-
         try:
             with self._lock:
                 cursor = self._conn.execute(sql, (memory_type,))
                 rows = cursor.fetchall()
         except sqlite3.Error as e:
             self._log.error(f"按类型查询失败: {e}")
-            return []
-
+            raise MemoryStorageError(f"按类型查询失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
     def get_all(self) -> list[MemoryEntry]:
-        """获取所有记忆条目。
-
-        Returns:
-            所有记忆条目列表。
-        """
+        self._check_closed()
         return self._get_all()
-
-    # -------------------------------------------------------------------------
-    # 内部工具方法
-    # -------------------------------------------------------------------------
 
     @staticmethod
     def _row_to_entry(row: tuple) -> MemoryEntry:
-        """将数据库行转换为 MemoryEntry。
-
-        Args:
-            row: 数据库查询结果行。
-
-        Returns:
-            MemoryEntry 实例。
-        """
-        # 列顺序: id, type, content, keywords, embedding, importance,
-        #          created_at, last_accessed, access_count, decay_factor, source_turn_id
         try:
             keywords = json.loads(row[3])
         except (json.JSONDecodeError, TypeError):
             keywords = []
-
         try:
             embedding = json.loads(row[4])
         except (json.JSONDecodeError, TypeError):
             embedding = []
-
+        # T-FIX-04: 解密 content 字段
+        decrypted_content = _decrypt(row[2])
         return MemoryEntry(
-            id=row[0],
-            memory_type=row[1],
-            content=row[2],
-            keywords=keywords,
-            embedding=embedding,
-            importance=float(row[5]),
-            created_at=row[6],
-            last_accessed=row[7],
-            access_count=int(row[8]),
-            decay_factor=float(row[9]),
+            id=row[0], memory_type=row[1], content=decrypted_content, keywords=keywords,
+            embedding=embedding, importance=float(row[5]), created_at=row[6],
+            last_accessed=row[7], access_count=int(row[8]), decay_factor=float(row[9]),
             source_turn_id=row[10],
         )
 
     def close(self) -> None:
-        """关闭数据库连接，释放资源。"""
+        """关闭数据库连接。
+
+        关闭后所有操作将抛出 MemoryStorageError。
+        """
+        if self._closed:
+            return
         try:
+            # 关闭前执行一次 checkpoint，确保 WAL 数据写入主数据库
+            self._checkpoint()
             self._conn.close()
+            self._closed = True
             self._log.info("VectorStore 数据库连接已关闭")
         except sqlite3.Error as e:
             self._log.error(f"关闭数据库连接失败: {e}")
+
+    def _checkpoint(self) -> None:
+        """执行 WAL checkpoint，将 WAL 日志合并到主数据库。"""
+        try:
+            with self._lock:
+                self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except sqlite3.Error as e:
+            self._log.debug(f"WAL checkpoint 失败（可忽略）: {e}")
