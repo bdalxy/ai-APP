@@ -15,17 +15,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * AI 角色扮演聊天主界面 (P3)
- *
- * 通过 Chaquopy 调用 Python chat_bridge 模块，
- * 实现与 AI 角色（小美）的实时对话。
- */
 class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "AICompanion"
-        // 可用模型列表
         private val MODELS = arrayOf("deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-lite")
         private val MODEL_LABELS = arrayOf("v4-pro (最佳体验)", "v4-flash (平衡)", "v4-lite (最省)")
     }
@@ -86,10 +79,6 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnClickListener { showSettingsDialog() }
     }
 
-    // ========================================================================
-    // API Key 输入对话框
-    // ========================================================================
-
     private fun showApiKeyDialog() {
         val input = EditText(this).apply {
             hint = "输入 DeepSeek API Key (sk-...)"
@@ -115,10 +104,6 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("退出") { _, _ -> finish() }
             .show()
     }
-
-    // ========================================================================
-    // 设置对话框（Token 预设 + API Key 修改）
-    // ========================================================================
 
     private fun showSettingsDialog() {
         val currentPreset = AppConfig.getTokenPreset(this)
@@ -190,7 +175,6 @@ class MainActivity : AppCompatActivity() {
                 AppConfig.setTokenPreset(this, values[which])
                 dialog.dismiss()
                 setStatus("Token 预设已切换为：${names[which]}，下次对话生效")
-                // 重新初始化以应用新预设
                 lifecycleScope.launch {
                     isInitialized = false
                     initPython()
@@ -214,10 +198,6 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("关闭", null)
             .show()
     }
-
-    // ========================================================================
-    // Python 初始化
-    // ========================================================================
 
     private fun initPython() {
         setStatus("正在初始化...")
@@ -244,7 +224,6 @@ class MainActivity : AppCompatActivity() {
                 val name = extractJsonValue(result, "name")
                 if (name != null) tvTitle.text = name
 
-                // 初始化记忆系统
                 try {
                     initMemory()
                 } catch (e: Exception) {
@@ -254,14 +233,10 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Python 初始化失败: ${e.message}", e)
                 setStatus("初始化失败: ${e.message}")
                 isInitialized = false
-                enableInput()  // 即使失败也启用输入，让用户能操作设置
+                enableInput()
             }
         }
     }
-
-    // ========================================================================
-    // 消息发送
-    // ========================================================================
 
     private fun sendMessage() {
         val text = etInput.text.toString().trim()
@@ -276,7 +251,6 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // 检索相关记忆并注入 System Prompt
                 try {
                     injectMemories(text)
                 } catch (e: Exception) {
@@ -297,210 +271,159 @@ class MainActivity : AppCompatActivity() {
                     adapter.addMessage(Message(reply, isUser = false))
                     setStatus("就绪")
                 } else if (error != null) {
-                    adapter.addMessage(Message("[错误] $error", isUser = false))
-                    setStatus("错误: $error")
+                    adapter.addMessage(Message("错误: $error", isUser = false))
+                    setStatus("出错: $error")
                 } else {
-                    adapter.addMessage(Message("[错误] 无法解析回复", isUser = false))
-                    setStatus("解析错误")
+                    adapter.addMessage(Message("收到未知回复格式: ${result.take(100)}", isUser = false))
+                    setStatus("解析失败")
                 }
-                scrollToBottom()
             } catch (e: Exception) {
-                Log.e(TAG, "发送消息失败: ${e.message}", e)
-                adapter.addMessage(Message("[错误] ${e.message}", isUser = false))
-                setStatus("错误: ${e.message}")
-                scrollToBottom()
+                Log.e(TAG, "消息发送失败: ${e.message}", e)
+                adapter.addMessage(Message("发送失败: ${e.message}", isUser = false))
+                setStatus("出错: ${e.message}")
             } finally {
-                isWaitingReply = false
                 enableInput()
+                isWaitingReply = false
+                scrollToBottom()
             }
         }
     }
-
-    // ========================================================================
-    // 新对话
-    // ========================================================================
 
     private suspend fun resetChat() {
-        try {
-            withContext(Dispatchers.IO) {
-                val py = com.chaquo.python.Python.getInstance()
-                val module = py.getModule("chat_bridge")
-                module.callAttr("reset")
-            }
-            adapter.clear()
-            setStatus("新对话已开始")
-            Log.i(TAG, "对话已重置")
-        } catch (e: Exception) {
-            Log.e(TAG, "重置失败: ${e.message}", e)
-            setStatus("重置失败: ${e.message}")
-        }
-    }
-
-    // ========================================================================
-    // 辅助方法
-    // ========================================================================
-
-    private fun setStatus(text: String) {
-        runOnUiThread { tvStatus.text = text }
-    }
-
-    private fun disableInput() {
-        runOnUiThread {
-            etInput.isEnabled = false
-            btnSend.isEnabled = false
-        }
-    }
-
-    private fun enableInput() {
-        runOnUiThread {
-            etInput.isEnabled = true
-            btnSend.isEnabled = true
-        }
-    }
-
-    private fun scrollToBottom() {
-        rvMessages.post {
-            rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-        }
-    }
-
-    private fun extractJsonValue(text: String, key: String): String? {
-        // 优先用 JSONObject 解析（匹配 json.dumps 输出的双引号格式）
-        try {
-            val obj = org.json.JSONObject(text)
-            return if (obj.has(key)) obj.getString(key) else null
-        } catch (_: Exception) {}
-        // 降级：Python repr(dict) 单引号格式
-        val singleQuote = "'$key':\\s*'([^']*)'".toRegex()
-        return singleQuote.find(text)?.groupValues?.getOrNull(1)
-    }
-
-    private fun extractJsonInt(text: String, key: String): Int {
-        // 优先用 JSONObject 解析（匹配 json.dumps 输出的双引号格式）
-        try {
-            val obj = org.json.JSONObject(text)
-            return obj.optInt(key, -1)
-        } catch (_: Exception) {}
-        // 降级：Python repr(dict) 单引号格式
-        val singleQuote = "'$key':\\s*(\\d+)".toRegex()
-        return singleQuote.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: -1
-    }
-
-    // ========================================================================
-    // 记忆系统
-    // ========================================================================
-
-    /**
-     * 初始化记忆系统（在 initPython 成功后调用）。
-     * suspend 函数，与 initPython 在同一协程中执行。
-     */
-    private suspend fun initMemory() {
         try {
             val result = withContext(Dispatchers.IO) {
                 val py = com.chaquo.python.Python.getInstance()
                 val module = py.getModule("chat_bridge")
-                // 传目录路径（filesDir），Python 端会在目录下创建 memories.db
-                module.callAttr("init_memory", filesDir.absolutePath).toString()
+                module.callAttr("reset").toString()
             }
-            // 检查 status 字段，区分成功和失败
-            val status = extractJsonValue(result, "status")
-            if (status == "ok") {
-                val count = extractJsonInt(result, "memory_count")
-                Log.i(TAG, "记忆系统初始化成功，已有 $count 条记忆")
-                if (count > 0) {
-                    setStatus("就绪 (已有 $count 条记忆)")
-                }
-            } else {
-                val errorMsg = extractJsonValue(result, "message") ?: "未知错误"
-                Log.w(TAG, "记忆系统初始化失败: $errorMsg")
-            }
+            setStatus("会话已重置")
         } catch (e: Exception) {
-            Log.w(TAG, "记忆系统初始化失败（对话仍可用）: ${e.message}")
+            Log.e(TAG, "重置失败: ${e.message}", e)
         }
     }
 
-    /**
-     * 检索相关记忆并注入到 System Prompt（在 sendMessage 前调用）。
-     */
-    private suspend fun injectMemories(queryText: String) {
+    private fun setStatus(msg: String) {
+        tvStatus.text = msg
+    }
+
+    private fun disableInput() {
+        etInput.isEnabled = false
+        btnSend.isEnabled = false
+    }
+
+    private fun enableInput() {
+        etInput.isEnabled = true
+        btnSend.isEnabled = true
+        etInput.requestFocus()
+    }
+
+    private fun scrollToBottom() {
+        rvMessages.postDelayed({
+            adapter.itemCount.let { count ->
+                if (count > 0) rvMessages.smoothScrollToPosition(count - 1)
+            }
+        }, 100)
+    }
+
+    private fun extractJsonValue(text: String, key: String): String? {
+        try {
+            val obj = org.json.JSONObject(text)
+            return obj.optString(key, null)
+        } catch (e: Exception) {
+            Log.w(TAG, "JSON 解析失败 (key=$key): ${e.message}")
+            return null
+        }
+    }
+
+    private fun extractJsonInt(text: String, key: String): Int {
+        try {
+            val obj = org.json.JSONObject(text)
+            return obj.optInt(key, -1)
+        } catch (e: Exception) {
+            Log.w(TAG, "JSON 解析失败 (key=$key): ${e.message}")
+            return -1
+        }
+    }
+
+    private suspend fun initMemory() {
+        val dbPath = filesDir.absolutePath
         val result = withContext(Dispatchers.IO) {
-            try {
-                val py = com.chaquo.python.Python.getInstance()
-                val module = py.getModule("chat_bridge")
-                module.callAttr("inject_memories", queryText).toString()
-            } catch (e: Exception) {
-                Log.w(TAG, "记忆检索失败: ${e.message}")
-                null
-            }
+            val py = com.chaquo.python.Python.getInstance()
+            val module = py.getModule("chat_bridge")
+            module.callAttr("init_memory", dbPath).toString()
         }
-        if (result != null) {
-            val count = extractJsonInt(result, "count")
-            if (count > 0) {
-                Log.d(TAG, "已注入 $count 条相关记忆")
+        val count = extractJsonInt(result, "memory_count")
+        Log.i(TAG, "记忆系统初始化完成，现有记忆: $count 条")
+    }
+
+    private suspend fun injectMemories(query: String) {
+        val result = withContext(Dispatchers.IO) {
+            val py = com.chaquo.python.Python.getInstance()
+            val module = py.getModule("chat_bridge")
+            module.callAttr("inject_memories", query).toString()
+        }
+        val count = extractJsonInt(result, "count")
+        if (count > 0) {
+            val memories = result.let { text ->
+                try {
+                    val obj = org.json.JSONObject(text)
+                    val arr = obj.optJSONArray("memories")
+                    if (arr != null) {
+                        (0 until arr.length()).map { arr.getString(it) }
+                    } else emptyList()
+                } catch (e: Exception) { emptyList() }
             }
+            Log.i(TAG, "已注入 $count 条记忆到 System Prompt")
         }
     }
 
-    /**
-     * 记忆管理对话框。
-     */
     private fun showMemoryDialog() {
         lifecycleScope.launch {
-            val stats = try {
-                withContext(Dispatchers.IO) {
+            try {
+                val result = withContext(Dispatchers.IO) {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
                     module.callAttr("get_memory_stats").toString()
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "获取记忆统计失败: ${e.message}")
-                null
-            }
+                val total = extractJsonInt(result, "total")
+                val status = extractJsonValue(result, "status")
 
-            val total = if (stats != null) extractJsonInt(stats, "total") else -1
-            val message = if (stats != null && total >= 0) {
-                val byTypeStr = try {
-                    val obj = org.json.JSONObject(stats)
-                    val byType = obj.getJSONObject("by_type")
-                    val sb = StringBuilder()
-                    byType.keys().forEach { key ->
-                        sb.append("  $key: ${byType.getInt(key)}\n")
-                    }
-                    sb.toString()
-                } catch (_: Exception) { "" }
-                "总记忆数：$total 条\n\n按类型分布：\n$byTypeStr"
-            } else {
-                "记忆系统未初始化\n\n请确保 API Key 已配置并重启 APP。"
-            }
-
-            AlertDialog.Builder(this@MainActivity)
-                .setTitle("记忆管理")
-                .setMessage(message)
-                .setPositiveButton("同步统计") { _, _ -> setStatus("记忆统计已更新") }
-                .setNeutralButton("重置记忆") { _, _ -> resetMemories() }
-                .setNegativeButton("关闭", null)
-                .show()
-        }
-    }
-
-    private fun resetMemories() {
-        lifecycleScope.launch {
-            val result = try {
-                withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-                    module.callAttr("reset_memories").toString()
+                if (status == "error") {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("记忆管理")
+                        .setMessage("记忆系统未初始化\n\n请先进行对话以初始化记忆系统。")
+                        .setPositiveButton("确定", null)
+                        .show()
+                    return@launch
                 }
+
+                val message = if (total > 0) {
+                    "当前共有 $total 条记忆"
+                } else {
+                    "暂无记忆。\n\n进行对话后，系统会自动提取并存储用户的个人信息和偏好。"
+                }
+
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("记忆管理")
+                    .setMessage(message)
+                    .setPositiveButton("确定", null)
+                    .setNegativeButton(if (total > 0) "清除所有记忆" else null) { _, _ ->
+                        lifecycleScope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    val py = com.chaquo.python.Python.getInstance()
+                                    val module = py.getModule("chat_bridge")
+                                    module.callAttr("reset_memories").toString()
+                                }
+                                setStatus("记忆已清除")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "清除记忆失败: ${e.message}", e)
+                            }
+                        }
+                    }
+                    .show()
             } catch (e: Exception) {
-                Log.w(TAG, "重置记忆失败: ${e.message}")
-                null
-            }
-            val deleted = if (result != null) extractJsonInt(result, "deleted") else -1
-            if (deleted >= 0) {
-                setStatus("已清除 $deleted 条记忆")
-                Log.i(TAG, "记忆已重置，删除了 $deleted 条")
-            } else {
-                Log.w(TAG, "记忆重置失败: $result")
+                Log.e(TAG, "获取记忆统计失败: ${e.message}", e)
             }
         }
     }
