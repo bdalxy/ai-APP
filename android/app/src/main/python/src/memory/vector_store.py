@@ -460,6 +460,11 @@ class VectorStore:
         return [self._row_to_entry(row) for row in rows]
 
     def _get_all(self) -> list[MemoryEntry]:
+        """全量加载所有记忆条目（内部方法）。
+        
+        警告：记忆量 > 2000 条时存在 OOM 风险，外部调用应优先使用
+        get_page() 分页加载或通过 search() 的混合检索路径。
+        """
         sql = f"SELECT * FROM {self._TABLE_NAME}"
         try:
             with self._lock:
@@ -468,6 +473,36 @@ class VectorStore:
         except sqlite3.Error as e:
             self._log.error(f"查询所有记忆失败: {e}")
             raise MemoryStorageError(f"查询所有记忆失败: {e}") from e
+        return [self._row_to_entry(row) for row in rows]
+
+    def get_page(self, offset: int, limit: int) -> list[MemoryEntry]:
+        """分页加载记忆条目（T4.6 OOM 防护）。
+
+        用于全量回退检索时的分页加载，避免一次性加载大量记忆导致 OOM。
+        每页独立从数据库加载，不在内存中累积已加载页。
+
+        Args:
+            offset: 分页偏移量（从 0 开始）。
+            limit: 每页最大条数。
+
+        Returns:
+            MemoryEntry 列表，按 rowid 升序排列。
+
+        Raises:
+            MemoryStorageError: 数据库操作失败时抛出。
+        """
+        self._check_closed()
+        sql = f"SELECT * FROM {self._TABLE_NAME} ORDER BY rowid LIMIT ? OFFSET ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (limit, offset))
+                rows = cursor.fetchall()
+        except sqlite3.Error as e:
+            self._log.error(f"分页加载记忆失败 (offset={offset}, limit={limit}): {e}")
+            raise MemoryStorageError(
+                f"分页加载记忆失败: {e}", detail=f"offset={offset}, limit={limit}"
+            ) from e
+        self._log.debug(f"[分页加载] offset={offset}, limit={limit}, 实际={len(rows)}")
         return [self._row_to_entry(row) for row in rows]
 
     def _record_access(self, entry: MemoryEntry) -> None:
