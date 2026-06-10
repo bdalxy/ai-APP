@@ -15,6 +15,7 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
 
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -102,10 +103,15 @@ def chat(user_input: str) -> dict:
         user_input = user_input.strip()
         reply = player.chat(user_input)
 
-        # 记忆存储：对话完成后自动提取并存储本轮记忆
+        # 记忆存储：异步执行，不阻塞对话回复
+        # 使用 daemon 线程，主进程退出时自动结束
         # 记忆存储失败不影响对话，仅在 orchestrator 已初始化时执行
         if orchestrator is not None and reply:
-            _auto_remember(user_input, reply)
+            threading.Thread(
+                target=_auto_remember,
+                args=(user_input, reply),
+                daemon=True,
+            ).start()
 
         return {"status": "ok", "reply": reply}
     except RolePlayerError as e:
