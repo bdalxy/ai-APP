@@ -17,7 +17,7 @@
     - src.config: Settings, UserSettings, configure_logger
     - src.api_client: DeepSeekClient
     - src.chat_engine: RolePlayer, CardParser
-    - src.memory: VectorStore, MemoryRetriever, MemoryExtractor, 导出函数
+    - src.memory: MemoryOrchestrator, VectorStore, 导出函数
     - src.utils: configure_logger, format_timestamp
     - src.exceptions: 所有异常类
 """
@@ -34,9 +34,8 @@ from src.utils.time_utils import format_timestamp, format_timestamp_iso
 from src.api_client.deepseek import DeepSeekClient
 from src.chat_engine.role_player import RolePlayer, RolePlayerError
 from src.chat_engine.card_parser import CardParseError
-from src.memory.vector_store import VectorStore, MemoryEntry
-from src.memory.retriever import MemoryRetriever
-from src.memory.extractor import MemoryExtractor
+from src.memory.orchestrator import MemoryOrchestrator
+from src.memory.vector_store import VectorStore
 from src.memory.exporter import export_chat_history, export_memories, export_full
 from src.proactive import ProactiveEngine, ProactiveScheduler
 from src.exceptions import (
@@ -98,9 +97,7 @@ class CompanionApp:
         user_settings: 用户设置管理器。
         client: DeepSeek API 客户端。
         player: 角色扮演对话引擎。
-        vector_store: 向量存储（记忆数据库）。
-        retriever: 记忆检索器。
-        extractor: 记忆提取器。
+        orchestrator: 记忆编排器（统一管理检索/提取/存储）。
         turn_count: 当前会话对话轮次计数。
     """
 
@@ -135,7 +132,7 @@ class CompanionApp:
             max_tokens=2000,
         )
 
-        # ── 4. 初始化记忆系统 ──
+        # ── 4. 初始化记忆系统（使用 MemoryOrchestrator 统一管理） ──
         self._init_memory_system(memory_db_path)
 
         # ── 5. 初始化主动消息引擎 ──
@@ -171,7 +168,10 @@ class CompanionApp:
             sys.exit(1)
 
     def _init_memory_system(self, memory_db_path: str | None) -> None:
-        """初始化记忆系统（向量存储、检索器、提取器）。
+        """初始化记忆系统（使用 MemoryOrchestrator 统一管理）。
+
+        与 Android 端 chat_bridge.py 使用相同的 MemoryOrchestrator，
+        确保 PC 端和 Android 端的记忆调用路径一致。
 
         Args:
             memory_db_path: 记忆数据库路径。
@@ -186,21 +186,16 @@ class CompanionApp:
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            self.vector_store = VectorStore(db_path=str(db_path))
-            self.retriever = MemoryRetriever(
-                vector_store=self.vector_store,
+            # 创建 VectorStore 并传入 MemoryOrchestrator
+            vector_store = VectorStore(db_path=str(db_path))
+            self.orchestrator = MemoryOrchestrator(
+                vector_store=vector_store,
                 deepseek_client=self.client,
             )
-            self.extractor = MemoryExtractor(
-                deepseek_client=self.client,
-                vector_store=self.vector_store,
-            )
-            self._log.info(f"记忆系统已就绪: db={db_path}, 记忆数={self.vector_store.count()}")
+            self._log.info(f"记忆系统已就绪: db={db_path}, 记忆数={vector_store.count()}")
         except Exception as e:
             self._log.error(f"记忆系统初始化失败: {e}")
-            self.vector_store = None  # type: ignore[assignment]
-            self.retriever = None  # type: ignore[assignment]
-            self.extractor = None  # type: ignore[assignment]
+            self.orchestrator = None  # type: ignore[assignment]
             print(f"  [警告] 记忆系统初始化失败: {e}，将跳过记忆功能")
 
     def _init_proactive_engine(self) -> None:
@@ -367,35 +362,31 @@ class CompanionApp:
 
     def _cmd_memory(self, arg: str) -> bool:
         """显示记忆统计信息。"""
-        if self.vector_store is None:
+        if self.orchestrator is None:
             print("  [提示] 记忆系统未启用")
             return True
 
         try:
-            total = self.vector_store.count()
+            stats = self.orchestrator.get_stats()
+            total = stats.get("total", 0)
             print()
             print(f"  [记忆统计] 总计: {total} 条记忆")
-            print(f"             数据库: {self.vector_store.db_path}")
 
-            if total > 0:
-                # 按类型统计
-                all_memories = self.vector_store.get_all()
-                type_counts: dict[str, int] = {}
-                for m in all_memories:
-                    type_counts[m.memory_type] = type_counts.get(m.memory_type, 0) + 1
-
+            by_type = stats.get("by_type", {})
+            if total > 0 and by_type:
                 print("  [类型分布]")
-                for mem_type, count in sorted(type_counts.items()):
-                    type_names = {
-                        "user_fact": "用户事实",
-                        "semantic": "语义知识",
-                        "episodic": "事件记忆",
-                    }
+                type_names = {
+                    "user_fact": "用户事实",
+                    "semantic": "语义知识",
+                    "episodic": "事件记忆",
+                }
+                for mem_type, count in sorted(by_type.items()):
                     name = type_names.get(mem_type, mem_type)
                     print(f"    {name}: {count} 条")
 
                 # 显示最近几条记忆
                 print("  [最近记忆]")
+                all_memories = self.orchestrator.vector_store.get_all()
                 all_memories.sort(key=lambda m: m.created_at, reverse=True)
                 for m in all_memories[:5]:
                     preview = m.content[:60] + "..." if len(m.content) > 60 else m.content
@@ -422,20 +413,20 @@ class CompanionApp:
                 print(f"  [导出] 对话历史 -> {chat_path}")
 
             # 导出记忆
-            if self.vector_store and self.vector_store.count() > 0:
-                memories = self.vector_store.get_all()
+            if self.orchestrator and self.orchestrator.vector_store.count() > 0:
+                memories = self.orchestrator.vector_store.get_all()
                 mem_path = export_dir / f"memories_{timestamp}.json"
                 export_memories(memories, mem_path)
                 print(f"  [导出] 长期记忆 -> {mem_path}")
 
             # 完整导出
-            if messages or (self.vector_store and self.vector_store.count() > 0):
+            if messages or (self.orchestrator and self.orchestrator.vector_store.count() > 0):
                 full_path = export_dir / f"full_export_{timestamp}.json"
-                all_memories = self.vector_store.get_all() if self.vector_store else []
+                all_memories = self.orchestrator.vector_store.get_all() if self.orchestrator else []
                 export_full(messages, all_memories, full_path)
                 print(f"  [导出] 完整数据 -> {full_path}")
 
-            if not messages and (not self.vector_store or self.vector_store.count() == 0):
+            if not messages and (not self.orchestrator or self.orchestrator.vector_store.count() == 0):
                 print("  [提示] 没有可导出的数据")
         except Exception as e:
             print(f"  [错误] 导出失败: {e}")
@@ -512,7 +503,7 @@ class CompanionApp:
         try:
             message = self.proactive_engine.decide_and_generate(
                 card=self.player,
-                retriever=self.retriever,
+                retriever=self.orchestrator.retriever if self.orchestrator else None,
                 api_client=self.client,
                 last_sent_time=last_sent,
             )
@@ -570,11 +561,11 @@ class CompanionApp:
         """处理用户输入，执行完整对话流程。
 
         流程：
-        1. 检索相关记忆
+        1. 检索相关记忆（通过 MemoryOrchestrator.recall()）
         2. 注入记忆到角色扮演引擎
         3. 调用 AI
         4. 显示回复
-        5. 异步提取新记忆
+        5. 存储本轮记忆（通过 MemoryOrchestrator.remember()）
         6. 显示成本
 
         Args:
@@ -585,18 +576,15 @@ class CompanionApp:
 
         try:
             # ── 步骤1：检索相关记忆 ──
-            if self.retriever and self.vector_store and self.vector_store.count() > 0:
+            if self.orchestrator and self.orchestrator.vector_store.count() > 0:
                 try:
-                    retrieved = self.retriever.retrieve(
+                    memories = self.orchestrator.recall(
                         query_text=user_input,
                         top_k=3,
-                        apply_decay=True,
-                        min_similarity=0.3,
                     )
-                    if retrieved:
-                        memory_texts = [m.content for m in retrieved]
-                        self.player.inject_memories(memory_texts)
-                        self._log.debug(f"检索到 {len(retrieved)} 条相关记忆")
+                    if memories:
+                        self.player.inject_memories(memories)
+                        self._log.debug(f"检索到 {len(memories)} 条相关记忆")
                 except Exception as e:
                     self._log.warning(f"记忆检索失败: {e}")
 
@@ -607,33 +595,14 @@ class CompanionApp:
             card_name = self.player.card.name if self.player.card else "AI"
             print(f"\n  [{card_name}]: {ai_reply}\n")
 
-            # ── 步骤5：提取新记忆 ──
-            if self.extractor:
+            # ── 步骤5：存储本轮记忆 ──
+            if self.orchestrator:
                 try:
-                    # 构建本轮对话消息
-                    turn_messages = [
-                        {"role": "user", "content": user_input},
-                        {"role": "assistant", "content": ai_reply},
-                    ]
-                    # 使用规则模式提取（避免额外的 API 调用开销）
-                    mode = user_settings.get("memory_extraction_mode")
-                    if not isinstance(mode, str):
-                        mode = "rule"
-                    new_entries = self.extractor.extract(
-                        messages=turn_messages,
-                        mode=mode,
-                        source_turn_id=turn_id,
-                    )
-                    # 存储新记忆
-                    for entry in new_entries:
-                        try:
-                            self.vector_store.add(entry)
-                        except Exception as e:
-                            self._log.warning(f"存储记忆失败: {e}")
-                    if new_entries:
-                        self._log.debug(f"提取了 {len(new_entries)} 条新记忆")
+                    stored = self.orchestrator.remember(turn_id, user_input, ai_reply)
+                    if stored:
+                        self._log.debug(f"存储了 {stored} 条新记忆")
                 except Exception as e:
-                    self._log.warning(f"记忆提取失败: {e}")
+                    self._log.warning(f"记忆存储失败: {e}")
 
             # ── 步骤6：显示成本 ──
             cost = self.client.get_total_cost()
@@ -712,11 +681,11 @@ class CompanionApp:
         except Exception as e:
             self._log.warning(f"关闭 API 客户端失败: {e}")
 
-        if self.vector_store:
+        if self.orchestrator:
             try:
-                self.vector_store.close()
+                self.orchestrator.close()
             except Exception as e:
-                self._log.warning(f"关闭向量存储失败: {e}")
+                self._log.warning(f"关闭记忆编排器失败: {e}")
 
         self._log.info("AI 伴侣应用已关闭")
 
