@@ -1,7 +1,7 @@
 package com.aicompanion.app
 
-import android.app.AlertDialog
 import android.os.Bundle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -435,7 +435,7 @@ class MemoryManageActivity : AppCompatActivity() {
             item.content
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("删除记忆")
             .setMessage("确定要删除这条${typeLabel}吗？\n\n\"$preview\"")
             .setPositiveButton("删除") { _, _ -> deleteMemory(item) }
@@ -446,7 +446,7 @@ class MemoryManageActivity : AppCompatActivity() {
     /** 清空全部确认 */
     private fun showClearAllConfirmDialog() {
         if (totalCount <= 0) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("提示")
                 .setMessage("当前没有记忆可以清空。")
                 .setPositiveButton("知道了", null)
@@ -454,7 +454,7 @@ class MemoryManageActivity : AppCompatActivity() {
             return
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("清空全部记忆")
             .setMessage("确定要删除全部 ${totalCount} 条记忆吗？\n\n此操作不可撤销！")
             .setPositiveButton("确认清空") { _, _ -> clearAllMemories() }

@@ -1,6 +1,5 @@
 package com.aicompanion.app
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -23,12 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.random.Random
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
 
 /**
  * AI 角色扮演聊天主界面 (P3)
@@ -126,7 +119,7 @@ class MainActivity : AppCompatActivity() {
 
                 // 2. 初始化聊天引擎
                 val preset = AppConfig.getTokenPreset(this@MainActivity)
-                val model = AppConfig.getModelName(this@MainActivity)
+                val model = AppConfig.getModel(this@MainActivity)
                 module.callAttr("init", preset, model)
 
                 // 3. 初始化记忆系统
@@ -184,7 +177,7 @@ class MainActivity : AppCompatActivity() {
                     val reply = pythonModule.callAttr("chat", combinedMessage).toString()
 
                     // 按双空行拆分为多条
-                    val parts = reply.split(Regex("\n\s*\n")).filter { it.isNotBlank() }
+                    val parts = reply.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
 
                     withContext(Dispatchers.Main) {
                         hideTypingIndicator()
@@ -227,10 +220,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun addUserBubble(text: String) {
         val msg = Message(
-            id = System.currentTimeMillis().toString(),
-            text = text,
-            sender = Message.Sender.User,
-            timestamp = System.currentTimeMillis()
+            content = text,
+            isUser = true
         )
         adapter.addMessage(msg)
         rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
@@ -238,10 +229,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun addAIBubble(text: String) {
         val msg = Message(
-            id = System.currentTimeMillis().toString(),
-            text = text,
-            sender = Message.Sender.AI,
-            timestamp = System.currentTimeMillis()
+            content = text,
+            isUser = false
         )
         adapter.addMessage(msg)
         rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
@@ -250,10 +239,8 @@ class MainActivity : AppCompatActivity() {
     private fun showTypingIndicator() {
         if (typingMsgPosition >= 0) return
         val msg = Message(
-            id = "typing",
-            text = "",
-            sender = Message.Sender.AI,
-            timestamp = System.currentTimeMillis(),
+            content = "",
+            isUser = false,
             isTyping = true
         )
         adapter.addMessage(msg)
