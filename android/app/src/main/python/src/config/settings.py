@@ -98,6 +98,12 @@ class Settings:
         except (OSError, PermissionError):
             pass
 
+        # 角色卡默认配置（可通过 set_character_card 运行时修改）
+        self.CHARACTER_NAME: str = "小美"
+        self.CHARACTER_PERSONALITY: str = "温柔、活泼、善解人意"
+        self.CHARACTER_SPEAKING_STYLE: str = "语气轻柔，喜欢使用可爱的语气词"
+        self.CHARACTER_BACKSTORY: str = "来自往世乐土的AI少女，喜欢分享生活中的小确幸"
+
     def validate(self) -> bool:
         """验证必要配置是否完整。
 

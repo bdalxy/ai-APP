@@ -739,6 +739,56 @@ def import_memories(memories_json: str) -> dict:
 
 
 # =============================================================================
+# 角色卡管理接口
+# =============================================================================
+
+
+def set_character_card(name: str, personality: str, speaking_style: str, backstory: str) -> str:
+    """设置当前使用的角色卡信息（运行时覆盖默认值）。
+
+    通过 Kotlin 端 CharacterManageActivity 调用，将用户自定义的角色属性
+    写入 Settings 单例，后续 prompt_builder 会自动使用这些值。
+
+    Args:
+        name: 角色名称。
+        personality: 性格描述。
+        speaking_style: 说话风格描述。
+        backstory: 背景故事。
+
+    Returns:
+        {"status": "ok"} 或 {"status": "error", "message": str}
+    """
+    try:
+        settings.CHARACTER_NAME = name
+        settings.CHARACTER_PERSONALITY = personality
+        settings.CHARACTER_SPEAKING_STYLE = speaking_style
+        settings.CHARACTER_BACKSTORY = backstory
+        return json.dumps({"status": "ok"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_character_card() -> str:
+    """获取当前角色卡信息。
+
+    Returns:
+        {"status": "ok", "name": str, "personality": str,
+         "speaking_style": str, "backstory": str}
+        或 {"status": "error", "message": str}
+    """
+    try:
+        return json.dumps({
+            "status": "ok",
+            "name": getattr(settings, 'CHARACTER_NAME', '小美'),
+            "personality": getattr(settings, 'CHARACTER_PERSONALITY', ''),
+            "speaking_style": getattr(settings, 'CHARACTER_SPEAKING_STYLE', ''),
+            "backstory": getattr(settings, 'CHARACTER_BACKSTORY', ''),
+        }, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
 # 主动消息接口（P1 手动触发 / P2 定时推送）
 # =============================================================================
 

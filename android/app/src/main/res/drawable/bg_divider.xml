@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 分割线：0.5dp高度矩形，半透明白色 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#1DFFFFFF" />
+    <size android:height="0.5dp" />
+</shape>

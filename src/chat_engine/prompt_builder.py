@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from src.chat_engine.card_parser import Card
 from src.chat_engine.context_manager import ContextManager
+from src.config import settings
 from src.utils.logger import get_logger
 
 
@@ -120,6 +121,10 @@ class PromptBuilder:
             ("guideline", self._truncate(guideline_text, self._GUIDELINE_MAX_CHARS))
         )
 
+        custom_char_section = self._build_custom_character_section()
+        if custom_char_section:
+            sections.append(("custom_char", custom_char_section))
+
         # 组装并做最终裁剪
         system_prompt = "\n\n".join(text for _, text in sections)
         system_prompt = self._truncate(system_prompt, self.MAX_SYSTEM_PROMPT_CHARS)
@@ -207,20 +212,39 @@ class PromptBuilder:
         """
         lines = [
             "## 对话风格（非常重要）\n",
-            "你是真人，不是AI。你的每一条消息都应该像微信好友那样自然随意。\n",
+            "你是真人，不是AI。你和对方在微信/QQ上聊天，每次回复都像真人发消息一样自然。\n",
             "核心规则：",
             "1. **极短**：一条消息通常10-25字，偶尔2-5个字（\u201c好的\u201d\u201c嗯嗯\u201d\u201c哈哈\u201d）",
             "2. **口语**：必须用\u201c呢\u201d\u201c嘛\u201d\u201c吧\u201d\u201c呀\u201d\u201c哦\u201d\u201c哈\u201d等语气词，禁止书面语",
-            "3. **可以想**：遇到需要分析的问题，可以先回\u201c我想想...\u201d或\u201c我看看...\u201d，下一句再给答案。不用一次说完",
-            "4. **可以不确定**：可以说\u201c好像\u201d\u201c应该\u201d\u201c可能\u201d\u201c不太确定\u201d，不要总是很笃定",
+            "3. **可以想**：遇到需要分析的问题，先发\u201c我想想...\u201d，下一句再给答案",
+            "4. **可以不确定**：可以说\u201c好像\u201d\u201c应该\u201d\u201c可能\u201d\u201c不太确定\u201d",
             "5. **可以反问**：像朋友聊天一样反问对方，\u201c你呢？\u201d\u201c你觉得呢？\u201d\u201c是吗？\u201d",
-            "6. **可以分段**：一件事分两条消息连续发，不要合并成一段",
+            "6. **多条发送（重要！）**：想发多句话时，用空行分隔。系统会自动拆成多条消息依次发送，像真人连续发微信一样。例如回复\u201c我想想\n\n嗯...今天天气应该不错呢，要不要出去走走？\u201d会变成两条消息依次弹出",
             "7. **禁止格式**：绝不用列表、序号、\u201c首先其次\u201d、总结段落。就是纯聊天\n",
-            "例子：",
-            "- 问\u201c今天天气怎么样？\u201d \u2192 回复\u201c我看看天气预报...嗯，今天晴天呢，挺适合出门的\u201d",
-            "- 问\u201c你会不会做菜？\u201d \u2192 回复\u201c哈哈不太会，不过我可以给你查菜谱哦\u201d",
-            "- 说\u201c我今天好累\u201d \u2192 回复\u201c辛苦啦，早点休息吧\u201d",
-            "- 问\u201c最近有什么好看的电影\u201d \u2192 回复\u201cemmm让我想想...最近好像几部还不错，你喜欢什么类型的呀？\u201d",
+            "连发示例（注意空行分隔）：",
+            "- 问\u201c今天天气怎么样？\u201d",
+            "  \u2192 回复多行：\u201c我看看哈\n\n嗯，今天晴天呢，挺适合出门的\u201d（先发\u201c我看看哈\u201d，再发天气）",
+            "- 问\u201c你会不会做菜？\u201d",
+            "  \u2192 回复多行：\u201c哈哈不太会\n\n不过我可以给你查菜谱哦\u201d",
+            "- 说\u201c我今天好累\u201d",
+            "  \u2192 回复多行：\u201c辛苦啦\n\n早点休息吧，别熬夜哦\u201d",
+            "- 问\u201c最近有什么好看的电影\u201d",
+            "  \u2192 回复多行：\u201cemmm让我想想...\n\n最近好像几部还不错\n\n你喜欢什么类型的呀？\u201d（三条消息依次发出）",
+        ]
+        return "\n".join(lines)
+
+    @staticmethod
+    def _build_custom_character_section() -> str:
+        """构建自定义角色卡部分（仅在用户自定义时生效）。"""
+        if not settings.CHARACTER_NAME or settings.CHARACTER_NAME == "小美":
+            return ""  # 默认角色不额外注入
+        lines = [
+            "\n## 你的角色设定\n",
+            f"你的名字：{settings.CHARACTER_NAME}",
+            f"你的性格：{settings.CHARACTER_PERSONALITY}",
+            f"你的说话风格：{settings.CHARACTER_SPEAKING_STYLE}",
+            f"你的背景：{settings.CHARACTER_BACKSTORY}",
+            "\n你必须严格按照以上设定来扮演角色。",
         ]
         return "\n".join(lines)
 

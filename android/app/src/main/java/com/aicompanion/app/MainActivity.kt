@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -49,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvTitle: TextView
     private lateinit var btnSettings: TextView
+    private lateinit var ivAvatar: ImageView
     private lateinit var adapter: ChatAdapter
 
     private var isInitialized = false
@@ -79,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvTitle = findViewById(R.id.tvTitle)
         btnSettings = findViewById(R.id.btnSettings)
+        ivAvatar = findViewById(R.id.ivAvatar)
 
         adapter = ChatAdapter(mutableListOf())
         rvMessages.adapter = adapter
@@ -87,6 +90,14 @@ class MainActivity : AppCompatActivity() {
         btnSend.setOnClickListener { sendMessage() }
         btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        // 点击角色名称或头像，跳转角色管理页
+        tvTitle.setOnClickListener {
+            startActivity(Intent(this, CharacterManageActivity::class.java))
+        }
+        ivAvatar.setOnClickListener {
+            startActivity(Intent(this, CharacterManageActivity::class.java))
         }
 
         etInput.setOnEditorActionListener { _, actionId, _ ->
@@ -398,8 +409,19 @@ class MainActivity : AppCompatActivity() {
                 "连接失败，请检查网络"
             }
 
-            adapter.addMessage(Message(replyText, isUser = false))
-            rvMessages.scrollToPosition(adapter.itemCount - 1)
+            // 支持AI连发多条消息：用空行分隔
+            val paragraphs = replyText.split("\n\n").filter { it.isNotBlank() }
+            for ((i, para) in paragraphs.withIndex()) {
+                if (i > 0) {
+                    // 每条之间间隔模拟打字
+                    val delay = 800L + Random.nextLong(0, 400) * para.length.coerceAtMost(20)
+                    kotlinx.coroutines.delay(delay)
+                }
+                val cleanText = para.replace("\n", " ").trim()
+                adapter.addMessage(Message(cleanText, isUser = false))
+                rvMessages.scrollToPosition(adapter.itemCount - 1)
+            }
+
             isWaitingReply = false
             setStatus("小美已就绪")
         }

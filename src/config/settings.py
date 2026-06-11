@@ -88,6 +88,18 @@ class Settings:
         if os.getenv("ANDROID_BUILD_TYPE", "").lower() == "release":
             self.LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
+        # 角色卡设定
+        self.CHARACTER_NAME: str = os.getenv("CHARACTER_NAME", "小美")
+        self.CHARACTER_PERSONALITY: str = os.getenv(
+            "CHARACTER_PERSONALITY", "温柔、活泼、善解人意"
+        )
+        self.CHARACTER_SPEAKING_STYLE: str = os.getenv(
+            "CHARACTER_SPEAKING_STYLE", "语气轻柔，喜欢使用可爱的语气词"
+        )
+        self.CHARACTER_BACKSTORY: str = os.getenv(
+            "CHARACTER_BACKSTORY", "来自神秘花园的AI少女"
+        )
+
         # 数据存储路径（转换为绝对路径）
         data_dir_raw = os.getenv("DATA_DIR", "./data")
         self.DATA_DIR: Path = (self.PROJECT_ROOT / data_dir_raw).resolve()

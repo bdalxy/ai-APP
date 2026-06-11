@@ -51,7 +51,7 @@
         </LinearLayout>
 
         <!-- ===== 账户设置卡片 ===== -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -187,10 +187,10 @@
                         android:gravity="center" />
                 </LinearLayout>
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 对话设置卡片 ===== -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -310,10 +310,10 @@
                         android:gravity="center" />
                 </LinearLayout>
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 主动消息卡片 ===== -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -436,10 +436,10 @@
                         android:gravity="center" />
                 </LinearLayout>
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 记忆管理卡片 ===== -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -483,14 +483,14 @@
                     android:textColor="@color/text_tertiary"
                     android:gravity="center" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 关于卡片 ===== -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:contentPadding="12dp">
+            app:contentPadding="12dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -554,7 +554,7 @@
                         android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 </ScrollView>

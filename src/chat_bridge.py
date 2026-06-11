@@ -573,3 +573,34 @@ def search_memories(keyword: str) -> dict:
         return json.dumps({"status": "ok", "items": results, "count": len(results)})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 角色卡自定义接口
+# =============================================================================
+
+
+def set_character_card(name: str, personality: str, speaking_style: str, backstory: str) -> str:
+    """设置当前使用的角色卡信息。"""
+    try:
+        _ctx.settings.CHARACTER_NAME = name
+        _ctx.settings.CHARACTER_PERSONALITY = personality
+        _ctx.settings.CHARACTER_SPEAKING_STYLE = speaking_style
+        _ctx.settings.CHARACTER_BACKSTORY = backstory
+        return json.dumps({"status": "ok"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_character_card() -> str:
+    """获取当前角色卡信息。"""
+    try:
+        return json.dumps({
+            "status": "ok",
+            "name": getattr(_ctx.settings, 'CHARACTER_NAME', '小美'),
+            "personality": getattr(_ctx.settings, 'CHARACTER_PERSONALITY', ''),
+            "speaking_style": getattr(_ctx.settings, 'CHARACTER_SPEAKING_STYLE', ''),
+            "backstory": getattr(_ctx.settings, 'CHARACTER_BACKSTORY', '')
+        })
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
