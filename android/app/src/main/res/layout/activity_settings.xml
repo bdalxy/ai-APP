@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 设置页面：ScrollView 内包含 4 个设置卡片区域 -->
+<!-- 设置页面：ScrollView 内包含 5 个设置卡片区域 -->
+<!-- 优化：增大点击区域(44→52dp)、加大卡片间距和内边距，适配 HyperOS/MagicOS 缩放 -->
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -19,15 +20,15 @@
         <!-- ===== 顶栏 ===== -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="52dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="20dp">
 
             <TextView
                 android:id="@+id/btnBack"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:text="\u2190"
                 android:textSize="22sp"
                 android:textColor="@color/text_primary"
@@ -47,16 +48,16 @@
                 android:gravity="center" />
 
             <View
-                android:layout_width="40dp"
-                android:layout_height="40dp" />
+                android:layout_width="44dp"
+                android:layout_height="44dp" />
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:contentPadding="12dp">
+            android:layout_marginBottom="16dp"
+            app:contentPadding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -69,12 +70,12 @@
                     android:layout_height="wrap_content"
                     android:text="账户设置"
                     android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="10dp" />
 
                 <LinearLayout
                     android:id="@+id/itemApiKey"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -114,7 +115,7 @@
                 <LinearLayout
                     android:id="@+id/itemRolePreset"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -154,7 +155,7 @@
                 <LinearLayout
                     android:id="@+id/itemModel"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -192,8 +193,8 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:contentPadding="12dp">
+            android:layout_marginBottom="16dp"
+            app:contentPadding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -206,12 +207,12 @@
                     android:layout_height="wrap_content"
                     android:text="对话设置"
                     android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="10dp" />
 
                 <LinearLayout
                     android:id="@+id/itemTokenPreset"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -251,7 +252,7 @@
                 <LinearLayout
                     android:id="@+id/itemNewChat"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -283,7 +284,7 @@
                 <LinearLayout
                     android:id="@+id/itemClearMemory"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -313,8 +314,8 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:contentPadding="12dp">
+            android:layout_marginBottom="16dp"
+            app:contentPadding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -327,12 +328,12 @@
                     android:layout_height="wrap_content"
                     android:text="主动消息"
                     android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="10dp" />
 
                 <LinearLayout
                     android:id="@+id/itemProactiveToggle"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -359,7 +360,7 @@
                 <LinearLayout
                     android:id="@+id/itemProactiveInterval"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -399,7 +400,7 @@
                 <LinearLayout
                     android:id="@+id/itemQuietTime"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -437,16 +438,15 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:contentPadding="12dp">
+            android:layout_marginBottom="16dp"
+            app:contentPadding="16dp">
 
             <LinearLayout
                 android:id="@+id/itemMemoryManage"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingVertical="6dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:background="?attr/selectableItemBackground">
@@ -483,7 +483,8 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:contentPadding="12dp">
+            android:layout_marginBottom="16dp"
+            app:contentPadding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -496,11 +497,11 @@
                     android:layout_height="wrap_content"
                     android:text="关于"
                     android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="10dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="52dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -522,6 +523,11 @@
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- 底部留白，避免被导航栏遮挡 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="24dp" />
 
     </LinearLayout>
 </ScrollView>
