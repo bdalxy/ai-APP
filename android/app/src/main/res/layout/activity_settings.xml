@@ -65,6 +65,8 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="账户设置"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -204,6 +206,8 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="对话设置"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -327,6 +331,8 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="主动消息"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -499,6 +505,8 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="关于"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
