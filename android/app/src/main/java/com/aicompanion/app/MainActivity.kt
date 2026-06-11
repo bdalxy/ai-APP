@@ -1,6 +1,7 @@
 package com.aicompanion.app
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -68,16 +69,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        initViews()
-
-        if (!AppConfig.hasApiKey(this)) {
-            showApiKeyDialog()
-        } else {
-            initPython()
-        }
-    }
-
-    private fun initViews() {
         rvMessages = findViewById(R.id.rvMessages)
         etInput = findViewById(R.id.etInput)
         btnSend = findViewById(R.id.btnSend)
@@ -87,12 +78,12 @@ class MainActivity : AppCompatActivity() {
         btnSettings = findViewById(R.id.btnSettings)
 
         adapter = ChatAdapter(mutableListOf())
-        rvMessages.layoutManager = LinearLayoutManager(this).apply {
-            stackFromEnd = true
-        }
         rvMessages.adapter = adapter
+        rvMessages.layoutManager = LinearLayoutManager(this)
 
         btnSend.setOnClickListener { sendMessage() }
+        btnReset.setOnClickListener { resetConversation() }
+        btnSettings.setOnClickListener { showSettingsDialog() }
 
         etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -101,46 +92,32 @@ class MainActivity : AppCompatActivity() {
             } else false
         }
 
-        btnReset.setOnClickListener {
-            lifecycleScope.launch { resetChat() }
+        lifecycleScope.launch {
+            initPython()
         }
-
-        btnSettings.setOnClickListener { showSettingsDialog() }
     }
 
-    // ========================================================================
-    // API Key 输入对话框
-    // ========================================================================
-
-    private fun showApiKeyDialog() {
-        val input = EditText(this).apply {
-            hint = "输入 DeepSeek API Key (sk-...)"
-            setSingleLine()
-            setPadding(48, 32, 48, 32)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("配置 API Key")
-            .setMessage("请输入你的 DeepSeek API Key，\n可在 platform.deepseek.com 获取。\n\nKey 仅存储在本机，不会上传。")
-            .setView(input)
-            .setCancelable(false)
-            .setPositiveButton("确认") { _, _ ->
-                val key = input.text.toString().trim()
-                if (key.isNotBlank()) {
-                    AppConfig.setApiKey(this, key)
-                    initPython()
-                } else {
-                    setStatus("API Key 不能为空，请重新设置")
-                    showApiKeyDialog()
-                }
+    private suspend fun initPython() {
+        setStatus("正在初始化...")
+        try {
+            withContext(Dispatchers.IO) {
+                val py = com.chaquo.python.Python.getInstance()
+                val module = py.getModule("chat_bridge")
+                module.callAttr("initialize")
             }
-            .setNegativeButton("退出") { _, _ -> finish() }
-            .show()
+            isInitialized = true
+            setStatus("小美已就绪")
+            Log.i(TAG, "Python chat_bridge 初始化成功")
+        } catch (e: Exception) {
+            isInitialized = false
+            setStatus("初始化失败: ${e.message}")
+            Log.e(TAG, "Python chat_bridge 初始化失败: ${e.message}")
+        }
     }
 
-    // ========================================================================
-    // 设置对话框（Token 预设 + API Key 修改）
-    // ========================================================================
+    private fun setStatus(text: String) {
+        tvStatus.text = text
+    }
 
     private fun showSettingsDialog() {
         val currentPreset = AppConfig.getTokenPreset(this)
@@ -205,13 +182,17 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showPresetDialog(names: Array<String>, values: Array<String>, current: Int) {
+    private fun showPresetDialog(
+        presetNames: Array<String>,
+        presetValues: Array<String>,
+        currentIndex: Int
+    ) {
         AlertDialog.Builder(this)
             .setTitle("Token 预设")
-            .setSingleChoiceItems(names, current) { dialog, which ->
-                AppConfig.setTokenPreset(this, values[which])
+            .setSingleChoiceItems(presetNames, currentIndex) { dialog, which ->
                 dialog.dismiss()
-                setStatus("Token 预设已切换为：${names[which]}，下次对话生效")
+                AppConfig.setTokenPreset(this, presetValues[which])
+                setStatus("Token 预设已切换为：${presetNames[which]}，下次对话生效")
                 lifecycleScope.launch {
                     isInitialized = false
                     initPython()
@@ -221,370 +202,176 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showCurrentApiKey() {
-        val key = AppConfig.getApiKey(this)
-        val masked = if (key.length > 10) {
-            "${key.take(7)}...${key.takeLast(4)}"
-        } else {
-            key
-        }
+    private fun showApiKeyDialog() {
+        val editText = EditText(this)
+        editText.hint = "输入 API Key"
+        editText.inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+
         AlertDialog.Builder(this)
-            .setTitle("当前 API Key")
-            .setMessage("$masked\n\nKey 仅存储在本机，不会上传。")
-            .setPositiveButton("修改") { _, _ -> showApiKeyDialog() }
-            .setNegativeButton("关闭", null)
+            .setTitle("修改 API Key")
+            .setView(editText)
+            .setPositiveButton("保存") { _, _ ->
+                val key = editText.text.toString().trim()
+                if (key.isNotBlank()) {
+                    AppConfig.setApiKey(this, key)
+                    setStatus("API Key 已保存，下次启动生效")
+                    lifecycleScope.launch {
+                        isInitialized = false
+                        initPython()
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
             .show()
     }
 
-    // ========================================================================
-    // Python 初始化
-    // ========================================================================
-
-    private fun initPython() {
-        setStatus("正在初始化...")
-        disableInput()
-
-        val apiKey = AppConfig.getApiKey(this)
-        val preset = AppConfig.getTokenPreset(this)
-        val model = AppConfig.getModel(this)
-
-        lifecycleScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-
-                    module.callAttr("set_api_key", apiKey)
-                    module.callAttr("init", preset, model).toString()
-                }
-                Log.i(TAG, "Python 初始化结果 (预设=$preset): ${result.take(80)}")
-                isInitialized = true
-                setStatus("就绪")
-                enableInput()
-
-                val name = extractJsonValue(result, "name")
-                if (name != null) tvTitle.text = name
-
-                // 初始化记忆系统
-                try {
-                    initMemory()
-                } catch (e: Exception) {
-                    Log.w(TAG, "记忆系统初始化跳过: ${e.message}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Python 初始化失败: ${e.message}", e)
-                setStatus("初始化失败: ${e.message}")
-                isInitialized = false
-                enableInput()  // 即使失败也启用输入，让用户能操作设置
-            }
+    private fun showCurrentApiKey() {
+        val key = AppConfig.getApiKey(this)
+        val message = if (key.isNotBlank()) {
+            "当前 API Key：${key.substring(0, 4)}****${key.takeLast(4)}"
+        } else {
+            "尚未配置 API Key"
         }
+        AlertDialog.Builder(this)
+            .setTitle("当前 API Key")
+            .setMessage(message)
+            .setPositiveButton("知道了", null)
+            .show()
     }
 
-    // ========================================================================
-    // 消息发送（打字延迟 + 连发支持）
-    // ========================================================================
-
-    /**
-     * 用户发送消息入口。
-     *
-     * 核心改动：
-     * 1. 发送后不清空/禁用输入框，允许连发。
-     * 2. 首次发送启动打字延迟 → 调用 Python。
-     * 3. 延迟期间再发送则追加到 pendingMessages，延迟结束后合并调用。
-     */
     private fun sendMessage() {
         val text = etInput.text.toString().trim()
-        if (text.isEmpty() || !isInitialized) return
-
-        // 1. 添加用户气泡
-        adapter.addMessage(Message(text, isUser = true))
-        scrollToBottom()
+        if (text.isEmpty()) return
         etInput.text.clear()
 
-        // 2. 追加到待发送队列
-        pendingMessages.add(text)
+        // 添加用户消息
+        adapter.addMessage(Message(text, isUser = true))
+        rvMessages.scrollToPosition(adapter.itemCount - 1)
 
-        // 3. 如果还没在等待，启动打字 → 回复流程
-        if (!isWaitingReply) {
-            startTypingAndReply()
-        } else {
-            // 已在等待中，提示排队状态
-            setStatus("排队中...(${pendingMessages.size})")
-        }
+        // 注入相关记忆
+        injectMemories(text)
+
+        // 开始打字延迟 + 连发逻辑
+        startTypingDelay(text)
     }
 
     /**
-     * 启动打字指示器，在变速延迟后调用 Python 获取回复。
+     * 打字延迟 + 连发消息机制。
+     *
+     * 发送消息后：
+     * 1. 显示"对方正在输入..."
+     * 2. 根据消息复杂度计算延迟时间（1.5s ~ 4s）
+     * 3. 延迟期间用户可以继续发送消息，消息会被累积
+     * 4. 延迟结束后，将所有累积的消息合并为一次 API 调用
      */
-    private fun startTypingAndReply() {
-        isWaitingReply = true
+    private fun startTypingDelay(firstMessage: String) {
+        pendingMessages.add(firstMessage)
 
-        // 显示打字指示器
-        val typingMsg = Message("", isUser = false, isTyping = true)
-        adapter.addMessage(typingMsg)
+        // 如果已经有一个延迟等待中，只需追加消息，不重新计时
+        if (typingMsgPosition >= 0) {
+            Log.d(TAG, "已追加到待发送队列: $firstMessage (队列大小=${pendingMessages.size})")
+            return
+        }
+
+        // 添加打字指示器
+        adapter.addMessage(Message("", isUser = false, isTyping = true))
         typingMsgPosition = adapter.itemCount - 1
-        scrollToBottom()
-        setStatus("思考中...")
+        rvMessages.scrollToPosition(typingMsgPosition)
 
-        // 根据消息复杂度计算延迟时间
-        val delay = calculateDelay(pendingMessages.first())
+        // 根据消息复杂度计算延迟
+        val delayMs = calculateTypingDelay(firstMessage)
+        Log.d(TAG, "打字延迟: ${delayMs}ms, 消息: $firstMessage")
 
         handler.postDelayed({
-            lifecycleScope.launch {
-                try {
-                    // 收集延迟期间积累的所有消息，合并为一条
-                    val combined = pendingMessages.joinToString("\n")
-                    pendingMessages.clear()
+            // 收集所有待发送的消息
+            val messages = pendingMessages.toList()
+            pendingMessages.clear()
 
-                    Log.d(TAG, "合并消息发送 (延迟=${delay}ms): ${combined.take(80)}")
-
-                    // 检索相关记忆并注入 System Prompt
-                    try {
-                        injectMemories(combined)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "记忆注入跳过: ${e.message}")
-                    }
-
-                    val result = withContext(Dispatchers.IO) {
-                        val py = com.chaquo.python.Python.getInstance()
-                        val module = py.getModule("chat_bridge")
-                        module.callAttr("chat", combined).toString()
-                    }
-                    Log.d(TAG, "AI 回复: ${result.take(100)}")
-
-                    // 移除打字指示器
-                    removeTypingIndicator()
-
-                    val reply = extractJsonValue(result, "reply")
-                    val error = extractJsonValue(result, "message")
-
-                    if (reply != null) {
-                        adapter.addMessage(Message(reply, isUser = false))
-                        setStatus("就绪")
-                    } else if (error != null) {
-                        adapter.addMessage(Message("[错误] $error", isUser = false))
-                        setStatus("错误: $error")
-                    } else {
-                        adapter.addMessage(Message("[错误] 无法解析回复", isUser = false))
-                        setStatus("解析错误")
-                    }
-                    scrollToBottom()
-                } catch (e: Exception) {
-                    Log.e(TAG, "发送消息失败: ${e.message}", e)
-
-                    // 移除打字指示器（即使出错也要移除）
-                    removeTypingIndicator()
-
-                    adapter.addMessage(Message("[错误] ${e.message}", isUser = false))
-                    setStatus("错误: ${e.message}")
-                    scrollToBottom()
-                } finally {
-                    isWaitingReply = false
-                    typingMsgPosition = -1
-                    enableInput()
-
-                    // 检查是否在回复期间又有新的待发送消息
-                    if (pendingMessages.isNotEmpty()) {
-                        startTypingAndReply()
-                    }
-                }
-            }
-        }, delay)
-    }
-
-    /**
-     * 根据消息内容计算模拟打字延迟。
-     *
-     * 规则：
-     * - 简单问候（短消息 < 5 字符）：1 ~ 3 秒
-     * - 疑问句（含 ? 或 ？）：5 ~ 12 秒
-     * - 普通消息：3 ~ 7 秒
-     */
-    private fun calculateDelay(text: String): Long {
-        return when {
-            text.length < 5 -> Random.nextLong(1000, 3001)
-            text.contains("?") || text.contains("？") -> Random.nextLong(5000, 12001)
-            else -> Random.nextLong(3000, 7001)
-        }
-    }
-
-    /**
-     * 移除打字指示器消息（从 RecyclerView 中删除）。
-     */
-    private fun removeTypingIndicator() {
-        if (typingMsgPosition >= 0) {
-            adapter.removeTypingAt(typingMsgPosition)
+            // 移除打字指示器
+            val removed = adapter.removeTypingAt(typingMsgPosition)
             typingMsgPosition = -1
-        }
-    }
 
-    // ========================================================================
-    // 新对话
-    // ========================================================================
-
-    private suspend fun resetChat() {
-        // 清理打字延迟和消息队列
-        handler.removeCallbacksAndMessages(null)
-        pendingMessages.clear()
-        isWaitingReply = false
-        typingMsgPosition = -1
-
-        try {
-            withContext(Dispatchers.IO) {
-                val py = com.chaquo.python.Python.getInstance()
-                val module = py.getModule("chat_bridge")
-                module.callAttr("reset")
+            if (messages.isNotEmpty()) {
+                callPythonChat(messages)
             }
-            adapter.clear()
-            setStatus("新对话已开始")
-            Log.i(TAG, "对话已重置")
-        } catch (e: Exception) {
-            Log.e(TAG, "重置失败: ${e.message}", e)
-            setStatus("重置失败: ${e.message}")
-        }
+        }, delayMs)
     }
-
-    // ========================================================================
-    // 辅助方法
-    // ========================================================================
-
-    private fun setStatus(text: String) {
-        runOnUiThread { tvStatus.text = text }
-    }
-
-    private fun disableInput() {
-        runOnUiThread {
-            etInput.isEnabled = false
-            btnSend.isEnabled = false
-        }
-    }
-
-    private fun enableInput() {
-        runOnUiThread {
-            etInput.isEnabled = true
-            btnSend.isEnabled = true
-        }
-    }
-
-    private fun scrollToBottom() {
-        rvMessages.post {
-            rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-        }
-    }
-
-    private fun extractJsonValue(text: String, key: String): String? {
-        return try {
-            val obj = org.json.JSONObject(text)
-            if (obj.has(key)) obj.getString(key) else null
-        } catch (e: Exception) {
-            Log.w(TAG, "extractJsonValue 解析失败 (key=$key): ${e.message}")
-            null
-        }
-    }
-
-    private fun extractJsonInt(text: String, key: String): Int {
-        return try {
-            val obj = org.json.JSONObject(text)
-            obj.optInt(key, -1)
-        } catch (e: Exception) {
-            Log.w(TAG, "extractJsonInt 解析失败 (key=$key): ${e.message}")
-            -1
-        }
-    }
-
-    // ========================================================================
-    // 记忆系统
-    // ========================================================================
 
     /**
-     * 初始化记忆系统（在 initPython 成功后调用）。
-     * suspend 函数，与 initPython 在同一协程中执行。
+     * 根据消息复杂度计算打字延迟。
+     * 短消息 1.5~2s，长消息 2.5~4s。
      */
-    private suspend fun initMemory() {
-        try {
-            val result = withContext(Dispatchers.IO) {
-                val py = com.chaquo.python.Python.getInstance()
-                val module = py.getModule("chat_bridge")
-                module.callAttr("init_memory", filesDir.absolutePath).toString()
-            }
-            val status = extractJsonValue(result, "status")
-            if (status == "ok") {
-                val count = extractJsonInt(result, "memory_count")
-                Log.i(TAG, "记忆系统初始化成功，已有 $count 条记忆")
-                if (count > 0) {
-                    setStatus("就绪 (已有 $count 条记忆)")
-                }
-            } else {
-                val errorMsg = extractJsonValue(result, "message") ?: "未知错误"
-                Log.w(TAG, "记忆系统初始化失败: $errorMsg")
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "记忆系统初始化失败（对话仍可用）: ${e.message}")
+    private fun calculateTypingDelay(message: String): Long {
+        val len = message.length
+        return when {
+            len <= 10 -> Random.nextLong(1500, 2000)
+            len <= 30 -> Random.nextLong(2000, 3000)
+            else -> Random.nextLong(2500, 4000)
         }
     }
 
     /**
-     * 检索相关记忆并注入到 System Prompt（在 sendMessage 前调用）。
+     * 调用 Python chat_bridge 发送消息。
+     * 将多条累积消息用 "\n" 连接。
      */
-    private suspend fun injectMemories(queryText: String) {
-        val result = withContext(Dispatchers.IO) {
-            try {
-                val py = com.chaquo.python.Python.getInstance()
-                val module = py.getModule("chat_bridge")
-                module.callAttr("inject_memories", queryText).toString()
-            } catch (e: Exception) {
-                Log.w(TAG, "记忆检索失败: ${e.message}")
-                null
-            }
-        }
-        if (result != null) {
-            val count = extractJsonInt(result, "count")
-            if (count > 0) {
-                Log.d(TAG, "已注入 $count 条相关记忆")
-            }
-        }
-    }
+    private fun callPythonChat(messages: List<String>) {
+        val combined = messages.joinToString("\n")
 
-    /**
-     * 记忆管理对话框。
-     */
-    private fun showMemoryDialog() {
         lifecycleScope.launch {
-            val stats = try {
+            isWaitingReply = true
+            setStatus("小美正在思考...")
+
+            val result = try {
                 withContext(Dispatchers.IO) {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
-                    module.callAttr("get_memory_stats").toString()
+                    module.callAttr("chat", combined).toString()
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "获取记忆统计失败: ${e.message}")
+                Log.w(TAG, "Python 调用失败: ${e.message}")
+                "[错误] ${e.message}"
+            }
+
+            adapter.addMessage(Message(result, isUser = false))
+            rvMessages.scrollToPosition(adapter.itemCount - 1)
+            isWaitingReply = false
+            setStatus("小美已就绪")
+
+            Log.d(TAG, "AI 回复: ${result.take(50)}...")
+        }
+    }
+
+    /**
+     * 注入相关记忆到当前对话上下文。
+     */
+    private fun injectMemories(userMessage: String) {
+        lifecycleScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    val py = com.chaquo.python.Python.getInstance()
+                    val module = py.getModule("chat_bridge")
+                    module.callAttr("inject_memories", userMessage).toString()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "注入记忆失败: ${e.message}")
                 null
             }
 
-            val total = if (stats != null) extractJsonInt(stats, "total") else -1
-            val message = if (stats != null && total >= 0) {
-                val byTypeStr = try {
-                    val obj = org.json.JSONObject(stats)
-                    val byType = obj.getJSONObject("by_type")
-                    val sb = StringBuilder()
-                    byType.keys().forEach { key ->
-                        sb.append("  $key: ${byType.getInt(key)}\n")
-                    }
-                    sb.toString()
-                } catch (_: Exception) { "" }
-                "总记忆数：$total 条\n\n按类型分布：\n$byTypeStr"
-            } else {
-                "记忆系统未初始化\n\n请确保 API Key 已配置并重启 APP。"
+            if (result != null) {
+                val count = extractJsonInt(result, "count")
+                if (count > 0) {
+                    Log.d(TAG, "已注入 $count 条相关记忆")
+                }
             }
-
-            AlertDialog.Builder(this@MainActivity)
-                .setTitle("记忆管理")
-                .setMessage(message)
-                .setPositiveButton("同步统计") { _, _ -> setStatus("记忆统计已更新") }
-                .setNeutralButton("重置记忆") { _, _ -> resetMemories() }
-                .setNegativeButton("关闭", null)
-                .show()
         }
+    }
+
+    /**
+     * 记忆管理 — 打开独立的记忆管理页面。
+     */
+    private fun showMemoryDialog() {
+        startActivity(Intent(this, MemoryManageActivity::class.java))
     }
 
     private fun resetMemories() {
@@ -607,5 +394,31 @@ class MainActivity : AppCompatActivity() {
                 Log.w(TAG, "记忆重置失败: $result")
             }
         }
+    }
+
+    private fun resetConversation() {
+        AlertDialog.Builder(this)
+            .setTitle("新对话")
+            .setMessage("开始新对话将清除当前聊天记录")
+            .setPositiveButton("确定") { _, _ ->
+                adapter.clear()
+                pendingMessages.clear()
+                typingMsgPosition = -1
+                setStatus("新对话已开始")
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun extractJsonInt(jsonStr: String, key: String): Int {
+        return try {
+            org.json.JSONObject(jsonStr).getInt(key)
+        } catch (_: Exception) { -1 }
+    }
+
+    private fun extractJsonValue(jsonStr: String, key: String): String? {
+        return try {
+            org.json.JSONObject(jsonStr).optString(key, null)
+        } catch (_: Exception) { null }
     }
 }

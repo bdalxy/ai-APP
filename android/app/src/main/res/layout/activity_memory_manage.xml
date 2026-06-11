@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 记忆管理页面布局 -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface">
+
+    <!-- 标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="?attr/colorPrimary"
+        android:elevation="4dp">
+
+        <!-- 返回按钮 -->
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="< 返回"
+            android:textSize="13sp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp"
+            android:backgroundTint="?attr/colorOnPrimary"
+            android:textColor="?attr/colorPrimary" />
+
+        <!-- 标题 -->
+        <TextView
+            android:id="@+id/tvPageTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="记忆管理"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnPrimary"
+            android:gravity="center" />
+
+        <!-- 刷新按钮 -->
+        <Button
+            android:id="@+id/btnRefresh"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:text="↻"
+            android:textSize="18sp"
+            android:minWidth="0dp"
+            android:padding="0dp"
+            android:backgroundTint="?attr/colorOnPrimary"
+            android:textColor="?attr/colorPrimary" />
+    </LinearLayout>
+
+    <!-- 统计信息栏 -->
+    <LinearLayout
+        android:id="@+id/layoutStats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        android:background="?attr/colorSurfaceVariant"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvStats"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="总记忆数：-- 条"
+            android:textSize="13sp"
+            android:textColor="?attr/colorOnSurface" />
+
+        <!-- 加载中指示 -->
+        <TextView
+            android:id="@+id/tvStatsLoading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="加载中..."
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- 搜索栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:background="?attr/colorSurface">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:hint="搜索记忆内容..."
+            android:textSize="14sp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp"
+            android:background="@android:drawable/edit_text"
+            android:maxLines="1"
+            android:inputType="text"
+            android:imeOptions="actionSearch" />
+
+        <!-- 清除搜索按钮 -->
+        <Button
+            android:id="@+id/btnClearSearch"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:text="✕"
+            android:textSize="14sp"
+            android:minWidth="0dp"
+            android:padding="0dp"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="#E0E0E0"
+            android:textColor="#666666"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- 记忆列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMemories"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false" />
+
+    <!-- 空状态提示 -->
+    <TextView
+        android:id="@+id/tvEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="还没有任何记忆\n聊聊天，AI 会自动记住重要信息"
+        android:textSize="15sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:gravity="center"
+        android:lineSpacingExtra="6dp"
+        android:visibility="gone" />
+
+    <!-- 加载更多提示 -->
+    <TextView
+        android:id="@+id/tvLoadMore"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="加载更多..."
+        android:textSize="12sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:gravity="center"
+        android:paddingVertical="6dp"
+        android:visibility="gone" />
+
+    <!-- 底部操作栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="12dp"
+        android:background="?attr/colorSurfaceVariant">
+
+        <Button
+            android:id="@+id/btnClearAll"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:text="清空全部记忆"
+            android:textSize="14sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#E53935" />
+    </LinearLayout>
+
+</LinearLayout>
