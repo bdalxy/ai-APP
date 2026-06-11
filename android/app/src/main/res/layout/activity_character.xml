@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 角色卡页面：头像 + 名称 + 描述 + 特征卡片 + 角色切换列表 -->
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_main_gradient"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:gravity="center_horizontal">
+
+        <!-- ===== 顶栏 ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="←"
+                android:textSize="22sp"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="返回" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="角色卡片"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:gravity="center" />
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+        </LinearLayout>
+
+        <!-- ===== 角色头像 ===== -->
+        <FrameLayout
+            android:layout_width="128dp"
+            android:layout_height="128dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="16dp">
+
+            <View
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_avatar_border" />
+
+            <ImageView
+                android:id="@+id/ivCharacterAvatar"
+                android:layout_width="112dp"
+                android:layout_height="112dp"
+                android:layout_gravity="center"
+                android:scaleType="centerCrop"
+                android:contentDescription="角色头像" />
+        </FrameLayout>
+
+        <!-- 角色名称 -->
+        <TextView
+            android:id="@+id/tvCharacterName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="小美"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="4dp" />
+
+        <!-- 角色描述 -->
+        <TextView
+            android:id="@+id/tvCharacterDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="温柔体贴的AI伙伴，喜欢分享生活中的小确幸"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+
+        <!-- ===== 性格特征卡片 ===== -->
+        <androidx.cardview.widget.CardView
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:contentPadding="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsItemTitle"
+                    android:text="性格特征"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp" />
+
+                <TextView
+                    android:id="@+id/tvPersonality"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="温暖、活泼、善解人意、乐于倾听"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ===== 说话风格卡片 ===== -->
+        <androidx.cardview.widget.CardView
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:contentPadding="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsItemTitle"
+                    android:text="说话风格"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp" />
+
+                <TextView
+                    android:id="@+id/tvSpeakingStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="语气轻柔，喜欢使用可爱的语气词，偶尔夹杂日文短语"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ===== 角色切换列表 ===== -->
+        <androidx.cardview.widget.CardView
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:contentPadding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsItemTitle"
+                    android:text="角色切换"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <RadioGroup
+                    android:id="@+id/rgCharacter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/rbCharacter1"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:text="小美 — 温柔女友"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:checked="true"
+                        android:buttonTint="@color/elysian_purple" />
+
+                    <RadioButton
+                        android:id="@+id/rbCharacter2"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:text="小美 — 活泼妹妹"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:buttonTint="@color/elysian_purple" />
+
+                    <RadioButton
+                        android:id="@+id/rbCharacter3"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:text="小美 — 知性姐姐"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:buttonTint="@color/elysian_purple" />
+                </RadioGroup>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ===== 自定义角色卡入口 ===== -->
+        <TextView
+            android:id="@+id/btnCustomCharacter"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="创建自定义角色卡（即将推出）"
+            android:textSize="14sp"
+            android:textColor="@color/text_tertiary"
+            android:gravity="center"
+            android:background="@drawable/bg_input_field"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
+</ScrollView>

@@ -1,28 +1,34 @@
 package com.aicompanion.app
 
-import android.graphics.Color
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
 /**
  * 聊天消息 RecyclerView 适配器。
  * 根据消息类型（用户/AI/打字指示器）显示不同的气泡样式。
+ * 用户消息右对齐紫色渐变气泡，AI 消息左对齐粉色气泡，打字消息显示三点动画。
  */
 class ChatAdapter(
     private val messages: MutableList<Message>
 ) : RecyclerView.Adapter<ChatAdapter.ViewHolder>() {
 
     companion object {
-        /** 打字指示器的占位文本 */
         const val TYPING_TEXT = "对方正在输入..."
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        /** 消息行容器（用于设置左右对齐） */
+        val layoutMessageRow: View = view.findViewById(R.id.layoutMessageRow)
+        /** 文字气泡 */
         val tvContent: TextView = view.findViewById(R.id.tvContent)
-        val tvSender: TextView = view.findViewById(R.id.tvSender)
+        /** 打字指示器容器 */
+        val layoutTyping: View = view.findViewById(R.id.layoutTyping)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -33,39 +39,35 @@ class ChatAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val message = messages[position]
+        val context = holder.itemView.context
 
         when {
-            // 打字指示器：灰色斜体 "对方正在输入..."
+            // 打字指示器：暗紫气泡 + 三点动画，左对齐
             message.isTyping -> {
-                holder.tvSender.visibility = View.VISIBLE
-                holder.tvSender.text = "小美"
-                holder.tvContent.text = TYPING_TEXT
-                holder.tvContent.setBackgroundColor(Color.parseColor("#E0E0E0"))
-                holder.tvContent.setTextColor(Color.parseColor("#888888"))
-                (holder.tvContent.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
-                    it.setMargins(0, 0, 80, 0)
-                }
+                holder.tvContent.visibility = View.GONE
+                holder.layoutTyping.visibility = View.VISIBLE
+                // 左对齐
+                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.START
             }
-            // 用户消息：右对齐，蓝色背景
+            // 用户消息：右对齐，紫色渐变气泡，白色文字
             message.isUser -> {
-                holder.tvSender.visibility = View.GONE
+                holder.tvContent.visibility = View.VISIBLE
+                holder.layoutTyping.visibility = View.GONE
                 holder.tvContent.text = message.content
-                holder.tvContent.setBackgroundColor(Color.parseColor("#2196F3"))
-                holder.tvContent.setTextColor(Color.WHITE)
-                (holder.tvContent.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
-                    it.setMargins(80, 0, 0, 0)
-                }
+                holder.tvContent.setBackgroundResource(R.drawable.bg_bubble_user)
+                holder.tvContent.setTextColor(ContextCompat.getColor(context, R.color.bubble_user_text))
+                // 右对齐
+                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.END
             }
-            // AI 回复：左对齐，灰色背景
+            // AI 回复：左对齐，粉色气泡，深色文字
             else -> {
-                holder.tvSender.visibility = View.VISIBLE
-                holder.tvSender.text = "小美"
+                holder.tvContent.visibility = View.VISIBLE
+                holder.layoutTyping.visibility = View.GONE
                 holder.tvContent.text = message.content
-                holder.tvContent.setBackgroundColor(Color.parseColor("#E0E0E0"))
-                holder.tvContent.setTextColor(Color.BLACK)
-                (holder.tvContent.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
-                    it.setMargins(0, 0, 80, 0)
-                }
+                holder.tvContent.setBackgroundResource(R.drawable.bg_bubble_ai)
+                holder.tvContent.setTextColor(ContextCompat.getColor(context, R.color.bubble_ai_text))
+                // 左对齐
+                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.START
             }
         }
     }

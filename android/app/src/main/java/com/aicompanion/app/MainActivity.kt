@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -46,11 +45,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var rvMessages: RecyclerView
     private lateinit var etInput: EditText
-    private lateinit var btnSend: Button
+    private lateinit var btnSend: TextView
     private lateinit var tvStatus: TextView
     private lateinit var tvTitle: TextView
-    private lateinit var btnReset: Button
-    private lateinit var btnSettings: Button
+    private lateinit var btnSettings: TextView
     private lateinit var adapter: ChatAdapter
 
     private var isInitialized = false
@@ -80,7 +78,6 @@ class MainActivity : AppCompatActivity() {
         btnSend = findViewById(R.id.btnSend)
         tvStatus = findViewById(R.id.tvStatus)
         tvTitle = findViewById(R.id.tvTitle)
-        btnReset = findViewById(R.id.btnReset)
         btnSettings = findViewById(R.id.btnSettings)
 
         adapter = ChatAdapter(mutableListOf())
@@ -88,8 +85,9 @@ class MainActivity : AppCompatActivity() {
         rvMessages.layoutManager = LinearLayoutManager(this)
 
         btnSend.setOnClickListener { sendMessage() }
-        btnReset.setOnClickListener { resetConversation() }
-        btnSettings.setOnClickListener { showSettingsDialog() }
+        btnSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
 
         etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -106,19 +104,36 @@ class MainActivity : AppCompatActivity() {
     private suspend fun initPython() {
         setStatus("正在初始化...")
         try {
+            val preset = AppConfig.getTokenPreset(this)
+            val model = AppConfig.getModel(this)
+            val apiKey = AppConfig.getApiKey(this)
+            if (apiKey.isBlank()) {
+                throw Exception("API Key 未配置，请先在设置中输入")
+            }
             withContext(Dispatchers.IO) {
                 val py = com.chaquo.python.Python.getInstance()
                 val module = py.getModule("chat_bridge")
-                module.callAttr("initialize")
+                // 先设置 API Key
+                module.callAttr("set_api_key", apiKey)
+                // 初始化聊天引擎
+                val result = module.callAttr("init", preset, model).toString()
+                val status = extractJsonValue(result, "status")
+                if (status != "ok") {
+                    throw Exception(extractJsonValue(result, "message") ?: "未知错误")
+                }
+                // 初始化记忆系统
+                module.callAttr("init_memory", filesDir.absolutePath)
             }
             isInitialized = true
+            btnSend.isEnabled = true
+            btnSend.setBackgroundResource(R.drawable.bg_btn_send)
             setStatus("小美已就绪")
-            Log.i(TAG, "Python chat_bridge 初始化成功")
+            if (BuildConfig.DEBUG) Log.i(TAG, "Python 初始化成功")
             setupProactiveWorker()
         } catch (e: Exception) {
             isInitialized = false
             setStatus("初始化失败: ${e.message}")
-            Log.e(TAG, "Python chat_bridge 初始化失败: ${e.message}")
+            Log.e(TAG, "初始化失败: ${e.message}", e)
         }
     }
 
@@ -309,7 +324,7 @@ class MainActivity : AppCompatActivity() {
 
         // 如果已经有一个延迟等待中，只需追加消息，不重新计时
         if (typingMsgPosition >= 0) {
-            Log.d(TAG, "已追加到待发送队列: $firstMessage (队列大小=${pendingMessages.size})")
+            if (BuildConfig.DEBUG) Log.d(TAG, "已追加到待发送队列 (${pendingMessages.size})")
             return
         }
 
@@ -320,7 +335,7 @@ class MainActivity : AppCompatActivity() {
 
         // 根据消息复杂度计算延迟
         val delayMs = calculateTypingDelay(firstMessage)
-        Log.d(TAG, "打字延迟: ${delayMs}ms, 消息: $firstMessage")
+        if (BuildConfig.DEBUG) Log.d(TAG, "打字延迟: ${delayMs}ms")
 
         handler.postDelayed({
             // 收集所有待发送的消息
@@ -361,23 +376,32 @@ class MainActivity : AppCompatActivity() {
             isWaitingReply = true
             setStatus("小美正在思考...")
 
-            val result = try {
+            val rawResult = try {
                 withContext(Dispatchers.IO) {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
                     module.callAttr("chat", combined).toString()
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Python 调用失败: ${e.message}")
-                "[错误] ${e.message}"
+                Log.e(TAG, "Python 调用失败: ${e.message}", e)
+                null
             }
 
-            adapter.addMessage(Message(result, isUser = false))
+            val replyText = if (rawResult != null) {
+                val status = extractJsonValue(rawResult, "status")
+                if (status == "ok") {
+                    extractJsonValue(rawResult, "reply") ?: rawResult
+                } else {
+                    extractJsonValue(rawResult, "message") ?: "抱歉，出了点问题..."
+                }
+            } else {
+                "连接失败，请检查网络"
+            }
+
+            adapter.addMessage(Message(replyText, isUser = false))
             rvMessages.scrollToPosition(adapter.itemCount - 1)
             isWaitingReply = false
             setStatus("小美已就绪")
-
-            Log.d(TAG, "AI 回复: ${result.take(50)}...")
         }
     }
 
@@ -400,7 +424,7 @@ class MainActivity : AppCompatActivity() {
             if (result != null) {
                 val count = extractJsonInt(result, "count")
                 if (count > 0) {
-                    Log.d(TAG, "已注入 $count 条相关记忆")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "已注入 $count 条相关记忆")
                 }
             }
         }

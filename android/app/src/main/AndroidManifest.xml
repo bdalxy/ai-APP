@@ -36,6 +36,18 @@
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="设置"
+            android:theme="@style/Theme.AICompanion" />
+
+        <activity
+            android:name=".CharacterActivity"
+            android:exported="false"
+            android:label="角色卡片"
+            android:theme="@style/Theme.AICompanion" />
+
         <!-- T5.2 主动推送前台服务 -->
         <service
             android:name=".ProactiveService"

@@ -1,106 +1,162 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<!-- 聊天主页面布局：玻璃态顶栏 + 消息列表 + 毛玻璃输入区 -->
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?attr/colorSurface">
+    android:background="@drawable/bg_main_gradient">
 
-    <!-- 标题栏 -->
+    <!-- 背景粒子层 -->
+    <com.aicompanion.app.ui.ParticleView
+        android:id="@+id/particleView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0.5" />
+
+    <!-- 主内容区 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:background="?attr/colorPrimary"
-        android:elevation="4dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <!-- 玻璃态顶栏 -->
+        <LinearLayout
+            android:id="@+id/layoutTopBar"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:background="@color/glass_bg"
+            android:elevation="8dp"
+            android:outlineSpotShadowColor="@color/glow_purple">
+
+            <!-- 头像 -->
+            <ImageView
+                android:id="@+id/ivAvatar"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:background="@drawable/bg_avatar_border"
+                android:scaleType="centerCrop"
+                android:contentDescription="角色头像" />
+
+            <!-- 名称 + 状态 -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="10dp">
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="小美"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="2dp">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_status_online" />
+                    <TextView
+                        android:id="@+id/tvStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="在线"
+                        android:textSize="11sp"
+                        android:textColor="@color/accent_green"
+                        android:layout_marginStart="4dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 菜单按钮 -->
+            <TextView
+                android:id="@+id/btnSettings"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:text="≡"
+                android:textSize="20sp"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="设置菜单" />
+        </LinearLayout>
+
+        <!-- 消息列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMessages"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:text="小美"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorOnPrimary" />
+            android:paddingVertical="8dp"
+            android:clipToPadding="false"
+            android:background="@android:color/transparent" />
 
-        <Button
-            android:id="@+id/btnReset"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="新对话"
-            android:textSize="12sp"
-            android:minWidth="0dp"
-            android:paddingHorizontal="12dp"
-            android:backgroundTint="?attr/colorOnPrimary"
-            android:textColor="?attr/colorPrimary" />
-
-        <Button
-            android:id="@+id/btnSettings"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:text="⚙"
-            android:textSize="16sp"
-            android:minWidth="0dp"
-            android:padding="0dp"
-            android:layout_marginStart="8dp"
-            android:backgroundTint="?attr/colorOnPrimary"
-            android:textColor="?attr/colorPrimary" />
-    </LinearLayout>
-
-    <!-- 消息列表 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMessages"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingVertical="8dp"
-        android:clipToPadding="false" />
-
-    <!-- 状态提示 -->
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="正在初始化..."
-        android:textSize="12sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="4dp"
-        android:gravity="center" />
-
-    <!-- 输入区域 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:gravity="center_vertical"
-        android:background="?attr/colorSurfaceVariant">
-
-        <EditText
-            android:id="@+id/etInput"
-            android:layout_width="0dp"
+        <!-- 输入区域（玻璃态） -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="输入消息..."
-            android:maxLines="3"
-            android:padding="12dp"
-            android:textSize="15sp"
-            android:background="@android:drawable/edit_text"
-            android:inputType="textMultiLine"
-            android:imeOptions="actionSend" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="8dp"
+            android:background="@color/glass_bg"
+            android:elevation="8dp">
 
-        <Button
-            android:id="@+id/btnSend"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:text="→"
-            android:textSize="20sp"
-            android:padding="0dp"
-            android:enabled="false" />
+            <!-- 插件按钮 -->
+            <TextView
+                android:id="@+id/btnPlugins"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="+"
+                android:textSize="22sp"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="插件面板" />
+
+            <!-- 输入框 -->
+            <EditText
+                android:id="@+id/etInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="输入消息..."
+                android:textColorHint="@color/text_tertiary"
+                android:textColor="@color/text_primary"
+                android:maxLines="3"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp"
+                android:textSize="15sp"
+                android:background="@drawable/bg_input_field"
+                android:inputType="textMultiLine"
+                android:imeOptions="actionSend"
+                android:layout_marginHorizontal="6dp" />
+
+            <!-- 发送按钮 -->
+            <TextView
+                android:id="@+id/btnSend"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="→"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:background="@drawable/bg_btn_send_disabled"
+                android:clickable="true"
+                android:focusable="true"
+                android:enabled="false"
+                android:contentDescription="发送消息" />
+        </LinearLayout>
     </LinearLayout>
-
-</LinearLayout>
+</FrameLayout>
