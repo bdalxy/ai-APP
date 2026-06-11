@@ -33,6 +33,7 @@ from src.app_context import AppContext
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
 from src.exceptions import MemoryNotFoundError
+from src.memory.vector_store import MemoryEntry
 from src.proactive.engine import ProactiveEngine
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
@@ -299,6 +300,41 @@ def set_extract_interval(n: int) -> dict:
     try:
         orchestrator.set_extract_interval(n)
         return json.dumps({"status": "ok", "extract_interval": n})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def set_memory_extract_mode(mode: str = "rule") -> dict:
+    """设置记忆提取模式。
+
+    Args:
+        mode: "rule"（仅规则，免费）、"mixed"（每5轮LLM）、
+              "smart"（每轮LLM，费用较高）
+
+    Returns:
+        {"status": "ok", "mode": str, "interval": int}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    _MODE_MAP: dict[str, int] = {
+        "rule": 999999,
+        "mixed": 5,
+        "smart": 1,
+    }
+    if mode not in _MODE_MAP:
+        return json.dumps({
+            "status": "error",
+            "message": f"无效的提取模式: {mode}，可选值: rule/mixed/smart",
+        })
+
+    try:
+        interval = _MODE_MAP[mode]
+        orchestrator.set_extract_interval(interval)
+        _log.info(f"[记忆模式] 已切换为: {mode}（间隔={interval}）")
+        return json.dumps({"status": "ok", "mode": mode, "interval": interval})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
@@ -572,6 +608,132 @@ def search_memories(keyword: str) -> dict:
     try:
         results = orchestrator.vector_store.search_by_keyword(keyword.strip())
         return json.dumps({"status": "ok", "items": results, "count": len(results)})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 记忆导出 / 导入接口
+# =============================================================================
+
+
+def export_memories() -> dict:
+    """导出所有记忆为 JSON 格式。
+
+    使用分页遍历 vector_store.list_with_rowid() 获取全部记忆，
+    每页 200 条，避免一次性加载过多数据导致 OOM。
+    返回的记忆不包含 embedding 向量（太大且导出无意义）。
+
+    Returns:
+        {"status": "ok", "memories": [...], "total": int, "exported_at": str}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        all_memories: list[dict] = []
+        page_size: int = 200
+        offset: int = 0
+
+        while True:
+            page = orchestrator.vector_store.list_with_rowid(
+                offset=offset,
+                limit=page_size,
+            )
+            if not page:
+                break
+            # 转换字段名：memory_type → type，只保留必要字段
+            for item in page:
+                export_item: dict[str, object] = {
+                    "rowid": item.get("rowid"),
+                    "id": item.get("id"),
+                    "type": item.get("memory_type"),
+                    "content": item.get("content"),
+                    "created_at": item.get("created_at"),
+                    "keywords": item.get("keywords"),
+                    "importance": item.get("importance"),
+                }
+                all_memories.append(export_item)
+            if len(page) < page_size:
+                break
+            offset += page_size
+
+        _log.info(f"[导出] 已导出 {len(all_memories)} 条记忆")
+        return json.dumps({
+            "status": "ok",
+            "memories": all_memories,
+            "total": len(all_memories),
+            "exported_at": format_timestamp_iso(),
+        }, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def import_memories(memories_json: str) -> dict:
+    """从 JSON 字符串导入记忆。
+
+    支持 export_memories() 导出的 JSON 格式。
+    每条记忆会重新生成 embedding 向量并写入数据库。
+    单条导入失败不会中断整体流程。
+
+    Args:
+        memories_json: export_memories() 导出的 JSON 字符串。
+                       预期格式: {"memories": [{"type": str, "content": str, ...}, ...]}
+
+    Returns:
+        {"status": "ok", "imported": int, "skipped": int}
+        或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+    if _ctx.client is None:
+        return json.dumps({"status": "error", "message": "API 客户端未初始化，请先调用 init()"})
+
+    try:
+        data = json.loads(memories_json)
+        memories: list[dict] = data.get("memories", [])
+        if not memories:
+            return json.dumps({"status": "ok", "imported": 0, "skipped": 0})
+
+        imported: int = 0
+        skipped: int = 0
+
+        for item in memories:
+            try:
+                # 映射 type → memory_type（export_memories 输出的是 type）
+                if "type" in item and "memory_type" not in item:
+                    item["memory_type"] = item.pop("type")
+                # 移除 rowid（导入时不保留原 rowid，由数据库自动分配）
+                item.pop("rowid", None)
+
+                entry = MemoryEntry.from_dict(item)
+
+                # 补充 embedding 向量
+                if not entry.embedding and entry.content:
+                    try:
+                        embed_resp = orchestrator.client.embed_cached(entry.content)
+                        if embed_resp.embeddings:
+                            entry.embedding = embed_resp.embeddings[0]
+                        else:
+                            _log.warning(
+                                f"[导入] embedding API 返回空数据: content={entry.content[:30]}..."
+                            )
+                    except Exception as e:
+                        _log.warning(f"[导入] embedding 生成失败（将使用空向量）: {e}")
+
+                orchestrator.vector_store.add(entry)
+                imported += 1
+            except Exception as e:
+                _log.warning(f"[导入] 单条记忆导入失败，跳过: {e}")
+                skipped += 1
+
+        _log.info(f"[导入] 完成: 成功={imported}, 跳过={skipped}")
+        return json.dumps({"status": "ok", "imported": imported, "skipped": skipped})
+    except json.JSONDecodeError as e:
+        return json.dumps({"status": "error", "message": f"JSON 解析失败: {e}"})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 

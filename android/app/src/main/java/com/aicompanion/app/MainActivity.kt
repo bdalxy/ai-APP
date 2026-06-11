@@ -549,7 +549,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun extractJsonValue(jsonStr: String, key: String): String? {
         return try {
-            org.json.JSONObject(jsonStr).optString(key, null)
+            org.json.JSONObject(jsonStr).optString(key, "").takeIf { it.isNotEmpty() }
         } catch (_: Exception) { null }
     }
 }
