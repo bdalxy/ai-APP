@@ -3,10 +3,12 @@
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/settings_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_main_gradient"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -26,7 +28,7 @@
                 android:id="@+id/btnBack"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:text="←"
+                android:text="\u2190"
                 android:textSize="22sp"
                 android:textColor="@color/text_primary"
                 android:gravity="center"
@@ -44,13 +46,11 @@
                 android:textColor="@color/text_primary"
                 android:gravity="center" />
 
-            <!-- 占位，保持标题居中 -->
             <View
                 android:layout_width="40dp"
                 android:layout_height="40dp" />
         </LinearLayout>
 
-        <!-- ===== 账户设置卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
@@ -71,7 +71,6 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
-                <!-- API Key 状态 -->
                 <LinearLayout
                     android:id="@+id/itemApiKey"
                     android:layout_width="match_parent"
@@ -101,7 +100,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -112,7 +111,6 @@
                     android:layout_height="0.5dp"
                     android:background="@color/glass_border" />
 
-                <!-- 角色预设 -->
                 <LinearLayout
                     android:id="@+id/itemRolePreset"
                     android:layout_width="match_parent"
@@ -142,7 +140,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -153,7 +151,6 @@
                     android:layout_height="0.5dp"
                     android:background="@color/glass_border" />
 
-                <!-- 模型选择 -->
                 <LinearLayout
                     android:id="@+id/itemModel"
                     android:layout_width="match_parent"
@@ -183,7 +180,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -191,7 +188,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== 对话设置卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
@@ -212,7 +208,6 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
-                <!-- Token 预设 -->
                 <LinearLayout
                     android:id="@+id/itemTokenPreset"
                     android:layout_width="match_parent"
@@ -242,7 +237,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -253,7 +248,6 @@
                     android:layout_height="0.5dp"
                     android:background="@color/glass_border" />
 
-                <!-- 新对话按钮 -->
                 <LinearLayout
                     android:id="@+id/itemNewChat"
                     android:layout_width="match_parent"
@@ -275,7 +269,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -286,7 +280,6 @@
                     android:layout_height="0.5dp"
                     android:background="@color/glass_border" />
 
-                <!-- 清空记忆按钮 -->
                 <LinearLayout
                     android:id="@+id/itemClearMemory"
                     android:layout_width="match_parent"
@@ -308,7 +301,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -316,7 +309,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== 主动消息卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
@@ -337,7 +329,6 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
-                <!-- 开关 -->
                 <LinearLayout
                     android:id="@+id/itemProactiveToggle"
                     android:layout_width="match_parent"
@@ -365,7 +356,6 @@
                     android:layout_height="0.5dp"
                     android:background="@color/glass_border" />
 
-                <!-- 频率设置 -->
                 <LinearLayout
                     android:id="@+id/itemProactiveInterval"
                     android:layout_width="match_parent"
@@ -395,7 +385,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -406,7 +396,6 @@
                     android:layout_height="0.5dp"
                     android:background="@color/glass_border" />
 
-                <!-- 静默时段 -->
                 <LinearLayout
                     android:id="@+id/itemQuietTime"
                     android:layout_width="match_parent"
@@ -436,7 +425,7 @@
                     <TextView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:text="›"
+                        android:text="\u203A"
                         android:textSize="20sp"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
@@ -444,7 +433,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== 记忆管理卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
@@ -484,14 +472,13 @@
                 <TextView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:text="›"
+                    android:text="\u203A"
                     android:textSize="20sp"
                     android:textColor="@color/text_tertiary"
                     android:gravity="center" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== 关于卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
@@ -530,34 +517,6 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="v1.0.0"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="开源许可"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
-
-                    <TextView
-                        android:id="@+id/tvLicense"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="MIT"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>

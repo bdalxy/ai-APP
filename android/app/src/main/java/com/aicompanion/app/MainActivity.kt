@@ -14,6 +14,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import android.view.ViewGroup
+import android.view.WindowManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,13 +42,7 @@ import java.util.concurrent.TimeUnit
  */
 class MainActivity : AppCompatActivity() {
 
-    companion object {
-        private const val TAG = "AICompanion"
-        // 可用模型列表
-        private val MODELS = arrayOf("deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-lite")
-        private val MODEL_LABELS = arrayOf("v4-pro (最佳体验)", "v4-flash (平衡)", "v4-lite (最省)")
-    }
-
+    private lateinit var pythonModule: com.chaquo.python.PyObject
     private lateinit var rvMessages: RecyclerView
     private lateinit var etInput: EditText
     private lateinit var btnSend: TextView
@@ -53,20 +52,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivAvatar: ImageView
     private lateinit var adapter: ChatAdapter
 
-    private var isInitialized = false
-    private var isWaitingReply = false
-
-    /** 主线程 Handler，用于打字延迟 */
-    private val handler = Handler(Looper.getMainLooper())
-
-    /**
-     * 待发送的消息队列。
-     * 用户在打字延迟期间可以连发多条消息，这些消息会被累积并合并为一次 Python 调用。
-     */
+    /** 等待发送的消息队列 */
     private val pendingMessages = mutableListOf<String>()
+    private var isProcessing = false
 
-    /**
-     * 当前打字指示器在 RecyclerView 中的位置（adapterPosition）。
+    /** 打字指示器位置。
      * -1 表示没有正在显示的打字指示器。
      */
     private var typingMsgPosition = -1
@@ -74,6 +64,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // 适配刘海屏/挖孔屏/状态栏
+        setupEdgeToEdge()
+        applyInsets(findViewById<android.view.ViewGroup>(R.id.main_root))
 
         rvMessages = findViewById(R.id.rvMessages)
         etInput = findViewById(R.id.etInput)
@@ -107,495 +101,191 @@ class MainActivity : AppCompatActivity() {
             } else false
         }
 
-        lifecycleScope.launch {
-            initPython()
-        }
+        // 异步初始化 Python
+        initializePythonAsync()
     }
 
-    private suspend fun initPython() {
-        setStatus("正在初始化...")
-        try {
-            val preset = AppConfig.getTokenPreset(this)
-            val model = AppConfig.getModel(this)
-            val apiKey = AppConfig.getApiKey(this)
-            if (apiKey.isBlank()) {
-                throw Exception("API Key 未配置，请先在设置中输入")
-            }
-            withContext(Dispatchers.IO) {
-                val py = com.chaquo.python.Python.getInstance()
-                val module = py.getModule("chat_bridge")
-                // 先设置 API Key
-                module.callAttr("set_api_key", apiKey)
-                // 初始化聊天引擎
-                val result = module.callAttr("init", preset, model).toString()
-                val status = extractJsonValue(result, "status")
-                if (status != "ok") {
-                    throw Exception(extractJsonValue(result, "message") ?: "未知错误")
+    private fun initializePythonAsync() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) {
+                    tvStatus.text = "正在初始化..."
                 }
-                // 初始化记忆系统
-                module.callAttr("init_memory", filesDir.absolutePath)
-            }
-            isInitialized = true
-            btnSend.isEnabled = true
-            btnSend.setBackgroundResource(R.drawable.bg_btn_send)
-            setStatus("小美已就绪")
-            if (BuildConfig.DEBUG) Log.i(TAG, "Python 初始化成功")
-            setupProactiveWorker()
-        } catch (e: Exception) {
-            isInitialized = false
-            setStatus("初始化失败: ${e.message}")
-            Log.e(TAG, "初始化失败: ${e.message}", e)
-        }
-    }
 
-    /**
-     * 配置 WorkManager 定期任务，用于主动消息推送。
-     * 如果用户关闭主动消息，则取消已有任务；
-     * 如果开启，则按配置的间隔周期调度 ProactiveWorker。
-     */
-    private fun setupProactiveWorker() {
-        val enabled = AppConfig.isProactiveEnabled(this)
-        if (!enabled) {
-            WorkManager.getInstance(this).cancelUniqueWork("proactive_check")
-            return
-        }
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
 
-        val intervalHours = AppConfig.getProactiveInterval(this) // 默认 3
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val request = PeriodicWorkRequestBuilder<ProactiveWorker>(
-            intervalHours.toLong(), TimeUnit.HOURS
-        )
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "proactive_check",
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request
-        )
-    }
-
-    private fun setStatus(text: String) {
-        tvStatus.text = text
-    }
-
-    private fun showSettingsDialog() {
-        val currentPreset = AppConfig.getTokenPreset(this)
-        val presetNames = arrayOf("聊天体验优先", "平衡", "省Token优先")
-        val presetValues = arrayOf("quality", "balanced", "economy")
-        val currentIndex = presetValues.indexOf(currentPreset).coerceAtLeast(0)
-
-        val currentModel = AppConfig.getModel(this)
-        val modelLabel = if (currentModel.isNotBlank()) {
-            val idx = MODELS.indexOf(currentModel)
-            if (idx >= 0) MODEL_LABELS[idx] else currentModel
-        } else "跟随预设"
-
-        val items = arrayOf(
-            "Token 预设：${presetNames[currentIndex]}",
-            "模型：$modelLabel",
-            "修改 API Key",
-            "查看当前 API Key",
-            "主动消息设置",
-            "记忆管理"
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("设置")
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> showPresetDialog(presetNames, presetValues, currentIndex)
-                    1 -> showModelDialog()
-                    2 -> showApiKeyDialog()
-                    3 -> showCurrentApiKey()
-                    4 -> showProactiveSettingsDialog()
-                    5 -> showMemoryDialog()
-                }
-            }
-            .setNegativeButton("关闭", null)
-            .show()
-    }
-
-    private fun showModelDialog() {
-        val currentModel = AppConfig.getModel(this)
-        val currentIdx = if (currentModel.isNotBlank()) {
-            MODELS.indexOf(currentModel).coerceAtLeast(0)
-        } else -1
-
-        val items = MODEL_LABELS + arrayOf("跟随预设（默认）")
-
-        AlertDialog.Builder(this)
-            .setTitle("选择模型")
-            .setSingleChoiceItems(items, if (currentIdx >= 0) currentIdx else 3) { dialog, which ->
-                dialog.dismiss()
-                if (which < MODELS.size) {
-                    AppConfig.setModel(this, MODELS[which])
-                    setStatus("模型已切换为：${MODEL_LABELS[which]}，下次对话生效")
-                } else {
-                    AppConfig.setModel(this, "")
-                    setStatus("模型已切换为：跟随预设，下次对话生效")
-                }
-                lifecycleScope.launch {
-                    isInitialized = false
-                    initPython()
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun showPresetDialog(
-        presetNames: Array<String>,
-        presetValues: Array<String>,
-        currentIndex: Int
-    ) {
-        AlertDialog.Builder(this)
-            .setTitle("Token 预设")
-            .setSingleChoiceItems(presetNames, currentIndex) { dialog, which ->
-                dialog.dismiss()
-                AppConfig.setTokenPreset(this, presetValues[which])
-                setStatus("Token 预设已切换为：${presetNames[which]}，下次对话生效")
-                lifecycleScope.launch {
-                    isInitialized = false
-                    initPython()
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun showApiKeyDialog() {
-        val editText = EditText(this)
-        editText.hint = "输入 API Key"
-        editText.inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-
-        AlertDialog.Builder(this)
-            .setTitle("修改 API Key")
-            .setView(editText)
-            .setPositiveButton("保存") { _, _ ->
-                val key = editText.text.toString().trim()
-                if (key.isNotBlank()) {
-                    AppConfig.setApiKey(this, key)
-                    setStatus("API Key 已保存，下次启动生效")
-                    lifecycleScope.launch {
-                        isInitialized = false
-                        initPython()
+                // 1. 注入 API Key
+                val apiKey = AppConfig.getApiKey(this@MainActivity)
+                if (apiKey.isNullOrBlank()) {
+                    withContext(Dispatchers.Main) {
+                        tvStatus.text = "初始化失败：API Key 未配置"
                     }
+                    return@launch
+                }
+                module.callAttr("set_api_key", apiKey)
+
+                // 2. 初始化聊天引擎
+                val preset = AppConfig.getTokenPreset(this@MainActivity)
+                val model = AppConfig.getModelName(this@MainActivity)
+                module.callAttr("init", preset, model)
+
+                // 3. 初始化记忆系统
+                val dbDir = filesDir.absolutePath
+                module.callAttr("init_memory", dbDir)
+
+                // 4. 加载角色卡
+                val character = CharacterStorage.getCurrent(this@MainActivity)
+                module.callAttr("set_character_card", character.name, character.personality, character.speakingStyle, character.backstory)
+
+                withContext(Dispatchers.Main) {
+                    pythonModule = module
+                    tvStatus.text = ""
+                    btnSend.isEnabled = true
+                    btnSend.setBackgroundResource(R.drawable.bg_send_active)
+                    // 显示角色名
+                    tvTitle.text = character.name
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Python 初始化失败", e)
+                withContext(Dispatchers.Main) {
+                    tvStatus.text = "初始化失败：${e.message}"
                 }
             }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun showCurrentApiKey() {
-        val key = AppConfig.getApiKey(this)
-        val message = if (key.isNotBlank()) {
-            "当前 API Key：${key.substring(0, 4)}****${key.takeLast(4)}"
-        } else {
-            "尚未配置 API Key"
         }
-        AlertDialog.Builder(this)
-            .setTitle("当前 API Key")
-            .setMessage(message)
-            .setPositiveButton("知道了", null)
-            .show()
     }
 
     private fun sendMessage() {
         val text = etInput.text.toString().trim()
-        if (text.isEmpty()) return
+        if (text.isEmpty() || !::pythonModule.isInitialized) return
         etInput.text.clear()
 
-        // 添加用户消息
-        adapter.addMessage(Message(text, isUser = true))
-        rvMessages.scrollToPosition(adapter.itemCount - 1)
+        addUserBubble(text)
+        showTypingIndicator()
+        pendingMessages.add(text)
 
-        // 注入相关记忆
-        injectMemories(text)
-
-        // 开始打字延迟 + 连发逻辑
-        startTypingDelay(text)
+        if (!isProcessing) processMessages()
     }
 
-    /**
-     * 打字延迟 + 连发消息机制。
-     *
-     * 发送消息后：
-     * 1. 显示"对方正在输入..."
-     * 2. 根据消息复杂度计算延迟时间（1.5s ~ 4s）
-     * 3. 延迟期间用户可以继续发送消息，消息会被累积
-     * 4. 延迟结束后，将所有累积的消息合并为一次 API 调用
-     */
-    private fun startTypingDelay(firstMessage: String) {
-        pendingMessages.add(firstMessage)
-
-        // 如果已经有一个延迟等待中，只需追加消息，不重新计时
-        if (typingMsgPosition >= 0) {
-            if (BuildConfig.DEBUG) Log.d(TAG, "已追加到待发送队列 (${pendingMessages.size})")
+    private fun processMessages() {
+        if (pendingMessages.isEmpty()) {
+            isProcessing = false
             return
         }
+        isProcessing = true
 
-        // 添加打字指示器
-        adapter.addMessage(Message("", isUser = false, isTyping = true))
-        typingMsgPosition = adapter.itemCount - 1
-        rvMessages.scrollToPosition(typingMsgPosition)
+        val combinedMessage = pendingMessages.joinToString("\n")
+        pendingMessages.clear()
 
-        // 根据消息复杂度计算延迟
-        val delayMs = calculateTypingDelay(firstMessage)
-        if (BuildConfig.DEBUG) Log.d(TAG, "打字延迟: ${delayMs}ms")
+        val delay = calculateDelay(combinedMessage)
 
-        handler.postDelayed({
-            // 收集所有待发送的消息
-            val messages = pendingMessages.toList()
-            pendingMessages.clear()
+        Handler(Looper.getMainLooper()).postDelayed({
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val reply = pythonModule.callAttr("chat", combinedMessage).toString()
 
-            // 移除打字指示器
-            val removed = adapter.removeTypingAt(typingMsgPosition)
-            typingMsgPosition = -1
+                    // 按双空行拆分为多条
+                    val parts = reply.split(Regex("\n\s*\n")).filter { it.isNotBlank() }
 
-            if (messages.isNotEmpty()) {
-                callPythonChat(messages)
+                    withContext(Dispatchers.Main) {
+                        hideTypingIndicator()
+
+                        if (parts.size <= 1) {
+                            addAIBubble(reply.trim())
+                        } else {
+                            var accumDelay = 0L
+                            for ((i, part) in parts.withIndex()) {
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    addAIBubble(part.trim())
+                                }, accumDelay)
+                                accumDelay += 800 + Random.nextLong(400, 1200)
+                            }
+                        }
+
+                        isProcessing = false
+                        processMessages()
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Python 调用失败", e)
+                    withContext(Dispatchers.Main) {
+                        hideTypingIndicator()
+                        addAIBubble("唔...刚刚走神了，你说什么来着？")
+                        isProcessing = false
+                        processMessages()
+                    }
+                }
             }
-        }, delayMs)
+        }, delay)
     }
 
-    /**
-     * 根据消息复杂度计算打字延迟。
-     * 短消息 1.5~2s，长消息 2.5~4s。
-     */
-    private fun calculateTypingDelay(message: String): Long {
-        val len = message.length
+    private fun calculateDelay(message: String): Long {
         return when {
-            len <= 10 -> Random.nextLong(1500, 2000)
-            len <= 30 -> Random.nextLong(2000, 3000)
-            else -> Random.nextLong(2500, 4000)
+            message.length < 5 -> Random.nextLong(1000, 3000)
+            message.contains("?") || message.contains("？") -> Random.nextLong(5000, 12000)
+            else -> Random.nextLong(3000, 7000)
         }
     }
 
-    /**
-     * 调用 Python chat_bridge 发送消息。
-     * 将多条累积消息用 "\n" 连接。
-     */
-    private fun callPythonChat(messages: List<String>) {
-        val combined = messages.joinToString("\n")
-
-        lifecycleScope.launch {
-            isWaitingReply = true
-            setStatus("小美正在思考...")
-
-            val rawResult = try {
-                withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-                    module.callAttr("chat", combined).toString()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Python 调用失败: ${e.message}", e)
-                null
-            }
-
-            val replyText = if (rawResult != null) {
-                val status = extractJsonValue(rawResult, "status")
-                if (status == "ok") {
-                    extractJsonValue(rawResult, "reply") ?: rawResult
-                } else {
-                    extractJsonValue(rawResult, "message") ?: "抱歉，出了点问题..."
-                }
-            } else {
-                "连接失败，请检查网络"
-            }
-
-            // 支持AI连发多条消息：用空行分隔
-            val paragraphs = replyText.split("\n\n").filter { it.isNotBlank() }
-            for ((i, para) in paragraphs.withIndex()) {
-                if (i > 0) {
-                    // 每条之间间隔模拟打字
-                    val delay = 800L + Random.nextLong(0, 400) * para.length.coerceAtMost(20)
-                    kotlinx.coroutines.delay(delay)
-                }
-                val cleanText = para.replace("\n", " ").trim()
-                adapter.addMessage(Message(cleanText, isUser = false))
-                rvMessages.scrollToPosition(adapter.itemCount - 1)
-            }
-
-            isWaitingReply = false
-            setStatus("小美已就绪")
-        }
-    }
-
-    /**
-     * 注入相关记忆到当前对话上下文。
-     */
-    private fun injectMemories(userMessage: String) {
-        lifecycleScope.launch {
-            val result = try {
-                withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-                    module.callAttr("inject_memories", userMessage).toString()
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "注入记忆失败: ${e.message}")
-                null
-            }
-
-            if (result != null) {
-                val count = extractJsonInt(result, "count")
-                if (count > 0) {
-                    if (BuildConfig.DEBUG) Log.d(TAG, "已注入 $count 条相关记忆")
-                }
-            }
-        }
-    }
-
-    /**
-     * 记忆管理 — 打开独立的记忆管理页面。
-     */
-    private fun showMemoryDialog() {
-        startActivity(Intent(this, MemoryManageActivity::class.java))
-    }
-
-    /**
-     * 主动消息设置主面板。
-     * 显示当前状态、频率、静默时段，并提供开关/修改入口。
-     */
-    private fun showProactiveSettingsDialog() {
-        val enabled = AppConfig.isProactiveEnabled(this)
-        val interval = AppConfig.getProactiveInterval(this)
-        val quietStart = AppConfig.getProactiveQuietStart(this)
-        val quietEnd = AppConfig.getProactiveQuietEnd(this)
-
-        val intervalLabels = arrayOf("每1小时", "每3小时", "每6小时", "每12小时")
-        val intervalValues = intArrayOf(1, 3, 6, 12)
-        val intervalIdx = intervalValues.indexOf(interval).coerceAtLeast(1) // 默认 index 1 = 3小时
-
-        val msg = "当前状态：${if (enabled) "已开启" else "已关闭"}\n" +
-                "发送频率：${intervalLabels[intervalIdx]}\n" +
-                "静默时段：$quietStart ~ $quietEnd\n\n" +
-                "选择操作："
-
-        val actions = arrayOf(
-            if (enabled) "关闭主动消息" else "开启主动消息",
-            "修改发送频率",
-            "修改静默时段"
+    private fun addUserBubble(text: String) {
+        val msg = Message(
+            id = System.currentTimeMillis().toString(),
+            text = text,
+            sender = Message.Sender.User,
+            timestamp = System.currentTimeMillis()
         )
-
-        AlertDialog.Builder(this)
-            .setTitle("主动消息设置")
-            .setMessage(msg)
-            .setItems(actions) { _, which ->
-                when (which) {
-                    0 -> {
-                        AppConfig.setProactiveEnabled(this, !enabled)
-                        setStatus("主动消息已${if (!enabled) "开启" else "关闭"}")
-                        setupProactiveWorker()
-                    }
-                    1 -> showIntervalDialog(intervalLabels, intervalValues, intervalIdx)
-                    2 -> showQuietTimeDialog()
-                }
-            }
-            .setNegativeButton("关闭", null)
-            .show()
+        adapter.addMessage(msg)
+        rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
     }
 
-    /**
-     * 选择主动消息发送频率。
-     */
-    private fun showIntervalDialog(labels: Array<String>, values: IntArray, current: Int) {
-        AlertDialog.Builder(this)
-            .setTitle("选择发送频率")
-            .setSingleChoiceItems(labels, current) { dialog, which ->
-                AppConfig.setProactiveInterval(this, values[which])
-                setStatus("发送频率已设为：${labels[which]}")
-                setupProactiveWorker()
-                dialog.dismiss()
-            }
-            .setNegativeButton("取消", null)
-            .show()
+    private fun addAIBubble(text: String) {
+        val msg = Message(
+            id = System.currentTimeMillis().toString(),
+            text = text,
+            sender = Message.Sender.AI,
+            timestamp = System.currentTimeMillis()
+        )
+        adapter.addMessage(msg)
+        rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
     }
 
-    /**
-     * 选择静默时段（不发送主动消息的时间段）。
-     */
-    private fun showQuietTimeDialog() {
-        val options = arrayOf("不设置静默", "23:00 ~ 07:00", "22:00 ~ 08:00", "00:00 ~ 06:00")
-        AlertDialog.Builder(this)
-            .setTitle("静默时段")
-            .setItems(options) { dialog, which ->
-                when (which) {
-                    0 -> {
-                        AppConfig.setProactiveQuietStart(this, "")
-                        AppConfig.setProactiveQuietEnd(this, "")
-                    }
-                    1 -> {
-                        AppConfig.setProactiveQuietStart(this, "23:00")
-                        AppConfig.setProactiveQuietEnd(this, "07:00")
-                    }
-                    2 -> {
-                        AppConfig.setProactiveQuietStart(this, "22:00")
-                        AppConfig.setProactiveQuietEnd(this, "08:00")
-                    }
-                    3 -> {
-                        AppConfig.setProactiveQuietStart(this, "00:00")
-                        AppConfig.setProactiveQuietEnd(this, "06:00")
-                    }
-                }
-                setStatus("静默时段已更新")
-                dialog.dismiss()
-            }
-            .setNegativeButton("取消", null)
-            .show()
+    private fun showTypingIndicator() {
+        if (typingMsgPosition >= 0) return
+        val msg = Message(
+            id = "typing",
+            text = "",
+            sender = Message.Sender.AI,
+            timestamp = System.currentTimeMillis(),
+            isTyping = true
+        )
+        adapter.addMessage(msg)
+        typingMsgPosition = adapter.itemCount - 1
+        rvMessages.smoothScrollToPosition(typingMsgPosition)
     }
 
-    private fun resetMemories() {
-        lifecycleScope.launch {
-            val result = try {
-                withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-                    module.callAttr("reset_memories").toString()
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "重置记忆失败: ${e.message}")
-                null
-            }
-            val deleted = if (result != null) extractJsonInt(result, "deleted") else -1
-            if (deleted >= 0) {
-                setStatus("已清除 $deleted 条记忆")
-                Log.i(TAG, "记忆已重置，删除了 $deleted 条")
-            } else {
-                Log.w(TAG, "记忆重置失败: $result")
-            }
+    private fun hideTypingIndicator() {
+        if (typingMsgPosition < 0) return
+        adapter.removeTypingAt(typingMsgPosition)
+        typingMsgPosition = -1
+    }
+
+    // ======================== 屏幕适配 ========================
+
+    private fun setupEdgeToEdge() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+    }
+
+    private fun applyInsets(root: ViewGroup) {
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(
+                v.paddingLeft,
+                systemBars.top,
+                v.paddingRight,
+                v.paddingBottom + systemBars.bottom
+            )
+            insets
         }
-    }
-
-    private fun resetConversation() {
-        AlertDialog.Builder(this)
-            .setTitle("新对话")
-            .setMessage("开始新对话将清除当前聊天记录")
-            .setPositiveButton("确定") { _, _ ->
-                adapter.clear()
-                pendingMessages.clear()
-                typingMsgPosition = -1
-                setStatus("新对话已开始")
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun extractJsonInt(jsonStr: String, key: String): Int {
-        return try {
-            org.json.JSONObject(jsonStr).getInt(key)
-        } catch (_: Exception) { -1 }
-    }
-
-    private fun extractJsonValue(jsonStr: String, key: String): String? {
-        return try {
-            org.json.JSONObject(jsonStr).optString(key, "").takeIf { it.isNotEmpty() }
-        } catch (_: Exception) { null }
     }
 }
