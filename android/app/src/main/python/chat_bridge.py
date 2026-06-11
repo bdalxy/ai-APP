@@ -33,6 +33,7 @@ from src.app_context import AppContext
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
 from src.exceptions import MemoryNotFoundError
+from src.proactive.engine import ProactiveEngine
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
 
@@ -572,4 +573,63 @@ def search_memories(keyword: str) -> dict:
         results = orchestrator.vector_store.search_by_keyword(keyword.strip())
         return json.dumps({"status": "ok", "items": results, "count": len(results)})
     except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 主动消息接口（P1 手动触发 / P2 定时推送）
+# =============================================================================
+
+
+def generate_proactive_message() -> str:
+    """生成一条主动推送消息，供 WorkManager 定时调用。
+
+    由 ProactiveWorker/ProactiveService 通过 Chaquopy 调用。
+    流程：
+        1. 检查 _ctx.player 和 _ctx.client 是否已初始化
+        2. 获取 retriever（如果记忆系统已初始化）
+        3. 创建 ProactiveEngine 实例并调用 decide_and_generate()
+        4. 返回 JSON 结果
+
+    Returns:
+        JSON 字符串:
+        - 成功发送: {"status": "ok", "title": "小美", "message": "生成的消息内容"}
+        - 跳过（不满足条件）: {"status": "skip", "message": "跳过原因"}
+        - 错误: {"status": "error", "message": "错误信息"}
+    """
+    # 前置检查：聊天引擎必须已初始化
+    if _ctx.player is None:
+        return json.dumps({"status": "error", "message": "聊天引擎未初始化，请先调用 init()"})
+
+    if _ctx.client is None:
+        return json.dumps({"status": "error", "message": "API 客户端未初始化，请先调用 init()"})
+
+    try:
+        # 创建主动消息决策引擎
+        engine = ProactiveEngine()
+
+        # 获取角色（RolePlayer 实例，作为 card 参数传入）
+        card = _ctx.player
+
+        # 获取记忆检索器（记忆系统未初始化时传 None，不影响消息生成）
+        retriever = _ctx.orchestrator.retriever if _ctx.orchestrator else None
+
+        # 获取 API 客户端
+        api_client = _ctx.client
+
+        # 执行决策 + 生成
+        result = engine.decide_and_generate(card, retriever, api_client)
+
+        if result is None:
+            # 不满足发送条件（功能未开启 / 不在活跃时段 / 间隔不足 / 生成失败）
+            return json.dumps({"status": "skip", "message": "当前不满足主动消息发送条件"})
+
+        # 成功生成消息，从角色卡获取名称作为 title
+        title = card.card.name if card.card else "AI伴侣"
+
+        _log.info(f"[主动消息] 生成成功，即将推送: {result[:50]}...")
+        return json.dumps({"status": "ok", "title": title, "message": result})
+
+    except Exception as e:
+        _log.error(f"[主动消息] 异常: {e}")
         return json.dumps({"status": "error", "message": str(e)})
