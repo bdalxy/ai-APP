@@ -18,6 +18,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.random.Random
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 /**
  * AI 角色扮演聊天主界面 (P3)
@@ -108,11 +114,42 @@ class MainActivity : AppCompatActivity() {
             isInitialized = true
             setStatus("小美已就绪")
             Log.i(TAG, "Python chat_bridge 初始化成功")
+            setupProactiveWorker()
         } catch (e: Exception) {
             isInitialized = false
             setStatus("初始化失败: ${e.message}")
             Log.e(TAG, "Python chat_bridge 初始化失败: ${e.message}")
         }
+    }
+
+    /**
+     * 配置 WorkManager 定期任务，用于主动消息推送。
+     * 如果用户关闭主动消息，则取消已有任务；
+     * 如果开启，则按配置的间隔周期调度 ProactiveWorker。
+     */
+    private fun setupProactiveWorker() {
+        val enabled = AppConfig.isProactiveEnabled(this)
+        if (!enabled) {
+            WorkManager.getInstance(this).cancelUniqueWork("proactive_check")
+            return
+        }
+
+        val intervalHours = AppConfig.getProactiveInterval(this) // 默认 3
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = PeriodicWorkRequestBuilder<ProactiveWorker>(
+            intervalHours.toLong(), TimeUnit.HOURS
+        )
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "proactive_check",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
     }
 
     private fun setStatus(text: String) {
@@ -136,6 +173,7 @@ class MainActivity : AppCompatActivity() {
             "模型：$modelLabel",
             "修改 API Key",
             "查看当前 API Key",
+            "主动消息设置",
             "记忆管理"
         )
 
@@ -147,7 +185,8 @@ class MainActivity : AppCompatActivity() {
                     1 -> showModelDialog()
                     2 -> showApiKeyDialog()
                     3 -> showCurrentApiKey()
-                    4 -> showMemoryDialog()
+                    4 -> showProactiveSettingsDialog()
+                    5 -> showMemoryDialog()
                 }
             }
             .setNegativeButton("关闭", null)
@@ -372,6 +411,98 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showMemoryDialog() {
         startActivity(Intent(this, MemoryManageActivity::class.java))
+    }
+
+    /**
+     * 主动消息设置主面板。
+     * 显示当前状态、频率、静默时段，并提供开关/修改入口。
+     */
+    private fun showProactiveSettingsDialog() {
+        val enabled = AppConfig.isProactiveEnabled(this)
+        val interval = AppConfig.getProactiveInterval(this)
+        val quietStart = AppConfig.getProactiveQuietStart(this)
+        val quietEnd = AppConfig.getProactiveQuietEnd(this)
+
+        val intervalLabels = arrayOf("每1小时", "每3小时", "每6小时", "每12小时")
+        val intervalValues = intArrayOf(1, 3, 6, 12)
+        val intervalIdx = intervalValues.indexOf(interval).coerceAtLeast(1) // 默认 index 1 = 3小时
+
+        val msg = "当前状态：${if (enabled) "已开启" else "已关闭"}\n" +
+                "发送频率：${intervalLabels[intervalIdx]}\n" +
+                "静默时段：$quietStart ~ $quietEnd\n\n" +
+                "选择操作："
+
+        val actions = arrayOf(
+            if (enabled) "关闭主动消息" else "开启主动消息",
+            "修改发送频率",
+            "修改静默时段"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("主动消息设置")
+            .setMessage(msg)
+            .setItems(actions) { _, which ->
+                when (which) {
+                    0 -> {
+                        AppConfig.setProactiveEnabled(this, !enabled)
+                        setStatus("主动消息已${if (!enabled) "开启" else "关闭"}")
+                        setupProactiveWorker()
+                    }
+                    1 -> showIntervalDialog(intervalLabels, intervalValues, intervalIdx)
+                    2 -> showQuietTimeDialog()
+                }
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    /**
+     * 选择主动消息发送频率。
+     */
+    private fun showIntervalDialog(labels: Array<String>, values: IntArray, current: Int) {
+        AlertDialog.Builder(this)
+            .setTitle("选择发送频率")
+            .setSingleChoiceItems(labels, current) { dialog, which ->
+                AppConfig.setProactiveInterval(this, values[which])
+                setStatus("发送频率已设为：${labels[which]}")
+                setupProactiveWorker()
+                dialog.dismiss()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /**
+     * 选择静默时段（不发送主动消息的时间段）。
+     */
+    private fun showQuietTimeDialog() {
+        val options = arrayOf("不设置静默", "23:00 ~ 07:00", "22:00 ~ 08:00", "00:00 ~ 06:00")
+        AlertDialog.Builder(this)
+            .setTitle("静默时段")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> {
+                        AppConfig.setProactiveQuietStart(this, "")
+                        AppConfig.setProactiveQuietEnd(this, "")
+                    }
+                    1 -> {
+                        AppConfig.setProactiveQuietStart(this, "23:00")
+                        AppConfig.setProactiveQuietEnd(this, "07:00")
+                    }
+                    2 -> {
+                        AppConfig.setProactiveQuietStart(this, "22:00")
+                        AppConfig.setProactiveQuietEnd(this, "08:00")
+                    }
+                    3 -> {
+                        AppConfig.setProactiveQuietStart(this, "00:00")
+                        AppConfig.setProactiveQuietEnd(this, "06:00")
+                    }
+                }
+                setStatus("静默时段已更新")
+                dialog.dismiss()
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun resetMemories() {
