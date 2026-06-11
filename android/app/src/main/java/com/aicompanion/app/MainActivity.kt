@@ -2,6 +2,8 @@ package com.aicompanion.app
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -14,12 +16,17 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 /**
  * AI 角色扮演聊天主界面 (P3)
  *
  * 通过 Chaquopy 调用 Python chat_bridge 模块，
  * 实现与 AI 角色（小美）的实时对话。
+ *
+ * P3.1 打字延迟 + 连发消息：
+ * - 发送消息后显示"对方正在输入..."，根据消息复杂度变速延迟后调用 Python
+ * - 支持连发多条消息，在延迟期间积累的消息合并为一次 API 调用
  */
 class MainActivity : AppCompatActivity() {
 
@@ -41,6 +48,21 @@ class MainActivity : AppCompatActivity() {
 
     private var isInitialized = false
     private var isWaitingReply = false
+
+    /** 主线程 Handler，用于打字延迟 */
+    private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * 待发送的消息队列。
+     * 用户在打字延迟期间可以连发多条消息，这些消息会被累积并合并为一次 Python 调用。
+     */
+    private val pendingMessages = mutableListOf<String>()
+
+    /**
+     * 当前打字指示器在 RecyclerView 中的位置（adapterPosition）。
+     * -1 表示没有正在显示的打字指示器。
+     */
+    private var typingMsgPosition = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -190,7 +212,6 @@ class MainActivity : AppCompatActivity() {
                 AppConfig.setTokenPreset(this, values[which])
                 dialog.dismiss()
                 setStatus("Token 预设已切换为：${names[which]}，下次对话生效")
-                // 重新初始化以应用新预设
                 lifecycleScope.launch {
                     isInitialized = false
                     initPython()
@@ -260,59 +281,140 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ========================================================================
-    // 消息发送
+    // 消息发送（打字延迟 + 连发支持）
     // ========================================================================
 
+    /**
+     * 用户发送消息入口。
+     *
+     * 核心改动：
+     * 1. 发送后不清空/禁用输入框，允许连发。
+     * 2. 首次发送启动打字延迟 → 调用 Python。
+     * 3. 延迟期间再发送则追加到 pendingMessages，延迟结束后合并调用。
+     */
     private fun sendMessage() {
         val text = etInput.text.toString().trim()
-        if (text.isEmpty() || !isInitialized || isWaitingReply) return
+        if (text.isEmpty() || !isInitialized) return
 
+        // 1. 添加用户气泡
         adapter.addMessage(Message(text, isUser = true))
         scrollToBottom()
         etInput.text.clear()
-        disableInput()
-        setStatus("思考中...")
+
+        // 2. 追加到待发送队列
+        pendingMessages.add(text)
+
+        // 3. 如果还没在等待，启动打字 → 回复流程
+        if (!isWaitingReply) {
+            startTypingAndReply()
+        } else {
+            // 已在等待中，提示排队状态
+            setStatus("排队中...(${pendingMessages.size})")
+        }
+    }
+
+    /**
+     * 启动打字指示器，在变速延迟后调用 Python 获取回复。
+     */
+    private fun startTypingAndReply() {
         isWaitingReply = true
 
-        lifecycleScope.launch {
-            try {
-                // 检索相关记忆并注入 System Prompt
+        // 显示打字指示器
+        val typingMsg = Message("", isUser = false, isTyping = true)
+        adapter.addMessage(typingMsg)
+        typingMsgPosition = adapter.itemCount - 1
+        scrollToBottom()
+        setStatus("思考中...")
+
+        // 根据消息复杂度计算延迟时间
+        val delay = calculateDelay(pendingMessages.first())
+
+        handler.postDelayed({
+            lifecycleScope.launch {
                 try {
-                    injectMemories(text)
+                    // 收集延迟期间积累的所有消息，合并为一条
+                    val combined = pendingMessages.joinToString("\n")
+                    pendingMessages.clear()
+
+                    Log.d(TAG, "合并消息发送 (延迟=${delay}ms): ${combined.take(80)}")
+
+                    // 检索相关记忆并注入 System Prompt
+                    try {
+                        injectMemories(combined)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "记忆注入跳过: ${e.message}")
+                    }
+
+                    val result = withContext(Dispatchers.IO) {
+                        val py = com.chaquo.python.Python.getInstance()
+                        val module = py.getModule("chat_bridge")
+                        module.callAttr("chat", combined).toString()
+                    }
+                    Log.d(TAG, "AI 回复: ${result.take(100)}")
+
+                    // 移除打字指示器
+                    removeTypingIndicator()
+
+                    val reply = extractJsonValue(result, "reply")
+                    val error = extractJsonValue(result, "message")
+
+                    if (reply != null) {
+                        adapter.addMessage(Message(reply, isUser = false))
+                        setStatus("就绪")
+                    } else if (error != null) {
+                        adapter.addMessage(Message("[错误] $error", isUser = false))
+                        setStatus("错误: $error")
+                    } else {
+                        adapter.addMessage(Message("[错误] 无法解析回复", isUser = false))
+                        setStatus("解析错误")
+                    }
+                    scrollToBottom()
                 } catch (e: Exception) {
-                    Log.w(TAG, "记忆注入跳过: ${e.message}")
-                }
+                    Log.e(TAG, "发送消息失败: ${e.message}", e)
 
-                val result = withContext(Dispatchers.IO) {
-                    val py = com.chaquo.python.Python.getInstance()
-                    val module = py.getModule("chat_bridge")
-                    module.callAttr("chat", text).toString()
-                }
-                Log.d(TAG, "AI 回复: ${result.take(100)}")
+                    // 移除打字指示器（即使出错也要移除）
+                    removeTypingIndicator()
 
-                val reply = extractJsonValue(result, "reply")
-                val error = extractJsonValue(result, "message")
+                    adapter.addMessage(Message("[错误] ${e.message}", isUser = false))
+                    setStatus("错误: ${e.message}")
+                    scrollToBottom()
+                } finally {
+                    isWaitingReply = false
+                    typingMsgPosition = -1
+                    enableInput()
 
-                if (reply != null) {
-                    adapter.addMessage(Message(reply, isUser = false))
-                    setStatus("就绪")
-                } else if (error != null) {
-                    adapter.addMessage(Message("[错误] $error", isUser = false))
-                    setStatus("错误: $error")
-                } else {
-                    adapter.addMessage(Message("[错误] 无法解析回复", isUser = false))
-                    setStatus("解析错误")
+                    // 检查是否在回复期间又有新的待发送消息
+                    if (pendingMessages.isNotEmpty()) {
+                        startTypingAndReply()
+                    }
                 }
-                scrollToBottom()
-            } catch (e: Exception) {
-                Log.e(TAG, "发送消息失败: ${e.message}", e)
-                adapter.addMessage(Message("[错误] ${e.message}", isUser = false))
-                setStatus("错误: ${e.message}")
-                scrollToBottom()
-            } finally {
-                isWaitingReply = false
-                enableInput()
             }
+        }, delay)
+    }
+
+    /**
+     * 根据消息内容计算模拟打字延迟。
+     *
+     * 规则：
+     * - 简单问候（短消息 < 5 字符）：1 ~ 3 秒
+     * - 疑问句（含 ? 或 ？）：5 ~ 12 秒
+     * - 普通消息：3 ~ 7 秒
+     */
+    private fun calculateDelay(text: String): Long {
+        return when {
+            text.length < 5 -> Random.nextLong(1000, 3001)
+            text.contains("?") || text.contains("？") -> Random.nextLong(5000, 12001)
+            else -> Random.nextLong(3000, 7001)
+        }
+    }
+
+    /**
+     * 移除打字指示器消息（从 RecyclerView 中删除）。
+     */
+    private fun removeTypingIndicator() {
+        if (typingMsgPosition >= 0) {
+            adapter.removeTypingAt(typingMsgPosition)
+            typingMsgPosition = -1
         }
     }
 
@@ -321,6 +423,12 @@ class MainActivity : AppCompatActivity() {
     // ========================================================================
 
     private suspend fun resetChat() {
+        // 清理打字延迟和消息队列
+        handler.removeCallbacksAndMessages(null)
+        pendingMessages.clear()
+        isWaitingReply = false
+        typingMsgPosition = -1
+
         try {
             withContext(Dispatchers.IO) {
                 val py = com.chaquo.python.Python.getInstance()
@@ -397,10 +505,8 @@ class MainActivity : AppCompatActivity() {
             val result = withContext(Dispatchers.IO) {
                 val py = com.chaquo.python.Python.getInstance()
                 val module = py.getModule("chat_bridge")
-                // 传目录路径（filesDir），Python 端会在目录下创建 memories.db
                 module.callAttr("init_memory", filesDir.absolutePath).toString()
             }
-            // 检查 status 字段，区分成功和失败
             val status = extractJsonValue(result, "status")
             if (status == "ok") {
                 val count = extractJsonInt(result, "memory_count")
