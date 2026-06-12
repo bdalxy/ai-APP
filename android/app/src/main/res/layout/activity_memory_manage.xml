@@ -3,6 +3,7 @@
 <!-- 优化：增大按钮和搜索栏可点击区域，适配 HyperOS/MagicOS 缩放 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/memory_manage_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"

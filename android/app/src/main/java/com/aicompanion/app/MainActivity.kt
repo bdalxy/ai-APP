@@ -21,6 +21,7 @@ import android.view.WindowManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import kotlin.random.Random
 
 /**
@@ -174,16 +175,29 @@ class MainActivity : AppCompatActivity() {
         Handler(Looper.getMainLooper()).postDelayed({
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val reply = pythonModule.callAttr("chat", combinedMessage).toString()
+                    val replyJson = pythonModule.callAttr("chat", combinedMessage).toString()
+
+                    // 解析 JSON 提取 reply 字段
+                    val replyText = try {
+                        val json = JSONObject(replyJson)
+                        if (json.optString("status") == "error") {
+                            "错误：${json.optString("message")}"
+                        } else {
+                            json.optString("reply", "（无回复内容）")
+                        }
+                    } catch (e: Exception) {
+                        // 如果不是 JSON，直接使用原字符串（兼容旧格式）
+                        replyJson
+                    }
 
                     // 按双空行拆分为多条
-                    val parts = reply.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
+                    val parts = replyText.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
 
                     withContext(Dispatchers.Main) {
                         hideTypingIndicator()
 
                         if (parts.size <= 1) {
-                            addAIBubble(reply.trim())
+                            addAIBubble(replyText.trim())
                         } else {
                             var accumDelay = 0L
                             for ((i, part) in parts.withIndex()) {
@@ -266,12 +280,25 @@ class MainActivity : AppCompatActivity() {
     private fun applyInsets(root: ViewGroup) {
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            // 状态栏顶部间距
             v.setPadding(
                 v.paddingLeft,
                 systemBars.top,
                 v.paddingRight,
-                v.paddingBottom + systemBars.bottom
+                0
             )
+            // 键盘 + 导航栏底部间距 — 施加到内容 LinearLayout 的 margin
+            val contentLayout = (v as? ViewGroup)?.getChildAt(1) as? ViewGroup
+            val bottomInset = maxOf(systemBars.bottom, ime.bottom)
+            if (bottomInset > 0) {
+                (contentLayout?.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                    if (lp.bottomMargin != bottomInset) {
+                        lp.bottomMargin = bottomInset
+                        contentLayout?.requestLayout()
+                    }
+                }
+            }
             insets
         }
     }

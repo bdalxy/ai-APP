@@ -145,12 +145,24 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupModelSelect() {
         findViewById<View>(R.id.itemModel).setOnClickListener {
-            val current = prefs.getString("model_name", MODEL_OPTIONS[0]) ?: MODEL_OPTIONS[0]
+            val current = AppConfig.getModel(this@SettingsActivity).let {
+                if (it.isBlank()) MODEL_OPTIONS[0] else it
+            }
             val idx = MODEL_OPTIONS.indexOf(current).coerceAtLeast(0)
             MaterialAlertDialogBuilder(this)
                 .setTitle("选择模型")
                 .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
-                    prefs.edit().putString("model_name", MODEL_OPTIONS[which]).apply()
+                    val selected = MODEL_OPTIONS[which]
+                    AppConfig.setModel(this@SettingsActivity, selected)
+                    // 同步到 Python — 如果选择的是"跟随预设"，不传模型参数
+                    try {
+                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                        val preset = AppConfig.getTokenPreset(this@SettingsActivity)
+                        val model = if (selected == "跟随预设") "" else selected
+                        module?.callAttr("init", preset, model)
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SettingsActivity, "切换模型失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                     refreshUI()
                     dialog.dismiss()
                 }
@@ -303,7 +315,9 @@ class SettingsActivity : AppCompatActivity() {
         val char = CharacterStorage.getCurrent(this)
         findViewById<TextView>(R.id.tvRolePreset)?.text = char.name
 
-        val model = prefs.getString("model_name", MODEL_OPTIONS[0]) ?: MODEL_OPTIONS[0]
+        val model = AppConfig.getModel(this@SettingsActivity).let {
+            if (it.isBlank()) MODEL_OPTIONS[0] else it
+        }
         findViewById<TextView>(R.id.tvModel)?.text = model
 
         val tokenPreset = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
