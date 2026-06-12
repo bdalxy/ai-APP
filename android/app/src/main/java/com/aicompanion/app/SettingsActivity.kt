@@ -26,7 +26,8 @@ class SettingsActivity : AppCompatActivity() {
             "翻译模式", "长文本理解", "极限性能模式", "自定义"
         )
         private val MODEL_OPTIONS = arrayOf(
-            "跟随预设", "deepseek-chat", "deepseek-reasoner"
+            "deepseek-v4-flash（预设）",
+            "deepseek-v4-pro"
         )
         private val INTERVAL_OPTIONS = arrayOf(
             "每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天"
@@ -145,29 +146,79 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupModelSelect() {
         findViewById<View>(R.id.itemModel).setOnClickListener {
-            val current = AppConfig.getModel(this@SettingsActivity).let {
-                if (it.isBlank()) MODEL_OPTIONS[0] else it
+            val currentModel = AppConfig.getModel(this@SettingsActivity).let {
+                if (it.isBlank()) "" else it
             }
-            val idx = MODEL_OPTIONS.indexOf(current).coerceAtLeast(0)
+            val presetLabel = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
+
+            // 选项：预设模型 + deepseek-v4-pro + 自定义
+            val options = arrayOf(
+                "deepseek-v4-flash（$presetLabel）",
+                "deepseek-v4-pro",
+                "自定义"
+            )
+
+            val currentIdx = when {
+                currentModel.isBlank() -> 0                // 空=跟随预设 → flash
+                currentModel == "deepseek-v4-flash" -> 0
+                currentModel == "deepseek-v4-pro" -> 1
+                else -> 2                                   // 自定义
+            }
+
             MaterialAlertDialogBuilder(this)
                 .setTitle("选择模型")
-                .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
-                    val selected = MODEL_OPTIONS[which]
-                    AppConfig.setModel(this@SettingsActivity, selected)
-                    // 同步到 Python — 如果选择的是"跟随预设"，不传模型参数
-                    try {
-                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        val preset = AppConfig.getTokenPreset(this@SettingsActivity)
-                        val model = if (selected == "跟随预设") "" else selected
-                        module?.callAttr("init", preset, model)
-                    } catch (e: Exception) {
-                        Toast.makeText(this@SettingsActivity, "切换模型失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                .setSingleChoiceItems(options, currentIdx) { dialog, which ->
+                    when (which) {
+                        0 -> {
+                            AppConfig.setModel(this@SettingsActivity, "")
+                            syncModelToPython("")
+                        }
+                        1 -> {
+                            AppConfig.setModel(this@SettingsActivity, "deepseek-v4-pro")
+                            syncModelToPython("deepseek-v4-pro")
+                        }
+                        2 -> {
+                            dialog.dismiss()
+                            showCustomModelDialog(currentModel)
+                            return@setSingleChoiceItems
+                        }
                     }
                     refreshUI()
                     dialog.dismiss()
                 }
                 .setNegativeButton("取消", null)
                 .show()
+        }
+    }
+
+    private fun showCustomModelDialog(currentModel: String) {
+        val edit = EditText(this).apply {
+            hint = "输入模型名称，如 deepseek-v4-flash"
+            // 如果是"跟随预设"或预设值，清空输入框留给用户填
+            val existing = if (currentModel.isBlank() || currentModel in arrayOf("deepseek-v4-flash", "deepseek-v4-pro")) "" else currentModel
+            setText(existing)
+            setSelection(existing.length)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("自定义模型")
+            .setView(edit)
+            .setPositiveButton("保存") { _, _ ->
+                val customModel = edit.text.toString().trim()
+                AppConfig.setModel(this@SettingsActivity, customModel)
+                syncModelToPython(customModel)
+                refreshUI()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun syncModelToPython(model: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val preset = AppConfig.getTokenPreset(this@SettingsActivity)
+            module?.callAttr("init", preset, model)
+        } catch (e: Exception) {
+            Toast.makeText(this@SettingsActivity, "切换模型失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -316,7 +367,12 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvRolePreset)?.text = char.name
 
         val model = AppConfig.getModel(this@SettingsActivity).let {
-            if (it.isBlank()) MODEL_OPTIONS[0] else it
+            if (it.isBlank()) {
+                val preset = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
+                "deepseek-v4-flash（$preset）"
+            } else {
+                it
+            }
         }
         findViewById<TextView>(R.id.tvModel)?.text = model
 

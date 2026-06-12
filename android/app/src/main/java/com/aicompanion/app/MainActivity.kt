@@ -289,14 +289,13 @@ class MainActivity : AppCompatActivity() {
                 0
             )
             // 键盘 + 导航栏底部间距 — 施加到内容 LinearLayout 的 margin
+            // 注意：手势导航手机 navBar 高度=0，键盘收起时 bottomInset=0 也需要更新
             val contentLayout = (v as? ViewGroup)?.getChildAt(1) as? ViewGroup
             val bottomInset = maxOf(systemBars.bottom, ime.bottom)
-            if (bottomInset > 0) {
-                (contentLayout?.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                    if (lp.bottomMargin != bottomInset) {
-                        lp.bottomMargin = bottomInset
-                        contentLayout?.requestLayout()
-                    }
+            (contentLayout?.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                if (lp.bottomMargin != bottomInset) {
+                    lp.bottomMargin = bottomInset
+                    contentLayout?.requestLayout()
                 }
             }
             insets
