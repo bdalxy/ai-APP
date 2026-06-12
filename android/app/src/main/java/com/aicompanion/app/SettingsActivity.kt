@@ -187,86 +187,150 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupContextSize() {
         findViewById<View>(R.id.itemContextSize).setOnClickListener {
-            val options = arrayOf("1000（小）", "2000（中）", "4000（大）")
             val values = intArrayOf(1000, 2000, 4000)
+            val labels = arrayOf("1000", "2000", "4000")
+            val descs = arrayOf("小窗口", "中等", "大窗口")
             val current = AppConfig.getContextSize(this@SettingsActivity)
             val idx = values.toList().indexOf(current).coerceAtLeast(1)
 
-            MaterialAlertDialogBuilder(this)
-                .setTitle("上下文窗口")
-                .setSingleChoiceItems(options, idx) { dialog, which ->
-                    AppConfig.setContextSize(this@SettingsActivity, values[which])
-                    applyAllParams()
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            showSliderDialog("上下文窗口", "控制对话历史保留量，越大AI记住越多", labels, descs, idx, 2) { which ->
+                AppConfig.setContextSize(this@SettingsActivity, values[which])
+                applyAllParams()
+                refreshUI()
+            }
         }
     }
 
     private fun setupTemperature() {
         findViewById<View>(R.id.itemTemperature).setOnClickListener {
-            val options = arrayOf("0.5 保守", "0.7 中等", "0.9 创意")
             val values = floatArrayOf(0.5f, 0.7f, 0.9f)
+            val labels = arrayOf("0.5", "0.7", "0.9")
+            val descs = arrayOf("保守", "中等", "创意")
             val current = AppConfig.getTemperature(this@SettingsActivity)
-            val idx = when {
-                current <= 0.5f -> 0
-                current >= 0.9f -> 2
-                else -> 1
-            }
+            val idx = when { current <= 0.5f -> 0; current >= 0.9f -> 2; else -> 1 }
 
-            MaterialAlertDialogBuilder(this)
-                .setTitle("创意度（温度）")
-                .setSingleChoiceItems(options, idx) { dialog, which ->
-                    AppConfig.setTemperature(this@SettingsActivity, values[which])
-                    applyAllParams()
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            showSliderDialog("创意度", "控制AI回复的随机性和想象力", labels, descs, idx, 2) { which ->
+                AppConfig.setTemperature(this@SettingsActivity, values[which])
+                applyAllParams()
+                refreshUI()
+            }
         }
     }
 
     private fun setupMaxTokens() {
         findViewById<View>(R.id.itemMaxTokens).setOnClickListener {
-            val options = arrayOf("500（短）", "1000（中）", "2000（长）")
             val values = intArrayOf(500, 1000, 2000)
+            val labels = arrayOf("500", "1000", "2000")
+            val descs = arrayOf("简洁", "适中", "详细")
             val current = AppConfig.getMaxTokens(this@SettingsActivity)
             val idx = values.toList().indexOf(current).coerceAtLeast(1)
 
-            MaterialAlertDialogBuilder(this)
-                .setTitle("回复最大长度")
-                .setSingleChoiceItems(options, idx) { dialog, which ->
-                    AppConfig.setMaxTokens(this@SettingsActivity, values[which])
-                    applyAllParams()
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            showSliderDialog("回复详细度", "控制AI每次回复的最大Token数，越长回复越详细", labels, descs, idx, 2) { which ->
+                AppConfig.setMaxTokens(this@SettingsActivity, values[which])
+                applyAllParams()
+                refreshUI()
+            }
         }
     }
 
     private fun setupExampleDialogues() {
         findViewById<View>(R.id.itemExampleDialogues).setOnClickListener {
-            val options = arrayOf("0条（不展示）", "1条", "2条", "3条（最多）")
             val values = intArrayOf(0, 1, 2, 3)
+            val labels = arrayOf("0", "1", "2", "3")
+            val descs = arrayOf("不展示", "1条", "2条", "3条")
             val current = AppConfig.getExampleDialogues(this@SettingsActivity)
             val idx = current.coerceIn(0, 3)
 
-            MaterialAlertDialogBuilder(this)
-                .setTitle("示例对话数")
-                .setSingleChoiceItems(options, idx) { dialog, which ->
-                    AppConfig.setExampleDialogues(this@SettingsActivity, values[which])
-                    applyAllParams()
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+            showSliderDialog("示例对话数", "角色卡中展示的示例对话条数，越多越能体现角色风格", labels, descs, idx, 3) { which ->
+                AppConfig.setExampleDialogues(this@SettingsActivity, values[which])
+                applyAllParams()
+                refreshUI()
+            }
         }
+    }
+
+    /**
+     * 通用滑动条对话框。
+     * @param title 对话框标题
+     * @param subtitle 说明文字
+     * @param labels 各档位标签（如 "1000", "2000", "4000"）
+     * @param descs 各档位描述（如 "小窗口", "中等", "大窗口"）
+     * @param currentIdx 当前选中档位
+     * @param max 最大档位（SeekBar max）
+     * @param onSelected 选中回调，参数为档位索引
+     */
+    private fun showSliderDialog(
+        title: String,
+        subtitle: String,
+        labels: Array<String>,
+        descs: Array<String>,
+        currentIdx: Int,
+        max: Int,
+        onSelected: (Int) -> Unit,
+    ) {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 20, 48, 0)
+        }
+
+        val tvSubtitle = TextView(this).apply {
+            text = subtitle
+            textSize = 13f
+            setTextColor(getColor(android.R.color.darker_gray))
+            setPadding(0, 0, 0, 16)
+        }
+        layout.addView(tvSubtitle)
+
+        val tvValue = TextView(this).apply {
+            text = "${labels[currentIdx]} — ${descs[currentIdx]}"
+            textSize = 18f
+            setTextColor(getColor(R.color.primary))
+            textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
+            setPadding(0, 0, 0, 12)
+        }
+        layout.addView(tvValue)
+
+        val seekBar = android.widget.SeekBar(this).apply {
+            this.max = max
+            progress = currentIdx
+            setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
+                    tvValue.text = "${labels[progress]} — ${descs[progress]}"
+                }
+                override fun onStartTrackingTouch(seekBar: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(seekBar: android.widget.SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+
+        // 标签行
+        val labelLayout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            setPadding(8, 4, 8, 0)
+        }
+        for (i in 0..max) {
+            val label = TextView(this@SettingsActivity).apply {
+                text = descs[i]
+                textSize = 11f
+                setTextColor(getColor(android.R.color.darker_gray))
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textAlignment = if (i == 0) android.view.View.TEXT_ALIGNMENT_TEXT_START
+                    else if (i == max) android.view.View.TEXT_ALIGNMENT_TEXT_END
+                    else android.view.View.TEXT_ALIGNMENT_CENTER
+            }
+            labelLayout.addView(label)
+        }
+        layout.addView(labelLayout)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setView(layout)
+            .setPositiveButton("确定") { _, _ ->
+                onSelected(seekBar.progress)
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun setupNewChat() {
@@ -394,7 +458,12 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvModel)?.text = model
 
         val ctxSize = AppConfig.getContextSize(this@SettingsActivity)
-        findViewById<TextView>(R.id.tvContextSize)?.text = ctxSize.toString()
+        val ctxLabel = when (ctxSize) {
+            1000 -> "1000（小窗口）"
+            4000 -> "4000（大窗口）"
+            else -> "2000（中等）"
+        }
+        findViewById<TextView>(R.id.tvContextSize)?.text = ctxLabel
 
         val temp = AppConfig.getTemperature(this@SettingsActivity)
         val tempLabel = when {
@@ -405,7 +474,12 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvTemperature)?.text = tempLabel
 
         val maxTk = AppConfig.getMaxTokens(this@SettingsActivity)
-        findViewById<TextView>(R.id.tvMaxTokens)?.text = maxTk.toString()
+        val tokenLabel = when (maxTk) {
+            500 -> "500（简洁）"
+            2000 -> "2000（详细）"
+            else -> "1000（适中）"
+        }
+        findViewById<TextView>(R.id.tvMaxTokens)?.text = tokenLabel
 
         val dialogues = AppConfig.getExampleDialogues(this@SettingsActivity)
         findViewById<TextView>(R.id.tvExampleDialogues)?.text = "${dialogues}条"

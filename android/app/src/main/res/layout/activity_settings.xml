@@ -303,7 +303,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="回复最大长度"
+                        android:text="回复详细度"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
 
