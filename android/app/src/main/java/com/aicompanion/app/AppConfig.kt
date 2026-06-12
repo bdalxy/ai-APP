@@ -17,6 +17,10 @@ object AppConfig {
     private const val KEY_API_KEY = "api_key"
     private const val KEY_TOKEN_PRESET = "token_preset"
     private const val KEY_MODEL = "model"
+    private const val KEY_CONTEXT_SIZE = "context_size"
+    private const val KEY_TEMPERATURE = "temperature"
+    private const val KEY_MAX_TOKENS = "max_tokens"
+    private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
 
     // ── 主动消息配置键 ──
     private const val KEY_PROACTIVE_ENABLED = "proactive_enabled"
@@ -73,6 +77,40 @@ object AppConfig {
 
     fun setModel(context: Context, model: String) {
         getPrefs(context).edit().putString(KEY_MODEL, model).apply()
+    }
+
+    // ── 独立对话参数 ──
+
+    fun getContextSize(context: Context): Int {
+        return getPrefs(context).getInt(KEY_CONTEXT_SIZE, 2000)
+    }
+
+    fun setContextSize(context: Context, size: Int) {
+        getPrefs(context).edit().putInt(KEY_CONTEXT_SIZE, size).apply()
+    }
+
+    fun getTemperature(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TEMPERATURE, 0.7f)
+    }
+
+    fun setTemperature(context: Context, temp: Float) {
+        getPrefs(context).edit().putFloat(KEY_TEMPERATURE, temp).apply()
+    }
+
+    fun getMaxTokens(context: Context): Int {
+        return getPrefs(context).getInt(KEY_MAX_TOKENS, 1000)
+    }
+
+    fun setMaxTokens(context: Context, tokens: Int) {
+        getPrefs(context).edit().putInt(KEY_MAX_TOKENS, tokens).apply()
+    }
+
+    fun getExampleDialogues(context: Context): Int {
+        return getPrefs(context).getInt(KEY_EXAMPLE_DIALOGUES, 1)
+    }
+
+    fun setExampleDialogues(context: Context, count: Int) {
+        getPrefs(context).edit().putInt(KEY_EXAMPLE_DIALOGUES, count).apply()
     }
 
     // ── 主动消息配置 ──

@@ -125,10 +125,15 @@ class MainActivity : AppCompatActivity() {
                 }
                 module.callAttr("set_api_key", apiKey)
 
-                // 2. 初始化聊天引擎
-                val preset = AppConfig.getTokenPreset(this@MainActivity)
-                val model = AppConfig.getModel(this@MainActivity)
-                module.callAttr("init", preset, model)
+                // 2. 初始化聊天引擎（独立参数）
+                val ctxSize = AppConfig.getContextSize(this@MainActivity)
+                val temp = AppConfig.getTemperature(this@MainActivity).toDouble()
+                val maxTk = AppConfig.getMaxTokens(this@MainActivity)
+                val dialogues = AppConfig.getExampleDialogues(this@MainActivity)
+                val model = AppConfig.getModel(this@MainActivity).let {
+                    if (it.isBlank()) "" else it
+                }
+                module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
 
                 // 3. 初始化记忆系统
                 val dbDir = filesDir.absolutePath

@@ -50,15 +50,24 @@ _BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 _CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"
 
 
-def init(preset: str = "balanced", model: str = "") -> dict:
+def init(
+    context_size: int = 2000,
+    temperature: float = 0.7,
+    max_tokens: int = 1000,
+    example_dialogues: int = 1,
+    model: str = "",
+) -> dict:
     """初始化聊天引擎。
 
     加载角色卡、配置 API 客户端。首次调用时自动完成。
     如果已初始化，先通过 AppContext.shutdown() 清理旧资源再创建新实例。
 
     Args:
-        preset: Token 预设模式 ("quality"/"balanced"/"economy")。
-        model: 模型名称，空字符串表示使用预设默认模型。
+        context_size: 上下文窗口大小（1000/2000/4000）。
+        temperature: 创意度/温度（0.5/0.7/0.9）。
+        max_tokens: 回复最大 token 数（500/1000/2000）。
+        example_dialogues: 示例对话条数（0/1/2/3）。
+        model: 模型名称，空字符串默认 deepseek-v4-flash。
 
     Returns:
         {"status": "ok", "card": {"name": str, "nickname": str, "gender": str}}
@@ -68,16 +77,39 @@ def init(preset: str = "balanced", model: str = "") -> dict:
         if not settings.DEEPSEEK_API_KEY:
             return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
+        # 根据独立参数构建 TokenPreset
+        from src.chat_engine.token_presets import TokenPreset
+        custom_preset = TokenPreset(
+            key="custom",
+            label="自定义",
+            description="手动调整",
+            model=model if model else "deepseek-v4-flash",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            context_window=context_size,
+            system_prompt_chars=int(context_size * 0.6),
+            card_max_chars=int(context_size * 0.35),
+            world_book_max_chars=int(context_size * 0.15),
+            memories_max_chars=int(context_size * 0.1),
+            guideline_max_chars=int(context_size * 0.06),
+            max_example_dialogues=example_dialogues,
+            include_guideline=True,
+            include_creator_notes=False,
+        )
+
         # AppContext.initialize() 会先调用 shutdown() 清理旧资源（包括
         # orchestrator），再创建新的 client 和 player，从根本上解决切换
         # 预设时 orchestrator 持有旧 client 引用的问题。
-        player = _ctx.initialize(preset=preset, model=model if model else "")
+        player = _ctx.initialize(preset=custom_preset, model=model if model else "")
 
         # 加载角色卡
         player.load_card(str(_CARD_PATH))
 
         info = player.get_card_info()
-        info["preset"] = preset
+        info["context_size"] = context_size
+        info["temperature"] = temperature
+        info["max_tokens"] = max_tokens
+        info["example_dialogues"] = example_dialogues
         return json.dumps({"status": "ok", "card": info})
     except FileNotFoundError as e:
         return json.dumps({"status": "error", "message": f"角色卡文件不存在: {e}"})
@@ -281,40 +313,66 @@ def reset_memories() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def set_token_preset(label: str) -> dict:
-    """运行时切换 Token 预设（需要重新初始化聊天引擎）。
+def apply_params(
+    context_size: int = 2000,
+    temperature: float = 0.7,
+    max_tokens: int = 1000,
+    example_dialogues: int = 1,
+    model: str = "",
+) -> dict:
+    """运行时应用对话参数（重新初始化聊天引擎）。
 
-    将 SettingsActivity 传入的中文标签映射到 Python 预设键名，
-    然后调用 AppContext.initialize() 重新创建 RolePlayer。
+    用户调整任意参数后调用此函数，重建 RolePlayer 使新参数生效。
 
     Args:
-        label: 中文预设标签，如 "聊天体验优先"、"省Token优先" 等。
+        context_size: 上下文窗口大小（1000/2000/4000）。
+        temperature: 创意度/温度（0.5/0.7/0.9）。
+        max_tokens: 回复最大 token 数（500/1000/2000）。
+        example_dialogues: 示例对话条数（0/1/2/3）。
+        model: 模型名称，空字符串默认 deepseek-v4-flash。
 
     Returns:
-        {"status": "ok", "preset": str} 或 {"status": "error", "message": str}
+        {"status": "ok", "params": {...}} 或 {"status": "error", "message": str}
     """
-    # 中文标签 → 预设键名映射
-    _LABEL_MAP: dict[str, str] = {
-        "聊天体验优先": "quality",
-        "短文本指令模式": "economy",
-        "翻译模式": "balanced",
-        "长文本理解": "quality",
-        "极限性能模式": "economy",
-        "自定义": "balanced",
-        # 兼容 Python 侧标签
-        "平衡": "balanced",
-        "省Token优先": "economy",
-    }
-    preset_key = _LABEL_MAP.get(label, "balanced")
-
     try:
         if not settings.DEEPSEEK_API_KEY:
             return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
-        player = _ctx.initialize(preset=preset_key)
+        from src.chat_engine.token_presets import TokenPreset
+        custom_preset = TokenPreset(
+            key="custom",
+            label="自定义",
+            description="手动调整",
+            model=model if model else "deepseek-v4-flash",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            context_window=context_size,
+            system_prompt_chars=int(context_size * 0.6),
+            card_max_chars=int(context_size * 0.35),
+            world_book_max_chars=int(context_size * 0.15),
+            memories_max_chars=int(context_size * 0.1),
+            guideline_max_chars=int(context_size * 0.06),
+            max_example_dialogues=example_dialogues,
+            include_guideline=True,
+            include_creator_notes=False,
+        )
+
+        player = _ctx.initialize(preset=custom_preset, model=model if model else "")
         player.load_card(str(_CARD_PATH))
-        _log.info(f"[预设切换] {label} → {preset_key}")
-        return json.dumps({"status": "ok", "preset": preset_key})
+        _log.info(
+            f"[参数应用] context={context_size}, temp={temperature}, "
+            f"max_tokens={max_tokens}, dialogues={example_dialogues}, model={model or '默认'}"
+        )
+        return json.dumps({
+            "status": "ok",
+            "params": {
+                "context_size": context_size,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "example_dialogues": example_dialogues,
+                "model": model or "deepseek-v4-flash",
+            },
+        })
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 

@@ -210,7 +210,7 @@
                     android:layout_marginBottom="10dp" />
 
                 <LinearLayout
-                    android:id="@+id/itemTokenPreset"
+                    android:id="@+id/itemContextSize"
                     android:layout_width="match_parent"
                     android:layout_height="52dp"
                     android:gravity="center_vertical"
@@ -223,15 +223,135 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Token 预设"
+                        android:text="上下文窗口"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
 
                     <TextView
-                        android:id="@+id/tvTokenPreset"
+                        android:id="@+id/tvContextSize"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="聊天体验优先"
+                        android:text="2000"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="\u203A"
+                        android:textSize="20sp"
+                        android:textColor="@color/text_tertiary"
+                        android:gravity="center" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0.5dp"
+                    android:background="@color/glass_border" />
+
+                <LinearLayout
+                    android:id="@+id/itemTemperature"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="创意度（温度）"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/tvTemperature"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.7"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="\u203A"
+                        android:textSize="20sp"
+                        android:textColor="@color/text_tertiary"
+                        android:gravity="center" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0.5dp"
+                    android:background="@color/glass_border" />
+
+                <LinearLayout
+                    android:id="@+id/itemMaxTokens"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="回复最大长度"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/tvMaxTokens"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1000"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="\u203A"
+                        android:textSize="20sp"
+                        android:textColor="@color/text_tertiary"
+                        android:gravity="center" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0.5dp"
+                    android:background="@color/glass_border" />
+
+                <LinearLayout
+                    android:id="@+id/itemExampleDialogues"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="示例对话数"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/tvExampleDialogues"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1条"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 

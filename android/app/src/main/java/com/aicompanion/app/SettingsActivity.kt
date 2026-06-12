@@ -21,13 +21,12 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 class SettingsActivity : AppCompatActivity() {
 
     companion object {
-        private val TOKEN_PRESETS = arrayOf(
-            "聊天体验优先", "短文本指令模式",
-            "翻译模式", "长文本理解", "极限性能模式", "自定义"
-        )
         private val MODEL_OPTIONS = arrayOf(
-            "deepseek-v4-flash（预设）",
-            "deepseek-v4-pro"
+            "deepseek-v4-flash（快速）",
+            "deepseek-v4-pro（高质量）"
+        )
+        private val MODEL_VALUES = arrayOf(
+            "deepseek-v4-flash", "deepseek-v4-pro"
         )
         private val INTERVAL_OPTIONS = arrayOf(
             "每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天"
@@ -56,7 +55,10 @@ class SettingsActivity : AppCompatActivity() {
         setupModelSelect()
 
         // —— 对话设置 ——
-        setupTokenPreset()
+        setupContextSize()
+        setupTemperature()
+        setupMaxTokens()
+        setupExampleDialogues()
         setupNewChat()
         setupClearMemory()
 
@@ -147,42 +149,16 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupModelSelect() {
         findViewById<View>(R.id.itemModel).setOnClickListener {
             val currentModel = AppConfig.getModel(this@SettingsActivity).let {
-                if (it.isBlank()) "" else it
+                if (it.isBlank()) "deepseek-v4-flash" else it
             }
-            val presetLabel = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
-
-            // 选项：预设模型 + deepseek-v4-pro + 自定义
-            val options = arrayOf(
-                "deepseek-v4-flash（$presetLabel）",
-                "deepseek-v4-pro",
-                "自定义"
-            )
-
-            val currentIdx = when {
-                currentModel.isBlank() -> 0                // 空=跟随预设 → flash
-                currentModel == "deepseek-v4-flash" -> 0
-                currentModel == "deepseek-v4-pro" -> 1
-                else -> 2                                   // 自定义
-            }
+            val idx = MODEL_VALUES.indexOf(currentModel).coerceAtLeast(0)
 
             MaterialAlertDialogBuilder(this)
                 .setTitle("选择模型")
-                .setSingleChoiceItems(options, currentIdx) { dialog, which ->
-                    when (which) {
-                        0 -> {
-                            AppConfig.setModel(this@SettingsActivity, "")
-                            syncModelToPython("")
-                        }
-                        1 -> {
-                            AppConfig.setModel(this@SettingsActivity, "deepseek-v4-pro")
-                            syncModelToPython("deepseek-v4-pro")
-                        }
-                        2 -> {
-                            dialog.dismiss()
-                            showCustomModelDialog(currentModel)
-                            return@setSingleChoiceItems
-                        }
-                    }
+                .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
+                    val model = MODEL_VALUES[which]
+                    AppConfig.setModel(this@SettingsActivity, model)
+                    applyAllParams()
                     refreshUI()
                     dialog.dismiss()
                 }
@@ -191,54 +167,100 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun showCustomModelDialog(currentModel: String) {
-        val edit = EditText(this).apply {
-            hint = "输入模型名称，如 deepseek-v4-flash"
-            // 如果是"跟随预设"或预设值，清空输入框留给用户填
-            val existing = if (currentModel.isBlank() || currentModel in arrayOf("deepseek-v4-flash", "deepseek-v4-pro")) "" else currentModel
-            setText(existing)
-            setSelection(existing.length)
-        }
-        MaterialAlertDialogBuilder(this)
-            .setTitle("自定义模型")
-            .setView(edit)
-            .setPositiveButton("保存") { _, _ ->
-                val customModel = edit.text.toString().trim()
-                AppConfig.setModel(this@SettingsActivity, customModel)
-                syncModelToPython(customModel)
-                refreshUI()
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun syncModelToPython(model: String) {
+    private fun applyAllParams() {
         try {
             val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-            val preset = AppConfig.getTokenPreset(this@SettingsActivity)
-            module?.callAttr("init", preset, model)
+            val ctx = AppConfig.getContextSize(this@SettingsActivity)
+            val temp = AppConfig.getTemperature(this@SettingsActivity).toDouble()
+            val maxTk = AppConfig.getMaxTokens(this@SettingsActivity)
+            val dialogues = AppConfig.getExampleDialogues(this@SettingsActivity)
+            val model = AppConfig.getModel(this@SettingsActivity).let {
+                if (it.isBlank()) "deepseek-v4-flash" else it
+            }
+            module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)
         } catch (e: Exception) {
-            Toast.makeText(this@SettingsActivity, "切换模型失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@SettingsActivity, "参数应用失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     // ======================== 对话设置 ========================
 
-    private fun setupTokenPreset() {
-        findViewById<View>(R.id.itemTokenPreset).setOnClickListener {
-            val current = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
-            val idx = TOKEN_PRESETS.indexOf(current).coerceAtLeast(0)
+    private fun setupContextSize() {
+        findViewById<View>(R.id.itemContextSize).setOnClickListener {
+            val options = arrayOf("1000（小）", "2000（中）", "4000（大）")
+            val values = intArrayOf(1000, 2000, 4000)
+            val current = AppConfig.getContextSize(this@SettingsActivity)
+            val idx = values.toList().indexOf(current).coerceAtLeast(1)
+
             MaterialAlertDialogBuilder(this)
-                .setTitle("Token 预设")
-                .setSingleChoiceItems(TOKEN_PRESETS, idx) { dialog, which ->
-                    val selected = TOKEN_PRESETS[which]
-                    prefs.edit().putString("token_preset", selected).apply()
-                    try {
-                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("set_token_preset", selected)
-                    } catch (e: Exception) {
-                        Toast.makeText(this@SettingsActivity, "预设切换失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+                .setTitle("上下文窗口")
+                .setSingleChoiceItems(options, idx) { dialog, which ->
+                    AppConfig.setContextSize(this@SettingsActivity, values[which])
+                    applyAllParams()
+                    refreshUI()
+                    dialog.dismiss()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+    }
+
+    private fun setupTemperature() {
+        findViewById<View>(R.id.itemTemperature).setOnClickListener {
+            val options = arrayOf("0.5 保守", "0.7 中等", "0.9 创意")
+            val values = floatArrayOf(0.5f, 0.7f, 0.9f)
+            val current = AppConfig.getTemperature(this@SettingsActivity)
+            val idx = when {
+                current <= 0.5f -> 0
+                current >= 0.9f -> 2
+                else -> 1
+            }
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("创意度（温度）")
+                .setSingleChoiceItems(options, idx) { dialog, which ->
+                    AppConfig.setTemperature(this@SettingsActivity, values[which])
+                    applyAllParams()
+                    refreshUI()
+                    dialog.dismiss()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+    }
+
+    private fun setupMaxTokens() {
+        findViewById<View>(R.id.itemMaxTokens).setOnClickListener {
+            val options = arrayOf("500（短）", "1000（中）", "2000（长）")
+            val values = intArrayOf(500, 1000, 2000)
+            val current = AppConfig.getMaxTokens(this@SettingsActivity)
+            val idx = values.toList().indexOf(current).coerceAtLeast(1)
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("回复最大长度")
+                .setSingleChoiceItems(options, idx) { dialog, which ->
+                    AppConfig.setMaxTokens(this@SettingsActivity, values[which])
+                    applyAllParams()
+                    refreshUI()
+                    dialog.dismiss()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+    }
+
+    private fun setupExampleDialogues() {
+        findViewById<View>(R.id.itemExampleDialogues).setOnClickListener {
+            val options = arrayOf("0条（不展示）", "1条", "2条", "3条（最多）")
+            val values = intArrayOf(0, 1, 2, 3)
+            val current = AppConfig.getExampleDialogues(this@SettingsActivity)
+            val idx = current.coerceIn(0, 3)
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("示例对话数")
+                .setSingleChoiceItems(options, idx) { dialog, which ->
+                    AppConfig.setExampleDialogues(this@SettingsActivity, values[which])
+                    applyAllParams()
                     refreshUI()
                     dialog.dismiss()
                 }
@@ -367,17 +389,26 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvRolePreset)?.text = char.name
 
         val model = AppConfig.getModel(this@SettingsActivity).let {
-            if (it.isBlank()) {
-                val preset = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
-                "deepseek-v4-flash（$preset）"
-            } else {
-                it
-            }
+            if (it.isBlank()) "deepseek-v4-flash（默认）" else it
         }
         findViewById<TextView>(R.id.tvModel)?.text = model
 
-        val tokenPreset = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
-        findViewById<TextView>(R.id.tvTokenPreset)?.text = tokenPreset
+        val ctxSize = AppConfig.getContextSize(this@SettingsActivity)
+        findViewById<TextView>(R.id.tvContextSize)?.text = ctxSize.toString()
+
+        val temp = AppConfig.getTemperature(this@SettingsActivity)
+        val tempLabel = when {
+            temp <= 0.5f -> "0.5 保守"
+            temp >= 0.9f -> "0.9 创意"
+            else -> "0.7 中等"
+        }
+        findViewById<TextView>(R.id.tvTemperature)?.text = tempLabel
+
+        val maxTk = AppConfig.getMaxTokens(this@SettingsActivity)
+        findViewById<TextView>(R.id.tvMaxTokens)?.text = maxTk.toString()
+
+        val dialogues = AppConfig.getExampleDialogues(this@SettingsActivity)
+        findViewById<TextView>(R.id.tvExampleDialogues)?.text = "${dialogues}条"
 
         val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
         val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
