@@ -8,9 +8,54 @@ from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
 from src.utils.logger import get_logger
 
-from ._state import _ctx, _CARD_PATH, _executor
+from . import _state
+from ._state import _ctx, _CARD_PATH, _executor, _current_params
 
 _log = get_logger()
+
+
+def _build_custom_preset(
+    context_size: int,
+    temperature: float,
+    max_tokens: int,
+    example_dialogues: int,
+    model: str = "",
+):
+    """构建自定义 TokenPreset，init() 和 apply_params() 共用。"""
+    from src.chat_engine.token_presets import TokenPreset
+    return TokenPreset(
+        key="custom",
+        label="自定义",
+        description="手动调整",
+        model=model or "deepseek-v4-flash",
+        temperature=temperature,
+        max_tokens=max_tokens,
+        context_window=context_size,
+        system_prompt_chars=int(context_size * 0.6),
+        card_max_chars=int(context_size * 0.35),
+        world_book_max_chars=int(context_size * 0.15),
+        memories_max_chars=int(context_size * 0.1),
+        guideline_max_chars=int(context_size * 0.06),
+        max_example_dialogues=example_dialogues,
+        include_guideline=True,
+        include_creator_notes=False,
+    )
+
+
+def _record_params(context_size: int, temperature: float, max_tokens: int,
+                   example_dialogues: int, model: str) -> dict:
+    """记录当前生效的参数，并返回确认后的参数字典。"""
+    actual_model = model or "deepseek-v4-flash"
+    params = {
+        "context_size": context_size,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "example_dialogues": example_dialogues,
+        "model": actual_model,
+    }
+    _current_params.clear()
+    _current_params.update(params)
+    return params
 
 
 def init(
@@ -20,54 +65,19 @@ def init(
     example_dialogues: int = 1,
     model: str = "",
 ) -> dict:
-    """初始化聊天引擎。
-
-    加载角色卡、配置 API 客户端。首次调用时自动完成。
-    如果已初始化，先通过 AppContext.shutdown() 清理旧资源再创建新实例。
-
-    Args:
-        context_size: 上下文窗口大小（1000/2000/4000）。
-        temperature: 创意度/温度（0.5/0.7/0.9）。
-        max_tokens: 回复最大 token 数（500/1000/2000）。
-        example_dialogues: 示例对话条数（0/1/2/3）。
-        model: 模型名称，空字符串默认 deepseek-v4-flash。
-
-    Returns:
-        {"status": "ok", "card": {"name": str, "nickname": str, "gender": str}}
-        或 {"status": "error", "message": str}
-    """
+    """初始化聊天引擎。"""
     try:
         if not settings.DEEPSEEK_API_KEY:
             return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
-        from src.chat_engine.token_presets import TokenPreset
-        custom_preset = TokenPreset(
-            key="custom",
-            label="自定义",
-            description="手动调整",
-            model=model if model else "deepseek-v4-flash",
-            temperature=temperature,
-            max_tokens=max_tokens,
-            context_window=context_size,
-            system_prompt_chars=int(context_size * 0.6),
-            card_max_chars=int(context_size * 0.35),
-            world_book_max_chars=int(context_size * 0.15),
-            memories_max_chars=int(context_size * 0.1),
-            guideline_max_chars=int(context_size * 0.06),
-            max_example_dialogues=example_dialogues,
-            include_guideline=True,
-            include_creator_notes=False,
-        )
-
+        custom_preset = _build_custom_preset(context_size, temperature, max_tokens, example_dialogues, model)
         player = _ctx.initialize(preset=custom_preset, model=model if model else "")
         player.load_card(str(_CARD_PATH))
 
         info = player.get_card_info()
-        info["context_size"] = context_size
-        info["temperature"] = temperature
-        info["max_tokens"] = max_tokens
-        info["example_dialogues"] = example_dialogues
-        return json.dumps({"status": "ok", "card": info})
+        params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
+        info.update(params)
+        return json.dumps({"status": "ok", "card": info, "params": params})
     except FileNotFoundError as e:
         return json.dumps({"status": "error", "message": f"角色卡文件不存在: {e}"})
     except RolePlayerError as e:
@@ -79,11 +89,7 @@ def init(
 def chat(user_input: str) -> dict:
     """发送一条消息，获取 AI 角色回复。
 
-    Args:
-        user_input: 用户输入文本。
-
-    Returns:
-        {"status": "ok", "reply": str} 或 {"status": "error", "message": str}
+    自动注入相关记忆：每 N 轮（默认3轮）检索一次记忆并注入到 System Prompt。
     """
     player = _ctx.player
     orchestrator = _ctx.orchestrator
@@ -96,6 +102,20 @@ def chat(user_input: str) -> dict:
 
     try:
         user_input = user_input.strip()
+
+        # 自动记忆注入：每 N 轮检索一次相关记忆
+        _state._turn_since_last_inject += 1
+        if orchestrator is not None and _state._turn_since_last_inject >= _state._memory_inject_interval:
+            try:
+                _state._cached_memories = orchestrator.recall(user_input)
+                _state._turn_since_last_inject = 0
+                _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
+            except Exception as e:
+                _log.warning(f"[记忆注入] 检索失败: {e}")
+
+        if _state._cached_memories:
+            player.inject_memories(_state._cached_memories)
+
         reply = player.chat(user_input)
 
         # 记忆存储：使用线程池异步执行，不阻塞对话回复
@@ -178,40 +198,20 @@ def apply_params(
         if not settings.DEEPSEEK_API_KEY:
             return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
-        from src.chat_engine.token_presets import TokenPreset
-        custom_preset = TokenPreset(
-            key="custom",
-            label="自定义",
-            description="手动调整",
-            model=model if model else "deepseek-v4-flash",
-            temperature=temperature,
-            max_tokens=max_tokens,
-            context_window=context_size,
-            system_prompt_chars=int(context_size * 0.6),
-            card_max_chars=int(context_size * 0.35),
-            world_book_max_chars=int(context_size * 0.15),
-            memories_max_chars=int(context_size * 0.1),
-            guideline_max_chars=int(context_size * 0.06),
-            max_example_dialogues=example_dialogues,
-            include_guideline=True,
-            include_creator_notes=False,
-        )
-
+        custom_preset = _build_custom_preset(context_size, temperature, max_tokens, example_dialogues, model)
         player = _ctx.initialize(preset=custom_preset, model=model if model else "")
         player.load_card(str(_CARD_PATH))
+
+        params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
         _log.info(
             f"[参数应用] context={context_size}, temp={temperature}, "
             f"max_tokens={max_tokens}, dialogues={example_dialogues}, model={model or '默认'}"
         )
-        return json.dumps({
-            "status": "ok",
-            "params": {
-                "context_size": context_size,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "example_dialogues": example_dialogues,
-                "model": model or "deepseek-v4-flash",
-            },
-        })
+        return json.dumps({"status": "ok", "params": params})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_current_params() -> dict:
+    """获取当前生效的对话参数（供 Kotlin 端验证配置同步）。"""
+    return json.dumps({"status": "ok", "params": dict(_current_params)})

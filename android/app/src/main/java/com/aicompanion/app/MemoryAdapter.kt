@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 
 /**
@@ -84,6 +85,14 @@ class MemoryAdapter(
         notifyItemRangeInserted(startPos, newItems.size)
     }
 
+    /** 替换全部数据（使用 DiffUtil 优化刷新） */
+    fun replaceItems(newItems: List<MemoryItem>) {
+        val diffResult = DiffUtil.calculateDiff(DiffCallback(items, newItems))
+        items.clear()
+        items.addAll(newItems)
+        diffResult.dispatchUpdatesTo(this)
+    }
+
     /** 清空列表 */
     fun clear() {
         val count = items.size
@@ -96,5 +105,21 @@ class MemoryAdapter(
         if (position < 0 || position >= items.size) return
         items.removeAt(position)
         notifyItemRemoved(position)
+    }
+
+    private class DiffCallback(
+        private val oldList: List<MemoryItem>,
+        private val newList: List<MemoryItem>,
+    ) : DiffUtil.Callback() {
+        override fun getOldListSize() = oldList.size
+        override fun getNewListSize() = newList.size
+        override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+            return oldList[oldPos].rowid == newList[newPos].rowid
+        }
+        override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
+            val old = oldList[oldPos]
+            val new = newList[newPos]
+            return old.content == new.content && old.type == new.type && old.createdAt == new.createdAt
+        }
     }
 }

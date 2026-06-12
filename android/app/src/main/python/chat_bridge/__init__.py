@@ -29,6 +29,7 @@ from ._core import (
     set_api_key,
     list_presets,
     apply_params,
+    get_current_params,
 )
 
 # ---- 记忆系统 ----
@@ -70,6 +71,7 @@ __all__ = [
     "set_api_key",
     "list_presets",
     "apply_params",
+    "get_current_params",
     "init_memory",
     "get_memory_stats",
     "reset_memories",

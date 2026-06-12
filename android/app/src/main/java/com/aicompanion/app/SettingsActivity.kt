@@ -3,6 +3,7 @@ package com.aicompanion.app
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
+import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.EditText
@@ -13,6 +14,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import org.json.JSONObject
 
 /**
  * 设置页面 Activity。
@@ -157,7 +159,12 @@ class SettingsActivity : AppCompatActivity() {
             val model = AppConfig.getModel(this@SettingsActivity).let {
                 if (it.isBlank()) "deepseek-v4-flash" else it
             }
-            module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)
+            val result = module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)?.toString() ?: "{}"
+            Log.d("SettingsActivity", "apply_params 返回: $result")
+            val json = JSONObject(result)
+            if (json.optString("status") != "ok") {
+                Toast.makeText(this@SettingsActivity, "参数应用失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+            }
         } catch (e: Exception) {
             Toast.makeText(this@SettingsActivity, "参数应用失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }

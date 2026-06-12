@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 聊天主页面 — 横屏适配 -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_main_gradient"
+    android:clipToPadding="false">
+
+    <!-- 背景粒子层 -->
+    <com.aicompanion.app.ui.ParticleView
+        android:id="@+id/particleView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 主内容区 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 顶栏：横屏时降低高度 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/topbar_height_land"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/spacing_page"
+            android:background="@drawable/bg_glass_top">
+
+            <ImageView
+                android:id="@+id/ivAvatar"
+                android:layout_width="@dimen/avatar_size_small"
+                android:layout_height="@dimen/avatar_size_small"
+                android:src="@drawable/ic_avatar_placeholder"
+                android:contentDescription="@string/cd_avatar" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingHorizontal="@dimen/spacing_lg">
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tv_default_character_name"
+                    android:textSize="@dimen/text_title_small"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/status_online"
+                    android:textSize="@dimen/text_small"
+                    android:textColor="@color/accent_green" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnSettings"
+                android:layout_width="@dimen/avatar_size_small"
+                android:layout_height="@dimen/avatar_size_small"
+                android:text="@string/btn_menu"
+                android:textSize="@dimen/text_xlarge"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="@string/cd_settings" />
+        </LinearLayout>
+
+        <!-- 消息列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMessages"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="@dimen/message_list_padding_land"
+            android:clipToPadding="false"
+            android:overScrollMode="never" />
+
+        <!-- 输入栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="@dimen/input_padding"
+            android:background="@drawable/bg_glass_bottom">
+
+            <EditText
+                android:id="@+id/etInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:padding="@dimen/input_padding"
+                android:maxLines="3"
+                android:hint="@string/hint_input_message"
+                android:textColorHint="@color/text_tertiary"
+                android:textColor="@color/text_primary"
+                android:textSize="@dimen/text_body"
+                android:background="@drawable/bg_input_field"
+                android:inputType="textMultiLine"
+                android:imeOptions="actionSend" />
+
+            <TextView
+                android:id="@+id/btnSend"
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small"
+                android:layout_marginStart="@dimen/spacing_md"
+                android:text="@string/btn_send"
+                android:textSize="@dimen/text_title"
+                android:textColor="@color/text_on_pink"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:enabled="false"
+                android:background="@drawable/bg_send_inactive" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

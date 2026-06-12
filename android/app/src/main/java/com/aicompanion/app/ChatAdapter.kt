@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 
 /**
@@ -106,5 +107,30 @@ class ChatAdapter(
         val count = messages.size
         messages.clear()
         notifyItemRangeRemoved(0, count)
+    }
+
+    /** 替换全部消息（使用 DiffUtil 避免全量刷新闪烁） */
+    fun replaceMessages(newMessages: List<Message>) {
+        val diffResult = DiffUtil.calculateDiff(MessageDiffCallback(messages, newMessages))
+        messages.clear()
+        messages.addAll(newMessages)
+        diffResult.dispatchUpdatesTo(this)
+    }
+
+    private class MessageDiffCallback(
+        private val oldList: List<Message>,
+        private val newList: List<Message>,
+    ) : DiffUtil.Callback() {
+        override fun getOldListSize() = oldList.size
+        override fun getNewListSize() = newList.size
+        override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+            // 消息无唯一 ID，用位置 + 内容做粗略判断
+            return oldPos == newPos &&
+                oldList[oldPos].isUser == newList[newPos].isUser &&
+                oldList[oldPos].isTyping == newList[newPos].isTyping
+        }
+        override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
+            return oldList[oldPos].content == newList[newPos].content
+        }
     }
 }

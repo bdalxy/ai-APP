@@ -133,7 +133,8 @@ class MainActivity : AppCompatActivity() {
                 val model = AppConfig.getModel(this@MainActivity).let {
                     if (it.isBlank()) "" else it
                 }
-                module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
+                val initResult = module.callAttr("init", ctxSize, temp, maxTk, dialogues, model).toString()
+                Log.d("MainActivity", "init 返回: $initResult")
 
                 // 3. 初始化记忆系统
                 val dbDir = filesDir.absolutePath

@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 往世乐土主题色板 ===== -->
+    <!-- ===== 往世乐土主题色板 — 亮色模式 ===== -->
 
-    <!-- 主色调：爱莉希雅粉紫 -->
+    <!-- 主色调 -->
     <color name="elysian_pink">#FFB7C5</color>
     <color name="elysian_purple">#9B59B6</color>
     <color name="elysian_deep">#7B2D8B</color>
     <color name="elysian_pink_light">#FFD0D9</color>
 
-    <!-- 背景色：暗紫色系 -->
-    <color name="bg_dark">#0F0A1A</color>
-    <color name="bg_mid">#1A1028</color>
-    <color name="bg_light">#251838</color>
+    <!-- 背景色 -->
+    <color name="bg_dark">#FFF5F8</color>
+    <color name="bg_mid">#FFE8ED</color>
+    <color name="bg_light">#FFDCE3</color>
 
     <!-- AI气泡颜色 -->
-    <color name="bubble_ai">#FFF0F3</color>
-    <color name="bubble_ai_glow">#FFE4E9</color>
+    <color name="bubble_ai">#F5E6FF</color>
+    <color name="bubble_ai_glow">#EDD9FF</color>
     <color name="bubble_ai_text">#4A2C3A</color>
 
     <!-- 用户气泡渐变 -->
@@ -24,22 +24,22 @@
     <color name="bubble_user_text">#FFFFFF</color>
 
     <!-- 打字气泡 -->
-    <color name="bubble_typing">#3A2A45</color>
+    <color name="bubble_typing">#E8D5F5</color>
 
     <!-- 文字颜色 -->
-    <color name="text_primary">#F5F0FF</color>
-    <color name="text_secondary">#B8A9CC</color>
-    <color name="text_tertiary">#7A6B8A</color>
+    <color name="text_primary">#2D1B3A</color>
+    <color name="text_secondary">#6B5A7A</color>
+    <color name="text_tertiary">#9A8AAA</color>
     <color name="text_on_pink">#4A2C3A</color>
 
     <!-- 毛玻璃效果 -->
-    <color name="glass_bg">#1DFFFFFF</color>
-    <color name="glass_border">#2DFFFFFF</color>
+    <color name="glass_bg">#1D9B59B6</color>
+    <color name="glass_border">#2D9B59B6</color>
     <color name="glass_bg_dark">#14FFFFFF</color>
 
     <!-- 辅助色 -->
-    <color name="accent_green">#7DE2A0</color>
-    <color name="accent_orange">#FFB74D</color>
+    <color name="accent_green">#4CAF50</color>
+    <color name="accent_orange">#FF9800</color>
     <color name="accent_red">#E57373</color>
 
     <!-- 光晕效果 -->

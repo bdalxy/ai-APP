@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 往世乐土主题 — 亮色模式 ===== -->
+    <!-- ===== 往世乐土主题 — 暗色模式 ===== -->
     <style name="Theme.AICompanion" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primaryVariant</item>
@@ -16,27 +16,6 @@
         <item name="android:statusBarColor">@color/bg_dark</item>
         <item name="android:navigationBarColor">@color/bg_dark</item>
         <item name="android:windowBackground">@color/bg_dark</item>
-        <item name="android:windowLightStatusBar">true</item>
-    </style>
-
-    <!-- 设置项标题 -->
-    <style name="SettingsItemTitle" parent="TextAppearance.MaterialComponents.Body1">
-        <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">15sp</item>
-    </style>
-
-    <!-- 设置项副标题 -->
-    <style name="SettingsItemSubtitle" parent="TextAppearance.MaterialComponents.Body2">
-        <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">13sp</item>
-    </style>
-
-    <!-- 毛玻璃卡片 -->
-    <style name="GlassCard" parent="Widget.MaterialComponents.CardView">
-        <item name="cardBackgroundColor">@color/glass_bg</item>
-        <item name="strokeColor">@color/glass_border</item>
-        <item name="strokeWidth">1dp</item>
-        <item name="cardCornerRadius">12dp</item>
-        <item name="cardElevation">0dp</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

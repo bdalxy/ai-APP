@@ -40,16 +40,18 @@ from src.utils.logger import get_logger
 # 加密密钥（懒加载，首次调用 _encrypt/_decrypt 时初始化）
 _ENCRYPTION_KEY: bytes | None = None
 _USE_FERNET: bool = False
+# 加密标记前缀：F:0: = Fernet, X:0: = XOR, 无前缀 = 旧数据
+_ENCRYPT_PREFIX_FERNET: str = "F:0:"
+_ENCRYPT_PREFIX_XOR: str = "X:0:"
 
 
 def _init_encryption(key_dir: str = "") -> None:
-    """初始化加密密钥。
+    """初始化加密密钥，优先使用 Fernet (AES-CBC)，兼容旧 XOR 数据。
 
-    优先使用 cryptography.fernet（AES-CBC），不可用时回退到 base64 + XOR。
     密钥加载优先级：
         1. key_dir 目录下的 encryption.key 文件（持久化密钥）
         2. 环境变量 MEMORY_ENCRYPTION_KEY
-        3. 随机生成并保存到 key_dir/encryption.key（首次使用）
+        3. 随机生成 Fernet 密钥并保存到 key_dir/encryption.key
 
     Args:
         key_dir: 密钥文件存储目录（通常为数据库所在目录）。空字符串表示不持久化。
@@ -57,44 +59,53 @@ def _init_encryption(key_dir: str = "") -> None:
     global _ENCRYPTION_KEY, _USE_FERNET
     _logger = get_logger()
 
+    has_fernet = False
+    try:
+        from cryptography.fernet import Fernet  # noqa: F811
+        has_fernet = True
+    except ImportError:
+        _logger.info("[加密] cryptography 不可用，回退到 base64+XOR 模式")
+
     # 尝试从持久化文件加载密钥
     if key_dir:
         key_file = Path(key_dir) / "encryption.key"
         if key_file.exists():
             try:
                 _ENCRYPTION_KEY = key_file.read_bytes()
-                _logger.info("[加密] 已从持久化文件加载密钥")
-                _USE_FERNET = False  # 持久化密钥使用 XOR 模式
+                # 检测密钥类型：Fernet 密钥是 44 字节 URL-safe base64
+                if has_fernet and len(_ENCRYPTION_KEY) == 44:
+                    _USE_FERNET = True
+                    _logger.info("[加密] 已从持久化文件加载 Fernet 密钥 (AES-CBC)")
+                else:
+                    _USE_FERNET = False
+                    _logger.info(f"[加密] 已从持久化文件加载 XOR 密钥 ({len(_ENCRYPTION_KEY)} 字节)")
                 return
             except Exception as e:
                 _logger.warning(f"[加密] 加载持久化密钥失败: {e}，将重新生成")
 
-    # 尝试使用 Fernet（更安全的 AES-CBC 实现）
-    try:
-        from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+    # 生成新密钥
+    if has_fernet:
+        try:
+            from cryptography.fernet import Fernet  # noqa: F811
+            _USE_FERNET = True
+            key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
+            if key_str:
+                _ENCRYPTION_KEY = key_str.encode("utf-8") if isinstance(key_str, str) else key_str
+            else:
+                _ENCRYPTION_KEY = Fernet.generate_key()
+                if key_dir:
+                    _save_key_to_file(key_dir, _ENCRYPTION_KEY)
+                else:
+                    _logger.warning(
+                        "[加密] 已生成临时 Fernet 密钥，重启后旧数据将无法解密。"
+                    )
+            _logger.info(f"[加密] 使用 Fernet (AES-CBC) 模式, 密钥={len(_ENCRYPTION_KEY)}字节")
+            return
+        except Exception as e:
+            _logger.warning(f"[加密] Fernet 初始化失败: {e}，回退 XOR")
 
-        _USE_FERNET = True
-        key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
-        if key_str:
-            _ENCRYPTION_KEY = key_str.encode("utf-8") if isinstance(key_str, str) else key_str
-        elif key_dir:
-            # 生成新密钥并持久化（XOR 模式，因为 Fernet key 格式不同）
-            _USE_FERNET = False
-            _ENCRYPTION_KEY = secrets.token_bytes(32)
-            _save_key_to_file(key_dir, _ENCRYPTION_KEY)
-        else:
-            _ENCRYPTION_KEY = Fernet.generate_key()
-            _logger.warning(
-                "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 Fernet 密钥。"
-                "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
-            )
-        if _USE_FERNET:
-            _logger.info("[加密] 使用 cryptography.fernet (AES-CBC) 模式")
-        return
-    except ImportError:
-        _logger.info("[加密] cryptography 不可用，回退到 base64+XOR 模式")
-
-    # 回退到 base64 + XOR（MVP 方案）
+    # 回退到 base64 + XOR
+    _USE_FERNET = False
     key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
     if key_str:
         if isinstance(key_str, str):
@@ -106,8 +117,7 @@ def _init_encryption(key_dir: str = "") -> None:
     else:
         _ENCRYPTION_KEY = secrets.token_bytes(32)
         _logger.warning(
-            "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 XOR 密钥。"
-            "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
+            "[加密] 已生成临时 XOR 密钥，重启后旧数据将无法解密。"
         )
 
 
@@ -122,9 +132,11 @@ def _save_key_to_file(key_dir: str, key: bytes) -> None:
 
 
 def _encrypt(text: str) -> str:
-    """加密文本内容，返回 base64 编码的密文。
+    """加密文本内容，返回带前缀标记的密文。
 
-    如果 text 为空字符串，直接返回空字符串（不加密）。
+    Fernet 模式: F:0:<base64密文>
+    XOR 模式:   X:0:<base64密文>
+    空字符串直接返回空字符串。
     """
     if not text:
         return text
@@ -134,22 +146,25 @@ def _encrypt(text: str) -> str:
 
     if _USE_FERNET:
         from cryptography.fernet import Fernet  # type: ignore[import-untyped]
-
         f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
-        return f.encrypt(text.encode("utf-8")).decode("ascii")
+        cipher = f.encrypt(text.encode("utf-8")).decode("ascii")
+        return _ENCRYPT_PREFIX_FERNET + cipher
     else:
-        # XOR + base64 MVP 方案
         data = text.encode("utf-8")
         key = _ENCRYPTION_KEY  # type: ignore[assignment]
         encrypted = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])  # type: ignore[index]
-        return base64.b64encode(encrypted).decode("ascii")
+        cipher = base64.b64encode(encrypted).decode("ascii")
+        return _ENCRYPT_PREFIX_XOR + cipher
 
 
 def _decrypt(encoded: str) -> str:
-    """解密文本内容。
+    """解密文本内容，自动检测加密方式（Fernet/XOR/旧数据）。
 
-    如果 encoded 为空字符串，直接返回空字符串。
-    如果解密失败（例如旧明文数据），假定为明文直接返回。
+    支持：
+        - F:0: 前缀 = Fernet 加密
+        - X:0: 前缀 = XOR 加密
+        - 无前缀 = 尝试 Fernet 解密，失败则尝试 XOR，再失败视为明文
+    空字符串直接返回空字符串。
     """
     if not encoded:
         return encoded
@@ -157,20 +172,44 @@ def _decrypt(encoded: str) -> str:
     if _ENCRYPTION_KEY is None:
         _init_encryption()
 
-    try:
-        if _USE_FERNET:
+    # 检测前缀标记
+    if encoded.startswith(_ENCRYPT_PREFIX_FERNET):
+        try:
             from cryptography.fernet import Fernet  # type: ignore[import-untyped]
-
             f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
-            return f.decrypt(encoded.encode("ascii")).decode("utf-8")
-        else:
-            encrypted = base64.b64decode(encoded)
+            return f.decrypt(encoded[len(_ENCRYPT_PREFIX_FERNET):].encode("ascii")).decode("utf-8")
+        except Exception as e:
+            get_logger().warning(f"[解密] Fernet 解密失败: {e}")
+            return encoded
+
+    if encoded.startswith(_ENCRYPT_PREFIX_XOR):
+        try:
+            encrypted = base64.b64decode(encoded[len(_ENCRYPT_PREFIX_XOR):])
             key = _ENCRYPTION_KEY  # type: ignore[assignment]
             decrypted = bytes([encrypted[i] ^ key[i % len(key)] for i in range(len(encrypted))])  # type: ignore[index]
             return decrypted.decode("utf-8")
+        except Exception as e:
+            get_logger().warning(f"[解密] XOR 解密失败: {e}")
+            return encoded
+
+    # 无前缀：旧数据，尝试 Fernet → XOR → 明文
+    try:
+        from cryptography.fernet import Fernet  # type: ignore[import-untyped]
+        f = Fernet(_ENCRYPTION_KEY)  # type: ignore[arg-type]
+        return f.decrypt(encoded.encode("ascii")).decode("utf-8")
     except Exception:
-        # 解密失败：可能是旧明文数据或密钥变更，直接返回原文
-        return encoded
+        pass
+
+    try:
+        encrypted = base64.b64decode(encoded)
+        key = _ENCRYPTION_KEY  # type: ignore[assignment]
+        decrypted = bytes([encrypted[i] ^ key[i % len(key)] for i in range(len(encrypted))])  # type: ignore[index]
+        return decrypted.decode("utf-8")
+    except Exception:
+        pass
+
+    # 明文数据
+    return encoded
 
 
 @dataclass
@@ -542,6 +581,57 @@ class VectorStore:
         self._log.debug(f"[分页加载] offset={offset}, limit={limit}, 实际={len(rows)}")
         return [self._row_to_entry(row) for row in rows]
 
+    def get_recent_entries(self, top_k: int = 10) -> list[MemoryEntry]:
+        """按创建时间降序获取最近 N 条记忆（SQL 层排序，避免全量加载）。
+
+        Args:
+            top_k: 返回的最大记忆数。
+
+        Returns:
+            按 created_at 降序排列的 MemoryEntry 列表。
+        """
+        self._check_closed()
+        sql = f"SELECT * FROM {self._TABLE_NAME} ORDER BY created_at DESC LIMIT ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (top_k,))
+                rows = cursor.fetchall()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"获取最近记忆失败: {e}") from e
+        return [self._row_to_entry(row) for row in rows]
+
+    def get_important_entries(self, min_importance: float, top_k: int) -> list[MemoryEntry]:
+        """按重要性降序获取重要记忆（SQL 层过滤+排序，避免全量加载）。
+
+        Args:
+            min_importance: 最低重要性阈值（0.0~1.0）。
+            top_k: 返回的最大记忆数。
+
+        Returns:
+            按 importance 降序排列的 MemoryEntry 列表。
+        """
+        self._check_closed()
+        sql = f"SELECT * FROM {self._TABLE_NAME} WHERE importance >= ? ORDER BY importance DESC LIMIT ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (min_importance, top_k))
+                rows = cursor.fetchall()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"获取重要记忆失败: {e}") from e
+        return [self._row_to_entry(row) for row in rows]
+
+    def get_entries_by_ids(self, mem_ids: list[str]) -> list[MemoryEntry]:
+        """按 ID 列表批量获取记忆（SQL IN 查询，_get_by_ids 的公开封装）。
+
+        Args:
+            mem_ids: 记忆 UUID 列表。
+
+        Returns:
+            MemoryEntry 列表，顺序与数据库返回一致。
+        """
+        self._check_closed()
+        return self._get_by_ids(mem_ids)
+
     def _record_access(self, entry: MemoryEntry) -> None:
         from src.utils.time_utils import format_timestamp_iso
         entry.access_count += 1
@@ -788,7 +878,10 @@ class VectorStore:
         return results
 
     def search_by_keyword(self, keyword: str) -> list[dict]:
-        """按关键字在 content 字段中模糊搜索（LIKE）。
+        """按关键字在 content 字段中模糊搜索。
+
+        使用倒排索引预过滤候选 ID，再通过 SQL IN 查询加载实际数据，
+        避免全量加载所有记忆。content 字段已加密，LIKE 匹配在 Python 侧完成。
 
         用于前端记忆可视化页面的关键字搜索。
 
@@ -803,32 +896,47 @@ class VectorStore:
         if not keyword or not keyword.strip():
             return []
         keyword = keyword.strip()
-        # 使用 LIKE 进行模糊匹配，search 内容是在加密之前，所以需要在解密后的 content 上搜索
-        # 策略：先获取所有记忆，在 Python 侧过滤
-        # 对于少量记忆（<1000条）这是可接受的
-        all_entries = self._get_all()
-        results: list[dict] = []
-        # 获取 rowid 映射：用 id 关联 rowid
-        id_to_rowid: dict[str, int] = {}
-        try:
-            with self._lock:
-                cursor = self._conn.execute(
-                    f"SELECT rowid, id FROM {self._TABLE_NAME}"
-                )
-                for row in cursor:
-                    id_to_rowid[row[1]] = row[0]
-        except sqlite3.Error as e:
-            self._log.error(f"获取 rowid 映射失败: {e}")
-            # 降级：只返回不带 rowid 的结果
-            id_to_rowid = {}
 
-        for entry in all_entries:
+        # 1. 倒排索引预过滤：提取查询关键词，获取候选记忆 ID
+        query_keywords = extract_keywords(keyword)
+        candidate_ids = self.inverted_index.search(query_keywords)
+
+        if candidate_ids:
+            # 倒排索引命中：仅加载候选记忆
+            candidates = self._get_by_ids(list(candidate_ids))
+            self._log.debug(f"[关键字搜索] 倒排索引命中 {len(candidates)} 条候选")
+        else:
+            # 倒排索引无命中：回退到全量加载
+            candidates = self._get_all()
+            self._log.debug(f"[关键字搜索] 倒排索引无命中，回退全量 ({len(candidates)} 条)")
+
+        # 2. 仅获取候选记忆的 rowid 映射（而非全量）
+        id_to_rowid: dict[str, int] = {}
+        if candidates:
+            mem_ids = [e.id for e in candidates]
+            placeholders = ",".join("?" for _ in mem_ids)
+            try:
+                with self._lock:
+                    cursor = self._conn.execute(
+                        f"SELECT rowid, id FROM {self._TABLE_NAME} WHERE id IN ({placeholders})",
+                        mem_ids,
+                    )
+                    for row in cursor:
+                        id_to_rowid[row[1]] = row[0]
+            except sqlite3.Error as e:
+                self._log.error(f"[关键字搜索] 获取 rowid 映射失败: {e}")
+                id_to_rowid = {}
+
+        # 3. Python 侧 LIKE 匹配（content 加密，无法在 SQL 层做 LIKE）
+        results: list[dict] = []
+        for entry in candidates:
             if keyword.lower() in entry.content.lower():
                 item = entry.to_dict()
                 item["rowid"] = id_to_rowid.get(entry.id, -1)
                 item["embedding_dim"] = len(entry.embedding)
                 item.pop("embedding", None)
                 results.append(item)
+
         # 按创建时间降序
         results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return results

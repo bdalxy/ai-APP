@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 尺寸资源文件：横屏适配 -->
+<resources>
+    <!-- 顶栏：横屏时降低高度 -->
+    <dimen name="topbar_height_land">48dp</dimen>
+
+    <!-- 消息列表：横屏时增加水平内边距，使内容更集中 -->
+    <dimen name="message_list_padding_land">16dp</dimen>
+
+    <!-- 气泡最大宽度：横屏时更大，但不超出屏幕 -->
+    <dimen name="message_bubble_max_width">360dp</dimen>
+</resources>

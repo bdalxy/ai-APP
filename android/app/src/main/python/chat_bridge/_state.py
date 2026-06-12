@@ -21,6 +21,17 @@ _ctx = AppContext.get_instance()
 # max_workers=2 足够（同时最多一个记忆存储 + 一个主动消息）
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat_bridge")
 
+# 当前生效的对话参数（由 init()/apply_params() 写入，get_current_params() 读取）
+_current_params: dict[str, object] = {}
+
+# 当前角色卡信息（由 set_character_card() 写入，get_character_card() 读取）
+_current_character: dict[str, str] = {}
+
+# 记忆自动注入相关
+_memory_inject_interval: int = 3  # 每 N 轮对话更新一次记忆注入
+_turn_since_last_inject: int = 0  # 自上次注入以来的轮数
+_cached_memories: list[str] = []  # 缓存的记忆文本
+
 # Android 上的角色卡路径（data/ 在 python/ 根目录下）
 _BASE_DIR = Path(_PYTHON_ROOT)
 _CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"

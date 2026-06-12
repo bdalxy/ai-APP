@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== 往世乐土主题色板 — 暗色模式 ===== -->
+
+    <!-- 背景色 -->
+    <color name="bg_dark">#0F0A1A</color>
+    <color name="bg_mid">#1A1028</color>
+    <color name="bg_light">#251838</color>
+
+    <!-- AI气泡颜色 -->
+    <color name="bubble_ai">#FFF0F3</color>
+    <color name="bubble_ai_glow">#FFE4E9</color>
+    <color name="bubble_ai_text">#4A2C3A</color>
+
+    <!-- 打字气泡 -->
+    <color name="bubble_typing">#3A2A45</color>
+
+    <!-- 文字颜色 -->
+    <color name="text_primary">#F5F0FF</color>
+    <color name="text_secondary">#B8A9CC</color>
+    <color name="text_tertiary">#7A6B8A</color>
+
+    <!-- 毛玻璃效果 -->
+    <color name="glass_bg">#1DFFFFFF</color>
+    <color name="glass_border">#2DFFFFFF</color>
+
+    <!-- 辅助色 -->
+    <color name="accent_green">#7DE2A0</color>
+    <color name="accent_orange">#FFB74D</color>
+
+    <!-- 光晕效果 -->
+    <color name="glow_pink">#40FFB7C5</color>
+    <color name="glow_purple">#409B59B6</color>
+
+    <!-- Material Design 映射 -->
+    <color name="surface">@color/bg_mid</color>
+    <color name="background">@color/bg_dark</color>
+    <color name="onSurface">@color/text_primary</color>
+    <color name="surfaceVariant">@color/bg_light</color>
+    <color name="onSurfaceVariant">@color/text_secondary</color>
+</resources>
