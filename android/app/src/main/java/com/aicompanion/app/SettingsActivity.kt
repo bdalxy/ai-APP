@@ -1,6 +1,5 @@
 package com.aicompanion.app
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
@@ -13,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * 设置页面 Activity。
@@ -96,22 +96,25 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupApiKey() {
         findViewById<View>(R.id.itemApiKey).setOnClickListener {
+            val currentKey = AppConfig.getApiKey(this@SettingsActivity)
             val edit = EditText(this).apply {
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
                 hint = "输入 DeepSeek API Key"
-                setText(prefs.getString("api_key", "") ?: "")
+                setText(currentKey)
             }
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("API Key")
                 .setView(edit)
                 .setPositiveButton("保存") { _, _ ->
                     val key = edit.text.toString().trim()
-                    prefs.edit().putString("api_key", key).apply()
+                    // 使用 AppConfig 加密存储 API Key
                     AppConfig.setApiKey(this@SettingsActivity, key)
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                         module?.callAttr("set_api_key", key)
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SettingsActivity, "Python 同步失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                     refreshUI()
                     Toast.makeText(this@SettingsActivity, "API Key 已保存", Toast.LENGTH_SHORT).show()
                 }
@@ -127,7 +130,7 @@ class SettingsActivity : AppCompatActivity() {
             val currentId = prefs.getString("current_character_id", null)
             val currentIdx = characters.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
 
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("选择角色")
                 .setSingleChoiceItems(names, currentIdx) { dialog, which ->
                     val char = characters[which]
@@ -144,7 +147,7 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<View>(R.id.itemModel).setOnClickListener {
             val current = prefs.getString("model_name", MODEL_OPTIONS[0]) ?: MODEL_OPTIONS[0]
             val idx = MODEL_OPTIONS.indexOf(current).coerceAtLeast(0)
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("选择模型")
                 .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
                     prefs.edit().putString("model_name", MODEL_OPTIONS[which]).apply()
@@ -162,14 +165,17 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<View>(R.id.itemTokenPreset).setOnClickListener {
             val current = prefs.getString("token_preset", TOKEN_PRESETS[0]) ?: TOKEN_PRESETS[0]
             val idx = TOKEN_PRESETS.indexOf(current).coerceAtLeast(0)
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("Token 预设")
                 .setSingleChoiceItems(TOKEN_PRESETS, idx) { dialog, which ->
-                    prefs.edit().putString("token_preset", TOKEN_PRESETS[which]).apply()
+                    val selected = TOKEN_PRESETS[which]
+                    prefs.edit().putString("token_preset", selected).apply()
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("set_token_preset", TOKEN_PRESETS[which])
-                    } catch (_: Exception) {}
+                        module?.callAttr("set_token_preset", selected)
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SettingsActivity, "预设切换失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                     refreshUI()
                     dialog.dismiss()
                 }
@@ -180,14 +186,17 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupNewChat() {
         findViewById<View>(R.id.itemNewChat).setOnClickListener {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("开始新对话")
                 .setMessage("将清空当前对话历史。确定继续吗？")
                 .setPositiveButton("确定") { _, _ ->
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("clear_history")
-                    } catch (_: Exception) {}
+                        module?.callAttr("reset")  // 正确的方法名是 reset
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SettingsActivity, "清空对话失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
                     Toast.makeText(this, "对话已清空", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("取消", null)
@@ -197,14 +206,17 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupClearMemory() {
         findViewById<View>(R.id.itemClearMemory).setOnClickListener {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("清空长期记忆")
                 .setMessage("将删除所有长期记忆数据，无法恢复。确定吗？")
                 .setPositiveButton("确认清空") { _, _ ->
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("clear_all_memories")
-                    } catch (_: Exception) {}
+                        module?.callAttr("clear_memories")  // 正确的方法名是 clear_memories
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SettingsActivity, "清空记忆失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
                     Toast.makeText(this, "记忆已清空", Toast.LENGTH_SHORT).show()
                     refreshUI()
                 }
@@ -227,7 +239,7 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<View>(R.id.itemProactiveInterval).setOnClickListener {
             val currentMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
             val idx = INTERVAL_MS.indexOf(currentMs).coerceAtLeast(0)
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("发送频率")
                 .setSingleChoiceItems(INTERVAL_OPTIONS, idx) { dialog, which ->
                     prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
@@ -248,7 +260,7 @@ class SettingsActivity : AppCompatActivity() {
             val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00")
             val idx = options.indexOfFirst { it == current || (current != "不设置" && it != "不设置" && it.take(5) == start.take(5)) }.coerceAtLeast(0)
 
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("静默时段")
                 .setSingleChoiceItems(options, idx) { dialog, which ->
                     if (options[which] == "不设置") {
@@ -276,7 +288,8 @@ class SettingsActivity : AppCompatActivity() {
     // ======================== UI刷新 ========================
 
     private fun refreshUI() {
-        val apiKey = prefs.getString("api_key", "") ?: ""
+        // API Key 从加密存储读取
+        val apiKey = AppConfig.getApiKey(this)
         findViewById<TextView>(R.id.tvApiKeyStatus)?.apply {
             if (apiKey.isNotEmpty()) {
                 text = "已配置 (${apiKey.take(4)}...)"

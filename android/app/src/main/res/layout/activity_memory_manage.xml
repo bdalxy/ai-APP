@@ -120,8 +120,8 @@
             android:minWidth="0dp"
             android:padding="0dp"
             android:layout_marginStart="8dp"
-            android:backgroundTint="#E0E0E0"
-            android:textColor="#666666"
+            android:backgroundTint="?attr/colorSurfaceVariant"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:visibility="gone" />
     </LinearLayout>
 
@@ -175,8 +175,8 @@
             android:layout_height="52dp"
             android:text="清空全部记忆"
             android:textSize="15sp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#E53935" />
+            android:textColor="@color/onPrimary"
+            android:backgroundTint="@color/accent_red" />
     </LinearLayout>
 
 </LinearLayout>

@@ -291,24 +291,40 @@ class MemoryExtractor:
         try:
             items = json.loads(raw_text)
         except json.JSONDecodeError:
-            # T-FIX-05: json.loads 失败后，尝试用正则提取 [{...}] 部分重试解析
-            match = re.search(r"\[[\s\S]*\]", raw_text)
-            if match:
+            # T-FIX-05: json.loads 失败后，尝试多种正则模式提取 [{...}] 部分重试解析
+            # 使用非贪婪匹配 + 多层回退，提升 JSON 降级解析鲁棒性
+            parsed = False
+            for pattern in [
+                r"\[\s*\{[\s\S]*?\}\s*\]",   # 标准 JSON 数组（非贪婪）
+                r"\[[\s\S]*\]",               # 贪婪回退：匹配到最后一个 ]
+                r"\{[\s\S]*\}",               # 最差回退：尝试解析为单个对象
+            ]:
+                match = re.search(pattern, raw_text)
+                if not match:
+                    continue
                 try:
-                    items = json.loads(match.group(0))
-                    self._log.info("通过正则提取成功解析 JSON")
-                except json.JSONDecodeError as e2:
-                    self._log.warning(
-                        f"LLM 返回的 JSON 解析失败（正则重试也失败）: {e2}, "
-                        f"raw_text 前200字符: {raw_text[:200]}"
-                    )
-                    return []
-            else:
-                self._log.warning(
-                    f"LLM 返回的 JSON 解析失败，且未找到 JSON 数组, "
+                    result = json.loads(match.group(0))
+                    if isinstance(result, list):
+                        items = result
+                    elif isinstance(result, dict):
+                        items = [result]
+                    else:
+                        continue
+                    parsed = True
+                    self._log.info(f"通过正则模式 {pattern[:20]}... 成功解析 JSON, 获得 {len(items)} 条记忆")
+                    break
+                except json.JSONDecodeError:
+                    continue
+
+            if not parsed:
+                error_msg = (
+                    f"LLM 返回的 JSON 解析失败（3种正则模式均失败），"
                     f"raw_text 前200字符: {raw_text[:200]}"
                 )
-                return []
+                self._log.warning(error_msg)
+                # B2-FIX: 抛出异常而非静默返回 []，
+                # 让 auto 模式的 try/except 捕获并回退到规则提取模式
+                raise ValueError(error_msg)
 
         if not isinstance(items, list):
             self._log.warning(f"LLM 返回格式异常，期望数组，实际: {type(items)}")

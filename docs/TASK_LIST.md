@@ -1,6 +1,6 @@
 # AI Companion (AI伴侣) -- 任务清单
 
-> 文档版本：V1.0 | 创建时间：2026-06-10 | 最后更新：2026-06-10
+> 文档版本：V1.1 | 创建时间：2026-06-10 | 最后更新：2026-06-12
 
 ---
 
@@ -94,17 +94,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | T4.1 验证通过（确认基础链路正常） |
 | **描述** | 在 orchestrator.remember() 中实现每N轮启用LLM提取 |
+| **完成日期** | 2026-06-11 |
 
 **具体任务**:
-- [ ] orchestrator 中 `_extract_interval` 改为可配置（已初始化=5）
-- [ ] remember() 中: `if self._turn_count % self._extract_interval == 0 → mode="llm" else → mode="rule"`
-- [ ] chat_bridge 新增 `set_extract_interval(n)` 接口
-- [ ] 日志区分当前使用的提取模式
+- [x] orchestrator 中 `_extract_interval` 改为可配置（已初始化=5）
+- [x] remember() 中: `if self._turn_count % self._extract_interval == 0 → mode="llm" else → mode="rule"`
+- [x] chat_bridge 新增 `set_extract_interval(n)` 接口
+- [x] 日志区分当前使用的提取模式
 - [ ] （可选）Android设置中增加调节选项
 
 **验收标准**: 见 REQUIREMENTS.md P4.3
@@ -115,17 +116,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | 无（独立功能） |
 | **描述** | 在 DeepSeekClient 中增加 LRU 缓存层 |
+| **完成日期** | 2026-06-11 |
 
 **具体任务**:
-- [ ] 新增 `src/utils/lru_cache.py` (使用 OrderedDict 实现)
-- [ ] DeepSeekClient 新增 `embed_cached(texts)` 方法
-- [ ] orchestrator 和 retriever 中 embed 调用切换到 `embed_cached`
-- [ ] 日志输出缓存命中率统计
+- [x] 新增 `src/utils/lru_cache.py` (使用 OrderedDict 实现)
+- [x] DeepSeekClient 新增 `embed_cached(texts)` 方法
+- [x] orchestrator 和 retriever 中 embed 调用切换到 `embed_cached`
+- [x] 日志输出缓存命中率统计
 
 **验收标准**: 见 REQUIREMENTS.md P4.4
 
@@ -135,17 +137,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | T4.1 验证通过 |
 | **描述** | retriever 全量回退时改为分页加载 |
+| **完成日期** | 2026-06-11 |
 
 **具体任务**:
-- [ ] VectorStore 新增 `get_page(offset, limit)` 方法
-- [ ] retriever 中 `_fallback_full_search()` 改为分页循环
-- [ ] 单页500条，保留top_k*3候选
-- [ ] 最后合并排序取 top_k
+- [x] VectorStore 新增 `get_page(offset, limit)` 方法
+- [x] retriever 中 `_fallback_full_search()` 改为分页循环
+- [x] 单页500条，保留top_k*3候选
+- [x] 最后合并排序取 top_k
 
 **验收标准**: 见 REQUIREMENTS.md P4.5
 

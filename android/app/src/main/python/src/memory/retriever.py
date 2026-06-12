@@ -36,13 +36,29 @@ class MemoryRetriever:
 
     封装完整的记忆检索流程，提供 retrieve() 方法。
     支持倒排索引预过滤和分页全量回退（OOM 防护），结合时间衰减加权。
+
+    权重配置：
+        similarity_weight: 余弦相似度在综合评分中的权重（默认 0.6）。
+        decay_weight: 时间衰减/记忆强化在综合评分中的权重（默认 0.4）。
+        两权重之和应接近 1.0，但系统不做强制校验。
     """
 
-    def __init__(self, vector_store: VectorStore, deepseek_client: DeepSeekClient) -> None:
+    def __init__(
+        self,
+        vector_store: VectorStore,
+        deepseek_client: DeepSeekClient,
+        similarity_weight: float = 0.6,
+        decay_weight: float = 0.4,
+    ) -> None:
         self.vector_store = vector_store
         self.client = deepseek_client
         self._log = get_logger()
-        self._log.info("MemoryRetriever 初始化完成")
+        self.similarity_weight = similarity_weight
+        self.decay_weight = decay_weight
+        self._log.info(
+            f"MemoryRetriever 初始化完成 "
+            f"(sim_weight={similarity_weight}, decay_weight={decay_weight})"
+        )
 
     def retrieve(
         self,
@@ -118,7 +134,7 @@ class MemoryRetriever:
             combined: list[tuple[MemoryEntry, float]] = []
             for entry, sim in scored_candidates:
                 weight = get_weight(entry, now)
-                combined_score = sim * 0.6 + weight * 0.4
+                combined_score = sim * self.similarity_weight + weight * self.decay_weight
                 combined.append((entry, combined_score))
             combined.sort(key=lambda x: x[1], reverse=True)
             filtered = [

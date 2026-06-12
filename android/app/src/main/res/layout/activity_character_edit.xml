@@ -49,7 +49,7 @@
             android:layout_height="34dp"
             android:text="保存"
             android:textSize="13sp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/bubble_user_text"
             android:gravity="center"
             android:background="@drawable/bg_btn_send"
             android:clickable="true"

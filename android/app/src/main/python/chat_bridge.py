@@ -13,6 +13,8 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
         → chat_bridge.reset()            # 重置对话上下文
 """
 
+import base64
+import hashlib
 import json
 import os
 import sys
@@ -273,6 +275,44 @@ def reset_memories() -> dict:
         orchestrator.vector_store.clear()
         _ctx.reset_turn_counter()
         return json.dumps({"status": "ok", "deleted": count})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def set_token_preset(label: str) -> dict:
+    """运行时切换 Token 预设（需要重新初始化聊天引擎）。
+
+    将 SettingsActivity 传入的中文标签映射到 Python 预设键名，
+    然后调用 AppContext.initialize() 重新创建 RolePlayer。
+
+    Args:
+        label: 中文预设标签，如 "聊天体验优先"、"省Token优先" 等。
+
+    Returns:
+        {"status": "ok", "preset": str} 或 {"status": "error", "message": str}
+    """
+    # 中文标签 → 预设键名映射
+    _LABEL_MAP: dict[str, str] = {
+        "聊天体验优先": "quality",
+        "短文本指令模式": "economy",
+        "翻译模式": "balanced",
+        "长文本理解": "quality",
+        "极限性能模式": "economy",
+        "自定义": "balanced",
+        # 兼容 Python 侧标签
+        "平衡": "balanced",
+        "省Token优先": "economy",
+    }
+    preset_key = _LABEL_MAP.get(label, "balanced")
+
+    try:
+        if not settings.DEEPSEEK_API_KEY:
+            return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
+
+        player = _ctx.initialize(preset=preset_key)
+        player.load_card(str(_CARD_PATH))
+        _log.info(f"[预设切换] {label} → {preset_key}")
+        return json.dumps({"status": "ok", "preset": preset_key})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
@@ -617,15 +657,20 @@ def search_memories(keyword: str) -> dict:
 # =============================================================================
 
 
-def export_memories() -> dict:
+def export_memories(password: str = "") -> dict:
     """导出所有记忆为 JSON 格式。
 
     使用分页遍历 vector_store.list_with_rowid() 获取全部记忆，
     每页 200 条，避免一次性加载过多数据导致 OOM。
     返回的记忆不包含 embedding 向量（太大且导出无意义）。
 
+    Args:
+        password: 可选，如果提供密码，则导出加密后的 JSON（base64 编码）。
+                  不提供则明文导出。
+
     Returns:
-        {"status": "ok", "memories": [...], "total": int, "exported_at": str}
+        {"status": "ok", "memories": [...], "total": int, "exported_at": str,
+         "encrypted": bool}
         或 {"status": "error", "message": str}
     """
     orchestrator = _ctx.orchestrator
@@ -661,12 +706,30 @@ def export_memories() -> dict:
             offset += page_size
 
         _log.info(f"[导出] 已导出 {len(all_memories)} 条记忆")
-        return json.dumps({
+
+        result = {
             "status": "ok",
-            "memories": all_memories,
             "total": len(all_memories),
             "exported_at": format_timestamp_iso(),
-        }, ensure_ascii=False)
+            "encrypted": False,
+        }
+
+        if password:
+            # 加密导出：使用 PBKDF2 派生密钥 + XOR 加密 + base64 编码
+            salt = os.urandom(16)
+            key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000, dklen=32)
+            plaintext = json.dumps(all_memories, ensure_ascii=False).encode("utf-8")
+            ciphertext = bytes(
+                plaintext[i] ^ key[i % len(key)] for i in range(len(plaintext))
+            )
+            encrypted = base64.b64encode(salt + ciphertext).decode("ascii")
+            result["memories"] = encrypted
+            result["encrypted"] = True
+            _log.info("[导出] 已加密导出")
+        else:
+            result["memories"] = all_memories
+
+        return json.dumps(result, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
