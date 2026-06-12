@@ -187,17 +187,132 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupContextSize() {
         findViewById<View>(R.id.itemContextSize).setOnClickListener {
-            val values = intArrayOf(1000, 2000, 4000)
-            val labels = arrayOf("1000", "2000", "4000")
-            val descs = arrayOf("小窗口", "中等", "大窗口")
             val current = AppConfig.getContextSize(this@SettingsActivity)
-            val idx = values.toList().indexOf(current).coerceAtLeast(1)
+            // 范围 500~8000，步长 500，共 16 档
+            val minCtx = 500
+            val maxCtx = 8000
+            val step = 500
+            val steps = (maxCtx - minCtx) / step  // 15
+            val currentStep = ((current - minCtx).coerceIn(0, maxCtx - minCtx)) / step
 
-            showSliderDialog("上下文窗口", "控制对话历史保留量，越大AI记住越多", labels, descs, idx, 2) { which ->
-                AppConfig.setContextSize(this@SettingsActivity, values[which])
-                applyAllParams()
-                refreshUI()
+            val layout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(48, 20, 48, 0)
             }
+
+            val tvSubtitle = TextView(this@SettingsActivity).apply {
+                text = "保留多少对话历史给AI看（单位：token，约1token≈0.5~1个中文字）"
+                textSize = 13f
+                setTextColor(getColor(android.R.color.darker_gray))
+                setPadding(0, 0, 0, 12)
+            }
+            layout.addView(tvSubtitle)
+
+            val tvValue = TextView(this@SettingsActivity).apply {
+                text = "${current} token"
+                textSize = 20f
+                setTextColor(getColor(R.color.primary))
+                textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
+                setPadding(0, 0, 0, 8)
+            }
+            layout.addView(tvValue)
+
+            // EditText 必须声明在 SeekBar 之前，因为 SeekBar 回调会引用它
+            val etInput = EditText(this@SettingsActivity).apply {
+                setText(current.toString())
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                textSize = 14f
+                setTextColor(getColor(R.color.text_primary))
+                setBackgroundColor(getColor(android.R.color.transparent))
+                setPadding(16, 8, 16, 8)
+            }
+
+            val seekBar = android.widget.SeekBar(this).apply {
+                max = steps
+                progress = currentStep
+                setPadding(8, 0, 8, 0)
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
+                        val value = minCtx + progress * step
+                        tvValue.text = "${value} token"
+                        etInput.setText(value.toString())
+                    }
+                    override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                    override fun onStopTrackingTouch(sb: android.widget.SeekBar) {}
+                })
+            }
+            layout.addView(seekBar)
+
+            // 标签行
+            val labelLayout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                setPadding(8, 2, 8, 12)
+            }
+            val labelMin = TextView(this@SettingsActivity).apply {
+                text = "500"
+                textSize = 11f
+                setTextColor(getColor(android.R.color.darker_gray))
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val labelMid = TextView(this@SettingsActivity).apply {
+                text = "4000"
+                textSize = 11f
+                setTextColor(getColor(android.R.color.darker_gray))
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
+            }
+            val labelMax = TextView(this@SettingsActivity).apply {
+                text = "8000"
+                textSize = 11f
+                setTextColor(getColor(android.R.color.darker_gray))
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textAlignment = android.view.View.TEXT_ALIGNMENT_TEXT_END
+            }
+            labelLayout.addView(labelMin)
+            labelLayout.addView(labelMid)
+            labelLayout.addView(labelMax)
+            layout.addView(labelLayout)
+
+            // 自定义输入行
+            val inputRow = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, 8)
+            }
+            val tvCustom = TextView(this@SettingsActivity).apply {
+                text = "自定义："
+                textSize = 14f
+                setTextColor(getColor(android.R.color.darker_gray))
+            }
+            inputRow.addView(tvCustom)
+            inputRow.addView(etInput.apply {
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+
+            val tvUnit = TextView(this@SettingsActivity).apply {
+                text = " token"
+                textSize = 14f
+                setTextColor(getColor(android.R.color.darker_gray))
+            }
+            inputRow.addView(tvUnit)
+            layout.addView(inputRow)
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("上下文窗口")
+                .setView(layout)
+                .setPositiveButton("确定") { _, _ ->
+                    var value = etInput.text.toString().toIntOrNull()
+                    if (value == null || value < minCtx) value = minCtx
+                    if (value > maxCtx) value = maxCtx
+                    // 对齐到步长
+                    value = ((value - minCtx + step / 2) / step) * step + minCtx
+                    value = value.coerceIn(minCtx, maxCtx)
+                    AppConfig.setContextSize(this@SettingsActivity, value)
+                    applyAllParams()
+                    refreshUI()
+                }
+                .setNegativeButton("取消", null)
+                .show()
         }
     }
 
@@ -225,7 +340,7 @@ class SettingsActivity : AppCompatActivity() {
             val current = AppConfig.getMaxTokens(this@SettingsActivity)
             val idx = values.toList().indexOf(current).coerceAtLeast(1)
 
-            showSliderDialog("回复详细度", "控制AI每次回复的最大Token数，越长回复越详细", labels, descs, idx, 2) { which ->
+            showSliderDialog("回复详细度", "每条AI回复的Token上限（单次，非累计）。连续对话中每条消息独立计算", labels, descs, idx, 2) { which ->
                 AppConfig.setMaxTokens(this@SettingsActivity, values[which])
                 applyAllParams()
                 refreshUI()
@@ -458,12 +573,7 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvModel)?.text = model
 
         val ctxSize = AppConfig.getContextSize(this@SettingsActivity)
-        val ctxLabel = when (ctxSize) {
-            1000 -> "1000（小窗口）"
-            4000 -> "4000（大窗口）"
-            else -> "2000（中等）"
-        }
-        findViewById<TextView>(R.id.tvContextSize)?.text = ctxLabel
+        findViewById<TextView>(R.id.tvContextSize)?.text = "${ctxSize} token"
 
         val temp = AppConfig.getTemperature(this@SettingsActivity)
         val tempLabel = when {
