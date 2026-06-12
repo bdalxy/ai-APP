@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 尺寸资源文件：手机默认尺寸 -->
+<resources>
+    <!-- ===== 文字大小 (sp) ===== -->
+    <dimen name="text_small">12sp</dimen>
+    <dimen name="text_caption">13sp</dimen>
+    <dimen name="text_body_small">14sp</dimen>
+    <dimen name="text_body">15sp</dimen>
+    <dimen name="text_subtitle">16sp</dimen>
+    <dimen name="text_title_small">17sp</dimen>
+    <dimen name="text_title">18sp</dimen>
+    <dimen name="text_heading">20sp</dimen>
+    <dimen name="text_large">22sp</dimen>
+    <dimen name="text_xlarge">24sp</dimen>
+
+    <!-- ===== 间距 (dp) ===== -->
+    <dimen name="spacing_xxs">2dp</dimen>
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">6dp</dimen>
+    <dimen name="spacing_md">8dp</dimen>
+    <dimen name="spacing_lg">10dp</dimen>
+    <dimen name="spacing_xl">12dp</dimen>
+    <dimen name="spacing_2xl">14dp</dimen>
+    <dimen name="spacing_page">16dp</dimen>
+    <dimen name="spacing_3xl">20dp</dimen>
+    <dimen name="spacing_4xl">24dp</dimen>
+    <dimen name="spacing_5xl">32dp</dimen>
+
+    <!-- ===== 图标尺寸 ===== -->
+    <dimen name="icon_size_small">24dp</dimen>
+
+    <!-- ===== 头像尺寸 ===== -->
+    <dimen name="avatar_size_small">36dp</dimen>
+    <dimen name="avatar_size_medium">48dp</dimen>
+    <dimen name="avatar_size_large">112dp</dimen>
+    <dimen name="avatar_size_xlarge">128dp</dimen>
+    <dimen name="avatar_inner_large">120dp</dimen>
+
+    <!-- ===== 按钮/可点击区域尺寸 ===== -->
+    <dimen name="button_small">40dp</dimen>
+    <dimen name="button_medium">44dp</dimen>
+    <dimen name="button_default">48dp</dimen>
+    <dimen name="button_wide">52dp</dimen>
+    <dimen name="tag_height">34dp</dimen>
+    <dimen name="tag_width_narrow">56dp</dimen>
+    <dimen name="tag_width_wide">60dp</dimen>
+    <dimen name="radio_item_height">40dp</dimen>
+
+    <!-- ===== 顶栏 ===== -->
+    <dimen name="topbar_height">56dp</dimen>
+    <dimen name="topbar_height_alt">52dp</dimen>
+    <dimen name="topbar_elevation">4dp</dimen>
+
+    <!-- ===== 设置项 ===== -->
+    <dimen name="settings_item_height">52dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="card_padding_small">14dp</dimen>
+    <dimen name="card_padding_min">12dp</dimen>
+
+    <!-- ===== 分割线 ===== -->
+    <dimen name="divider_thickness">0.5dp</dimen>
+
+    <!-- ===== 输入区 ===== -->
+    <dimen name="input_padding">10dp</dimen>
+    <dimen name="input_padding_horizontal">16dp</dimen>
+    <dimen name="input_padding_vertical">12dp</dimen>
+    <dimen name="search_padding_horizontal">14dp</dimen>
+    <dimen name="search_padding_vertical">6dp</dimen>
+
+    <!-- ===== 消息列表 ===== -->
+    <dimen name="message_list_padding">8dp</dimen>
+    <dimen name="message_bubble_max_width">280dp</dimen>
+
+    <!-- ===== 角色卡列表 ===== -->
+    <dimen name="card_list_padding_vertical">8dp</dimen>
+    <dimen name="card_list_padding_horizontal">16dp</dimen>
+    <dimen name="card_list_padding_vertical_item">12dp</dimen>
+
+    <!-- ===== 底部留白 ===== -->
+    <dimen name="bottom_spacer">24dp</dimen>
+    <dimen name="bottom_spacer_large">32dp</dimen>
+</resources>

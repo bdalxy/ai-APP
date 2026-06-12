@@ -1,3 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 字符串资源文件：汇总所有布局中的硬编码文本 -->
 <resources>
+    <!-- ===== 应用名称 ===== -->
     <string name="app_name">AI 聊天</string>
+
+    <!-- ===== 通用按钮/图标文本 ===== -->
+    <string name="btn_back_arrow">←</string>
+    <string name="btn_back_arrow_label">← 返回</string>
+    <string name="btn_menu">≡</string>
+    <string name="btn_send">↑</string>
+    <string name="btn_save">保存</string>
+    <string name="btn_clear">✕</string>
+    <string name="btn_refresh">↻</string>
+    <string name="btn_edit">✎</string>
+    <string name="icon_chevron">›</string>
+    <string name="btn_new_character">+ 新建</string>
+
+    <!-- ===== 通用 Content Description ===== -->
+    <string name="cd_back">返回</string>
+    <string name="cd_settings">设置</string>
+    <string name="cd_avatar">角色头像</string>
+    <string name="cd_new_character">新建角色</string>
+    <string name="cd_save_character">保存角色</string>
+    <string name="cd_edit_character">编辑角色</string>
+    <string name="cd_delete_character">删除角色</string>
+
+    <!-- ===== 聊天主页 (activity_main) ===== -->
+    <string name="hint_input_message">说点什么...</string>
+    <string name="status_online">在线</string>
+    <string name="tv_default_character_name">小美</string>
+
+    <!-- ===== 设置页 (activity_settings) ===== -->
+    <string name="title_settings">设置</string>
+
+    <!-- 账户设置 -->
+    <string name="section_account_settings">账户设置</string>
+    <string name="label_api_key">API Key</string>
+    <string name="status_not_configured">未配置</string>
+    <string name="label_role_preset">角色预设</string>
+    <string name="label_model_selection">模型选择</string>
+    <string name="value_follow_preset">跟随预设</string>
+
+    <!-- 对话设置 -->
+    <string name="section_chat_settings">对话设置</string>
+    <string name="label_context_window">上下文窗口</string>
+    <string name="label_temperature">创意度（温度）</string>
+    <string name="label_max_tokens">回复详细度</string>
+    <string name="label_example_dialogues">示例对话数</string>
+    <string name="action_new_chat">开始新对话</string>
+    <string name="action_clear_memory">清空对话记忆</string>
+
+    <!-- 对话设置默认值 -->
+    <string name="default_context_size">2000</string>
+    <string name="default_temperature">0.7</string>
+    <string name="default_max_tokens">1000</string>
+    <string name="default_example_dialogues">1条</string>
+
+    <!-- 主动消息 -->
+    <string name="section_proactive_messages">主动消息</string>
+    <string name="label_proactive_toggle">开启主动消息</string>
+    <string name="label_send_frequency">发送频率</string>
+    <string name="label_quiet_time">静默时段</string>
+
+    <!-- 主动消息默认值 -->
+    <string name="default_proactive_interval">每3小时</string>
+    <string name="value_not_set">不设置</string>
+
+    <!-- 记忆管理 -->
+    <string name="label_memory_manage">记忆管理</string>
+    <string name="value_loading_ellipsis">...</string>
+
+    <!-- 关于 -->
+    <string name="section_about">关于</string>
+    <string name="label_version">版本号</string>
+    <string name="app_version">v1.0.0</string>
+
+    <!-- 角色预设名称 -->
+    <string name="preset_xiaomei">小美</string>
+
+    <!-- ===== 记忆管理页 (activity_memory_manage) ===== -->
+    <string name="title_memory_manage">记忆管理</string>
+    <string name="stats_total_memories">总记忆数：-- 条</string>
+    <string name="status_loading">加载中...</string>
+    <string name="hint_search_memories">搜索记忆内容...</string>
+    <string name="empty_memories">还没有任何记忆\n聊聊天，AI 会自动记住重要信息</string>
+    <string name="action_load_more">加载更多...</string>
+    <string name="action_clear_all_memories">清空全部记忆</string>
+
+    <!-- ===== 角色管理页 (activity_character_manage) ===== -->
+    <string name="title_character_manage">角色管理</string>
+
+    <!-- ===== 角色编辑页 (activity_character_edit) ===== -->
+    <string name="title_create_character">创建角色</string>
+    <string name="title_edit_character">编辑角色</string>
+    <string name="label_character_name">角色名称</string>
+    <string name="hint_character_name">给角色起个名字</string>
+    <string name="label_personality">性格特征</string>
+    <string name="hint_personality">描述角色的性格特点，如：温柔、活泼、善解人意</string>
+    <string name="label_speaking_style">说话风格</string>
+    <string name="hint_speaking_style">描述角色的说话方式，如语气、常用词、语速等</string>
+    <string name="label_backstory">背景故事</string>
+    <string name="hint_backstory">角色的出身、经历和世界观设定</string>
+    <string name="label_greeting">开场白</string>
+    <string name="hint_greeting">角色见到用户时说的第一句话</string>
+
+    <!-- ===== 角色卡页 (activity_character) ===== -->
+    <string name="title_character_card">角色卡片</string>
+    <string name="default_character_desc">温柔体贴的AI伙伴，喜欢分享生活中的小确幸</string>
+    <string name="default_personality">温暖、活泼、善解人意、乐于倾听</string>
+    <string name="default_speaking_style">语气轻柔，喜欢使用可爱的语气词，偶尔夹杂日文短语</string>
+    <string name="label_character_switch">角色切换</string>
+    <string name="character_option_1">小美 — 温柔女友</string>
+    <string name="character_option_2">小美 — 活泼妹妹</string>
+    <string name="character_option_3">小美 — 知性姐姐</string>
+    <string name="btn_custom_character_coming">创建自定义角色卡（即将推出）</string>
 </resources>

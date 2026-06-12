@@ -20,54 +20,64 @@ class ChatAdapter(
 
     companion object {
         const val TYPING_TEXT = "对方正在输入..."
+
+        private const val VIEW_TYPE_TYPING = 0
+        private const val VIEW_TYPE_USER = 1
+        private const val VIEW_TYPE_AI = 2
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        /** 消息行容器（用于设置左右对齐） */
         val layoutMessageRow: View = view.findViewById(R.id.layoutMessageRow)
-        /** 文字气泡 */
         val tvContent: TextView = view.findViewById(R.id.tvContent)
-        /** 打字指示器容器 */
         val layoutTyping: View = view.findViewById(R.id.layoutTyping)
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return when {
+            messages[position].isTyping -> VIEW_TYPE_TYPING
+            messages[position].isUser -> VIEW_TYPE_USER
+            else -> VIEW_TYPE_AI
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_message, parent, false)
-        return ViewHolder(view)
+        val holder = ViewHolder(view)
+        val context = view.context
+
+        // 按 viewType 预设置不变的样式，避免 onBind 重复设置
+        when (viewType) {
+            VIEW_TYPE_TYPING -> {
+                holder.tvContent.visibility = View.GONE
+                holder.layoutTyping.visibility = View.VISIBLE
+                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.START
+            }
+            VIEW_TYPE_USER -> {
+                holder.tvContent.visibility = View.VISIBLE
+                holder.layoutTyping.visibility = View.GONE
+                holder.tvContent.setBackgroundResource(R.drawable.bg_bubble_user)
+                holder.tvContent.setTextColor(ContextCompat.getColor(context, R.color.bubble_user_text))
+                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.END
+            }
+            VIEW_TYPE_AI -> {
+                holder.tvContent.visibility = View.VISIBLE
+                holder.layoutTyping.visibility = View.GONE
+                holder.tvContent.setBackgroundResource(R.drawable.bg_bubble_ai)
+                holder.tvContent.setTextColor(ContextCompat.getColor(context, R.color.bubble_ai_text))
+                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.START
+            }
+        }
+        return holder
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val message = messages[position]
-        val context = holder.itemView.context
-
-        when {
-            // 打字指示器：暗紫气泡 + 三点动画，左对齐
-            message.isTyping -> {
-                holder.tvContent.visibility = View.GONE
-                holder.layoutTyping.visibility = View.VISIBLE
-                // 左对齐
-                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.START
-            }
-            // 用户消息：右对齐，紫色渐变气泡，白色文字
-            message.isUser -> {
-                holder.tvContent.visibility = View.VISIBLE
-                holder.layoutTyping.visibility = View.GONE
+        // 仅设置动态内容，样式已在 onCreateViewHolder 中预设
+        when (getItemViewType(position)) {
+            VIEW_TYPE_TYPING -> { /* 打字指示器无动态内容 */ }
+            VIEW_TYPE_USER, VIEW_TYPE_AI -> {
                 holder.tvContent.text = message.content
-                holder.tvContent.setBackgroundResource(R.drawable.bg_bubble_user)
-                holder.tvContent.setTextColor(ContextCompat.getColor(context, R.color.bubble_user_text))
-                // 右对齐
-                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.END
-            }
-            // AI 回复：左对齐，粉色气泡，深色文字
-            else -> {
-                holder.tvContent.visibility = View.VISIBLE
-                holder.layoutTyping.visibility = View.GONE
-                holder.tvContent.text = message.content
-                holder.tvContent.setBackgroundResource(R.drawable.bg_bubble_ai)
-                holder.tvContent.setTextColor(ContextCompat.getColor(context, R.color.bubble_ai_text))
-                // 左对齐
-                (holder.layoutMessageRow.layoutParams as? FrameLayout.LayoutParams)?.gravity = Gravity.START
             }
         }
     }

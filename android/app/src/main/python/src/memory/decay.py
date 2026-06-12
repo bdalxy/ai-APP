@@ -109,14 +109,11 @@ def get_type_multiplier(memory_type: str) -> float:
 
 
 def _parse_iso_datetime(iso_str: str) -> datetime:
+    """解析 ISO 8601 时间字符串，兼容3种常见格式。"""
     for fmt in [
-        "%Y-%m-%dT%H:%M:%S.%f%z",
-        "%Y-%m-%dT%H:%M:%S%z",
-        "%Y-%m-%dT%H:%M:%S.%f",
-        "%Y-%m-%dT%H:%M:%S",
-        "%Y-%m-%d %H:%M:%S.%f%z",
-        "%Y-%m-%d %H:%M:%S%z",
-        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f%z",  # 含微秒+时区
+        "%Y-%m-%dT%H:%M:%S%z",     # 含时区
+        "%Y-%m-%dT%H:%M:%S.%f",    # 含微秒，无时区
     ]:
         try:
             dt = datetime.strptime(iso_str, fmt)

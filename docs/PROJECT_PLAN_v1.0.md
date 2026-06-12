@@ -1,17 +1,18 @@
-# AI-APP 开发计划（更新版）
+# AI-APP 开发计划 v1.0
 
-> 更新日期：2026-06-12  
+> 版本：v1.0  
+> 更新日期：2026-06-13  
 > 基于：4智能体交叉审核结果
 
 ---
 
-## 当前状态：第一阶段 — 修复与优化
+## 当前状态：第二阶段已完成，进入第三阶段
 
-综合评分 6.2/10，优先修复防崩溃问题，然后提升代码质量，最后完善体验。
+综合评分 6.2/10，第二阶段代码质量提升全部完成。
 
 ---
 
-## 第一阶段：防崩溃修复（当前）
+## 第一阶段：防崩溃修复（已完成）
 
 | # | 任务 | 文件 | 状态 |
 |---|------|------|------|
@@ -26,24 +27,24 @@
 
 ---
 
-## 第二阶段：代码质量提升
+## 第二阶段：代码质量提升（已完成）
 
 | # | 任务 | 文件 | 状态 |
 |---|------|------|------|
-| 2.1 | 拆分 `chat_bridge.py` 上帝对象 | chat_bridge.py | ⬜ 待开发 |
-| 2.2 | SQL 层添加查询优化 | vector_store.py, retriever.py | ⬜ 待开发 |
-| 2.3 | `_auto_trim()` 增量 token 计数 | context_manager.py | ⬜ 待开发 |
-| 2.4 | 补充 `strings.xml` | strings.xml | ⬜ 待开发 |
-| 2.5 | 创建 `dimens.xml` | dimens.xml | ⬜ 待开发 |
-| 2.6 | ChatAdapter getItemViewType 三分 | ChatAdapter.kt | ⬜ 待开发 |
-| 2.7 | 提取 `setupEdgeToEdge` 公共方法 | 4个Activity | ⬜ 待开发 |
-| 2.8 | 统一导出使用 `json.dump()` | exporter.py | ⬜ 待开发 |
-| 2.9 | `_parse_iso_datetime()` 精简格式 | decay.py | ⬜ 待开发 |
-| 2.10 | 线程池替代每次创建线程 | chat_bridge.py:148-152 | ⬜ 待开发 |
+| 2.1 | 拆分 `chat_bridge.py` 上帝对象 | chat_bridge/ 包 | ✅ 已修复 |
+| 2.2 | SQL 层添加查询优化 | vector_store.py, retriever.py | ✅ 已修复 |
+| 2.3 | `_auto_trim()` 增量 token 计数 | context_manager.py | ✅ 已修复 |
+| 2.4 | 补充 `strings.xml` | strings.xml | ✅ 已修复 |
+| 2.5 | 创建 `dimens.xml` | dimens.xml | ✅ 已修复 |
+| 2.6 | ChatAdapter getItemViewType 三分 | ChatAdapter.kt | ✅ 已修复 |
+| 2.7 | 提取 `setupEdgeToEdge` 公共方法 | ViewUtils.kt + 5个Activity | ✅ 已修复 |
+| 2.8 | 统一导出使用 `json.dump()` | exporter.py | ✅ 已修复 |
+| 2.9 | `_parse_iso_datetime()` 精简格式 | decay.py | ✅ 已修复 |
+| 2.10 | 线程池替代每次创建线程 | chat_bridge/_state.py + _core.py | ✅ 已修复 |
 
 ---
 
-## 第三阶段：体验完善
+## 第三阶段：体验完善（待开发）
 
 | # | 任务 | 状态 |
 |---|------|------|
@@ -76,6 +77,11 @@
 | 品牌适配 | ✅ |
 | 点击空白收起键盘 | ✅ |
 | APP图标（水晶樱花花瓣） | ✅ |
+| 上帝对象拆分 | ✅ |
+| ChatAdapter 三分 | ✅ |
+| 增量 token 计数 | ✅ |
+| 线程池 | ✅ |
+| ViewUtils 公共方法 | ✅ |
 
 ---
 

@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         // 适配刘海屏/挖孔屏/状态栏
-        setupEdgeToEdge()
+        ViewUtils.setupEdgeToEdge(this)
         applyInsets(findViewById<android.view.ViewGroup>(R.id.main_root))
 
         rvMessages = findViewById(R.id.rvMessages)
@@ -281,13 +281,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ======================== 屏幕适配 ========================
-
-    private fun setupEdgeToEdge() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-    }
 
     private fun applyInsets(root: ViewGroup) {
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->

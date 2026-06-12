@@ -51,6 +51,7 @@ class ContextManager:
         """
         self.max_tokens: int = max_tokens
         self._history: deque[dict[str, str]] = deque()
+        self._total_chars: int = 0  # 增量 token 计数器，避免每次遍历
         self._log = get_logger()
         self._log.debug(f"ContextManager 初始化: max_tokens={max_tokens}")
 
@@ -62,6 +63,7 @@ class ContextManager:
         """向对话历史添加一条消息。
 
         添加后自动检查 token 数，超出限制则触发裁剪。
+        使用增量计数器维护 _total_chars，避免每次遍历所有消息。
 
         Args:
             role: 消息角色，如 "user"、"assistant"、"system"。
@@ -74,6 +76,7 @@ class ContextManager:
             return
 
         self._history.append({"role": role, "content": content})
+        self._total_chars += len(content)
         self._log.debug(f"添加上下文: role={role}, len={len(content)} 字符")
 
         # 自动裁剪
@@ -91,18 +94,18 @@ class ContextManager:
         """清空所有对话历史。"""
         count = len(self._history)
         self._history.clear()
+        self._total_chars = 0
         self._log.info(f"上下文已清空，共移除 {count} 条消息")
 
     def get_token_estimate(self) -> int:
         """估算当前对话历史的 token 数。
 
-        使用字符数 / 每 token 字符数 的简单估算。
+        使用增量 _total_chars 计数器，O(1) 时间复杂度。
 
         Returns:
             估算的 token 数。
         """
-        total_chars = sum(len(msg.get("content", "")) for msg in self._history)
-        return int(total_chars / self._CHARS_PER_TOKEN)
+        return int(self._total_chars / self._CHARS_PER_TOKEN)
 
     def count(self) -> int:
         """获取当前消息条数。
@@ -121,8 +124,8 @@ class ContextManager:
 
         裁剪目标为 max_tokens * _SAFETY_MARGIN，保留安全余量。
         至少保留最后一条消息不被裁剪。
+        使用增量 _total_chars 计数器，O(1) 每轮裁剪判断。
         """
-        # 如果只有一条消息，不裁剪（保留基本上下文）
         if len(self._history) <= 1:
             return
 
@@ -138,6 +141,7 @@ class ContextManager:
             and self.get_token_estimate() > target_tokens
         ):
             removed = self._history.popleft()
+            self._total_chars -= len(removed.get("content", ""))
             removed_count += 1
             self._log.debug(
                 f"自动裁剪: 移除 role={removed['role']}, "

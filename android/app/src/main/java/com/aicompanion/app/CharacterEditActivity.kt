@@ -29,8 +29,8 @@ class CharacterEditActivity : AppCompatActivity() {
         setContentView(R.layout.activity_character_edit)
 
         // 适配刘海屏/挖孔屏/状态栏
-        setupEdgeToEdge()
-        applyInsets(findViewById(R.id.character_edit_root))
+        ViewUtils.setupEdgeToEdge(this)
+        ViewUtils.applyInsets(findViewById(R.id.character_edit_root))
 
         // 返回按钮
         findViewById<TextView>(R.id.btnBack)?.setOnClickListener { finish() }
@@ -90,25 +90,5 @@ class CharacterEditActivity : AppCompatActivity() {
         finish()
     }
 
-    // ======================== 屏幕适配 ========================
-
-    private fun setupEdgeToEdge() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-    }
-
-    private fun applyInsets(root: ViewGroup) {
-        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(
-                v.paddingLeft,
-                systemBars.top,
-                v.paddingRight,
-                v.paddingBottom + systemBars.bottom
-            )
-            insets
-        }
-    }
+    // ======================== 适配辅助方法 ========================
 }
