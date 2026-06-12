@@ -42,14 +42,32 @@ _ENCRYPTION_KEY: bytes | None = None
 _USE_FERNET: bool = False
 
 
-def _init_encryption() -> None:
+def _init_encryption(key_dir: str = "") -> None:
     """初始化加密密钥。
 
     优先使用 cryptography.fernet（AES-CBC），不可用时回退到 base64 + XOR。
-    密钥从环境变量 MEMORY_ENCRYPTION_KEY 读取，不存在时生成随机密钥并输出警告日志。
+    密钥加载优先级：
+        1. key_dir 目录下的 encryption.key 文件（持久化密钥）
+        2. 环境变量 MEMORY_ENCRYPTION_KEY
+        3. 随机生成并保存到 key_dir/encryption.key（首次使用）
+
+    Args:
+        key_dir: 密钥文件存储目录（通常为数据库所在目录）。空字符串表示不持久化。
     """
     global _ENCRYPTION_KEY, _USE_FERNET
     _logger = get_logger()
+
+    # 尝试从持久化文件加载密钥
+    if key_dir:
+        key_file = Path(key_dir) / "encryption.key"
+        if key_file.exists():
+            try:
+                _ENCRYPTION_KEY = key_file.read_bytes()
+                _logger.info("[加密] 已从持久化文件加载密钥")
+                _USE_FERNET = False  # 持久化密钥使用 XOR 模式
+                return
+            except Exception as e:
+                _logger.warning(f"[加密] 加载持久化密钥失败: {e}，将重新生成")
 
     # 尝试使用 Fernet（更安全的 AES-CBC 实现）
     try:
@@ -59,13 +77,19 @@ def _init_encryption() -> None:
         key_str = os.environ.get("MEMORY_ENCRYPTION_KEY")
         if key_str:
             _ENCRYPTION_KEY = key_str.encode("utf-8") if isinstance(key_str, str) else key_str
+        elif key_dir:
+            # 生成新密钥并持久化（XOR 模式，因为 Fernet key 格式不同）
+            _USE_FERNET = False
+            _ENCRYPTION_KEY = secrets.token_bytes(32)
+            _save_key_to_file(key_dir, _ENCRYPTION_KEY)
         else:
             _ENCRYPTION_KEY = Fernet.generate_key()
             _logger.warning(
                 "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 Fernet 密钥。"
                 "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
             )
-        _logger.info("[加密] 使用 cryptography.fernet (AES-CBC) 模式")
+        if _USE_FERNET:
+            _logger.info("[加密] 使用 cryptography.fernet (AES-CBC) 模式")
         return
     except ImportError:
         _logger.info("[加密] cryptography 不可用，回退到 base64+XOR 模式")
@@ -76,12 +100,25 @@ def _init_encryption() -> None:
         if isinstance(key_str, str):
             key_str = key_str.encode("utf-8")
         _ENCRYPTION_KEY = key_str
+    elif key_dir:
+        _ENCRYPTION_KEY = secrets.token_bytes(32)
+        _save_key_to_file(key_dir, _ENCRYPTION_KEY)
     else:
         _ENCRYPTION_KEY = secrets.token_bytes(32)
         _logger.warning(
             "[加密] MEMORY_ENCRYPTION_KEY 未设置，已生成随机 XOR 密钥。"
             "重启后旧数据将无法解密！请设置环境变量 MEMORY_ENCRYPTION_KEY 以持久化密钥。"
         )
+
+
+def _save_key_to_file(key_dir: str, key: bytes) -> None:
+    """将加密密钥持久化到文件。"""
+    key_file = Path(key_dir) / "encryption.key"
+    try:
+        key_file.write_bytes(key)
+        get_logger().info(f"[加密] 密钥已保存到 {key_file}")
+    except Exception as e:
+        get_logger().warning(f"[加密] 保存密钥失败: {e}")
 
 
 def _encrypt(text: str) -> str:

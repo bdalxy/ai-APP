@@ -18,6 +18,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -78,6 +79,12 @@ class MainActivity : AppCompatActivity() {
         btnSend.setOnClickListener { sendMessage() }
         btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        // 点击聊天消息区域空白处收起键盘
+        rvMessages.setOnTouchListener { _, _ ->
+            hideKeyboard()
+            false
         }
 
         // 点击角色名称或头像，跳转角色管理页
@@ -300,5 +307,10 @@ class MainActivity : AppCompatActivity() {
             }
             insets
         }
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(etInput.windowToken, 0)
     }
 }

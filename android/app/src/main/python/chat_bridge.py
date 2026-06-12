@@ -35,7 +35,7 @@ from src.app_context import AppContext
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
 from src.exceptions import MemoryNotFoundError
-from src.memory.vector_store import MemoryEntry
+from src.memory.vector_store import MemoryEntry, _init_encryption
 from src.proactive.engine import ProactiveEngine
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
@@ -240,6 +240,8 @@ def init_memory(db_path: str) -> dict:
         return json.dumps({"status": "error", "message": "聊天引擎未初始化，请先调用 init()"})
 
     try:
+        # 初始化加密密钥（持久化到 db_path 目录，避免重启后密钥丢失导致乱码）
+        _init_encryption(db_path)
         orchestrator = _ctx.init_memory(db_path)
         memory_count = orchestrator.vector_store.count()
         return json.dumps({"status": "ok", "memory_count": memory_count})
