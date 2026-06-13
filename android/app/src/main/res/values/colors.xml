@@ -31,6 +31,7 @@
     <color name="text_secondary">#6B5A7A</color>
     <color name="text_tertiary">#9A8AAA</color>
     <color name="text_on_pink">#4A2C3A</color>
+    <color name="darker_gray">#444444</color>
 
     <!-- 毛玻璃效果 -->
     <color name="glass_bg">#1D9B59B6</color>

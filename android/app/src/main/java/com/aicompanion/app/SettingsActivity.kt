@@ -234,7 +234,7 @@ class SettingsActivity : AppCompatActivity() {
 
         val tvSubtitle = TextView(this).apply {
             text = "保留多少对话历史给AI看（单位：token）"
-            textSize = 13f; setTextColor(getColor(android.R.color.darker_gray)); setPadding(0, 0, 0, 12)
+            textSize = 13f; setTextColor(getColor(R.color.darker_gray)); setPadding(0, 0, 0, 12)
         }
         layout.addView(tvSubtitle)
 
@@ -268,7 +268,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         for ((i, label) in listOf("500", "4000", "8000").withIndex()) {
             labelLayout.addView(TextView(this).apply {
-                text = label; textSize = 11f; setTextColor(getColor(android.R.color.darker_gray))
+                text = label; textSize = 11f; setTextColor(getColor(R.color.darker_gray))
                 layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
             })
@@ -278,9 +278,9 @@ class SettingsActivity : AppCompatActivity() {
         val inputRow = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, 8)
         }
-        inputRow.addView(TextView(this).apply { text = "自定义："; textSize = 14f; setTextColor(getColor(android.R.color.darker_gray)) })
+        inputRow.addView(TextView(this).apply { text = "自定义："; textSize = 14f; setTextColor(getColor(R.color.darker_gray)) })
         inputRow.addView(etInput.apply { layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
-        inputRow.addView(TextView(this).apply { text = " token"; textSize = 14f; setTextColor(getColor(android.R.color.darker_gray)) })
+        inputRow.addView(TextView(this).apply { text = " token"; textSize = 14f; setTextColor(getColor(R.color.darker_gray)) })
         layout.addView(inputRow)
 
         MaterialAlertDialogBuilder(this).setTitle("上下文窗口").setView(layout)
@@ -376,7 +376,7 @@ class SettingsActivity : AppCompatActivity() {
             orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
         }
         layout.addView(TextView(this).apply {
-            text = subtitle; textSize = 13f; setTextColor(getColor(android.R.color.darker_gray)); setPadding(0, 0, 0, 16)
+            text = subtitle; textSize = 13f; setTextColor(getColor(R.color.darker_gray)); setPadding(0, 0, 0, 16)
         })
         val tvValue = TextView(this).apply {
             text = "${labels[currentIdx]} — ${descs[currentIdx]}"; textSize = 18f
@@ -399,7 +399,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         for (i in 0..max) {
             labelLayout.addView(TextView(this).apply {
-                text = descs[i]; textSize = 11f; setTextColor(getColor(android.R.color.darker_gray))
+                text = descs[i]; textSize = 11f; setTextColor(getColor(R.color.darker_gray))
                 layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; max -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
             })
@@ -520,14 +520,14 @@ class SettingsActivity : AppCompatActivity() {
             if (books.length() == 0) {
                 layout.addView(TextView(this).apply {
                     text = "暂无世界书，点击下方按钮创建"
-                    textSize = 14f; setTextColor(getColor(android.R.color.darker_gray))
+                    textSize = 14f; setTextColor(getColor(R.color.darker_gray))
                     setPadding(0, 8, 0, 8); gravity = android.view.Gravity.CENTER
                 })
             } else {
                 // 提示文字
                 layout.addView(TextView(this).apply {
                     text = "点击条目编辑，右滑开关启用/禁用"
-                    textSize = 12f; setTextColor(getColor(android.R.color.darker_gray))
+                    textSize = 12f; setTextColor(getColor(R.color.darker_gray))
                     setPadding(0, 0, 0, 8)
                 })
                 layout.addView(createDivider())
@@ -577,7 +577,7 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(0, 8, 0, 8)
         }
         layout.addView(TextView(this).apply {
-            text = "名称"; textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+            text = "名称"; textSize = 13f; setTextColor(getColor(R.color.darker_gray))
         })
         layout.addView(etName)
         layout.addView(createDivider())
@@ -588,7 +588,7 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(0, 8, 0, 8); maxLines = 3
         }
         layout.addView(TextView(this).apply {
-            text = "描述"; textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+            text = "描述"; textSize = 13f; setTextColor(getColor(R.color.darker_gray))
         })
         layout.addView(etDesc)
 
@@ -646,12 +646,12 @@ class SettingsActivity : AppCompatActivity() {
             // 描述信息行
             layout.addView(TextView(this).apply {
                 text = "描述：${description.take(50)}"
-                textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+                textSize = 13f; setTextColor(getColor(R.color.darker_gray))
                 setPadding(0, 0, 0, 8)
             })
             layout.addView(TextView(this).apply {
                 text = "条目数：${entryCount} 条"
-                textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+                textSize = 13f; setTextColor(getColor(R.color.darker_gray))
                 setPadding(0, 0, 0, 12)
             })
             layout.addView(createDivider())
