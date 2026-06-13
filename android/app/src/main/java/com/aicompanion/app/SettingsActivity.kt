@@ -788,7 +788,7 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(0, 8, 0, 8)
             // 点击整行进入编辑
             isClickable = true; isFocusable = true
-            setBackgroundResource(android.R.attr.selectableItemBackground)
+            setBackgroundResource(getSelectableItemBackground())
             setOnClickListener { showEditWorldBookDialog(name) }
         }
         val textLayout = android.widget.LinearLayout(this).apply {
@@ -848,6 +848,13 @@ class SettingsActivity : AppCompatActivity() {
 
     // ======================== 辅助方法 ========================
 
+    /** 安全地解析android.R.attr.selectableItemBackground为drawable资源 */
+    private fun getSelectableItemBackground(): Int {
+        val outValue = android.util.TypedValue()
+        theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+        return outValue.resourceId
+    }
+
     private fun createSettingsRow(
         label: String, value: String, clickable: Boolean, valueColor: Int = R.color.text_secondary,
         onClick: (() -> Unit)? = null,
@@ -859,7 +866,7 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(0, 12, 0, 12)
             if (clickable) {
                 isClickable = true; isFocusable = true
-                setBackgroundResource(android.R.attr.selectableItemBackground)
+                setBackgroundResource(getSelectableItemBackground())
                 setOnClickListener { onClick?.invoke() }
             }
         }
