@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
@@ -68,12 +70,37 @@ class MainActivity : AppCompatActivity() {
             false
         }
 
-        // 点击角色名称或头像，跳转角色管理页
-        binding.tvTitle.setOnClickListener {
-            startActivity(Intent(this, CharacterManageActivity::class.java))
+        // 点击角色名称或头像，跳转角色选择页（带左滑动画）
+        val openCharacterSelect = {
+            val intent = Intent(this, CharacterSelectActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
         }
-        binding.ivAvatar.setOnClickListener {
-            startActivity(Intent(this, CharacterManageActivity::class.java))
+        binding.tvTitle.setOnClickListener { openCharacterSelect() }
+        binding.ivAvatar.setOnClickListener { openCharacterSelect() }
+
+        // 左滑手势进入角色选择页
+        val gestureDetector = GestureDetector(this, object : GestureDetector.OnGestureListener {
+            override fun onDown(e: MotionEvent): Boolean = false
+            override fun onShowPress(e: MotionEvent) {}
+            override fun onSingleTapUp(e: MotionEvent): Boolean = false
+            override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean = false
+            override fun onLongPress(e: MotionEvent) {}
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 == null) return false
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+                // 左滑（X位移 > 150，且水平速度远大于垂直速度）
+                if (diffX > 150 && Math.abs(velocityX) > Math.abs(velocityY) * 1.5f && velocityX > 0) {
+                    openCharacterSelect()
+                    return true
+                }
+                return false
+            }
+        })
+        binding.mainRoot.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false
         }
 
         binding.etInput.setOnEditorActionListener { _, actionId, _ ->

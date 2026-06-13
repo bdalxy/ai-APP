@@ -43,9 +43,21 @@
             android:theme="@style/Theme.AICompanion" />
 
         <activity
+            android:name=".SettingsDetailActivity"
+            android:exported="false"
+            android:label="设置详情"
+            android:theme="@style/Theme.AICompanion" />
+
+        <activity
             android:name=".CharacterManageActivity"
             android:exported="false"
             android:label="角色管理"
+            android:theme="@style/Theme.AICompanion" />
+
+        <activity
+            android:name=".CharacterSelectActivity"
+            android:exported="false"
+            android:label="选择角色"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
