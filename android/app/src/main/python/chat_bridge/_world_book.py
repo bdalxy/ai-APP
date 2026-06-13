@@ -119,6 +119,167 @@ def get_enabled_world_books() -> str:
     }, ensure_ascii=False)
 
 
+def create_world_book(name: str, description: str = "", entries_json: str = "[]") -> str:
+    """创建新的世界书。
+
+    Args:
+        name: 世界书名称
+        description: 描述
+        entries_json: 条目的JSON数组字符串
+
+    Returns:
+        JSON: {"status": "ok", "name": "..."}
+    """
+    try:
+        engine = _get_engine()
+
+        # 检查是否已存在
+        existing = [b["name"] for b in engine.list_books()]
+        if name in existing:
+            return json.dumps({
+                "status": "error",
+                "message": f"世界书 '{name}' 已存在",
+            }, ensure_ascii=False)
+
+        # 构建完整的世界书JSON
+        entries = json.loads(entries_json) if entries_json else []
+        data = {
+            "version": "1.0",
+            "name": name,
+            "description": description,
+            "entries": entries,
+        }
+
+        # 写入文件
+        file_path = _PYTHON_ROOT + "/data/world_books/" + name + ".json"
+        # 确保目录存在
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # 重新加载
+        engine._load_book(file_path)
+        _log.info(f"[世界书] 已创建: {name}")
+        return json.dumps({"status": "ok", "name": name}, ensure_ascii=False)
+    except Exception as e:
+        _log.error(f"[世界书] create_world_book({name}) 失败: {e}")
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+
+
+def delete_world_book(name: str) -> str:
+    """删除指定世界书。
+
+    Args:
+        name: 世界书名称
+
+    Returns:
+        JSON: {"status": "ok", "name": "..."}
+    """
+    try:
+        # 从启用集合中移除
+        _enabled_books.discard(name)
+
+        # 删除文件
+        file_path = _PYTHON_ROOT + "/data/world_books/" + name + ".json"
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            _log.info(f"[世界书] 已删除文件: {file_path}")
+
+        # 从引擎中移除
+        engine = _get_engine()
+        engine.remove_book(name)
+        _log.info(f"[世界书] 已删除: {name}")
+        return json.dumps({"status": "ok", "name": name}, ensure_ascii=False)
+    except Exception as e:
+        _log.error(f"[世界书] delete_world_book({name}) 失败: {e}")
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+
+
+def get_world_book(name: str) -> str:
+    """获取指定世界书的完整数据。
+
+    Args:
+        name: 世界书名称
+
+    Returns:
+        JSON: {"status": "ok", "book": {...}} 或错误
+    """
+    try:
+        engine = _get_engine()
+        if name not in engine._books:
+            return json.dumps({
+                "status": "error",
+                "message": f"世界书 '{name}' 不存在",
+            }, ensure_ascii=False)
+
+        book = engine._books[name]
+        entries_data = []
+        for entry in book.entries:
+            entries_data.append({
+                "id": entry.id,
+                "keys": entry.keys,
+                "key_secondary": entry.key_secondary,
+                "content": entry.content,
+                "comment": entry.comment,
+                "constant": entry.constant,
+                "probability": entry.probability,
+                "priority": entry.priority,
+            })
+
+        return json.dumps({
+            "status": "ok",
+            "book": {
+                "name": book.name,
+                "description": book.description,
+                "version": book.version,
+                "entry_count": len(book.entries),
+                "entries": entries_data,
+            },
+        }, ensure_ascii=False)
+    except Exception as e:
+        _log.error(f"[世界书] get_world_book({name}) 失败: {e}")
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+
+
+def update_world_book(name: str, description: str = "", entries_json: str = "[]") -> str:
+    """更新世界书的描述和条目（覆盖写入）。
+
+    Args:
+        name: 世界书名称
+        description: 新描述
+        entries_json: 新条目的JSON数组字符串
+
+    Returns:
+        JSON: {"status": "ok", "name": "..."}
+    """
+    try:
+        engine = _get_engine()
+
+        # 构建数据
+        entries = json.loads(entries_json) if entries_json else []
+        data = {
+            "version": "1.0",
+            "name": name,
+            "description": description,
+            "entries": entries,
+        }
+
+        # 写入文件
+        file_path = _PYTHON_ROOT + "/data/world_books/" + name + ".json"
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # 重新加载：先移除旧的，再加载新的
+        engine.remove_book(name)
+        engine._load_book(file_path)
+        _log.info(f"[世界书] 已更新: {name}")
+        return json.dumps({"status": "ok", "name": name}, ensure_ascii=False)
+    except Exception as e:
+        _log.error(f"[世界书] update_world_book({name}) 失败: {e}")
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+
+
 def _match_and_inject_for_all(user_input: str) -> str:
     """对所有已启用的世界书执行匹配注入，合并结果。
 

@@ -11,11 +11,12 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.aicompanion.app.databinding.ActivitySettingsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
  * 设置页面 Activity。
- * 提供账户设置、对话设置、主动消息、记忆管理、关于等入口。
+ * 简洁卡片式设计：每个卡片点击后弹出对话框设置子级选项。
  */
 class SettingsActivity : AppCompatActivity() {
 
@@ -43,623 +44,786 @@ class SettingsActivity : AppCompatActivity() {
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 适配刘海屏/挖孔屏/状态栏——解决"靠太上"的问题
         ViewUtils.setupEdgeToEdge(this)
         ViewUtils.applyInsets(binding.settingsRoot)
 
-        // 返回按钮
         binding.btnBack.setOnClickListener { finish() }
 
-        // —— 账户设置 ——
-        setupApiKey()
-        setupRolePreset()
-        setupModelSelect()
-
-        // —— 对话设置 ——
-        setupContextSize()
-        setupTemperature()
-        setupMaxTokens()
-        setupExampleDialogues()
-        setupNewChat()
-        setupClearMemory()
-
-        // —— 主动消息 ——
-        setupProactiveToggle()
-        setupProactiveInterval()
-        setupQuietTime()
-
-        // —— 记忆管理 ——
-        setupMemoryManage()
-
-        // —— 世界书 ——
-        setupWorldBook()
+        binding.cardAccount.setOnClickListener { showAccountDialog() }
+        binding.cardChat.setOnClickListener { showChatDialog() }
+        binding.cardProactive.setOnClickListener { showProactiveDialog() }
+        binding.cardMemory.setOnClickListener {
+            startActivity(Intent(this, MemoryManageActivity::class.java))
+        }
+        binding.cardWorldBook.setOnClickListener { showWorldBookDialog() }
 
         refreshUI()
     }
 
-    // ======================== 适配辅助方法 ========================
+    // ======================== 账户设置弹窗 ========================
 
-    // ======================== 账户设置 ========================
-
-    private fun setupApiKey() {
-        binding.itemApiKey.setOnClickListener {
-            val currentKey = AppConfig.getApiKey(this@SettingsActivity)
-            val edit = EditText(this).apply {
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-                hint = "输入 DeepSeek API Key"
-                setText(currentKey)
-            }
-            MaterialAlertDialogBuilder(this)
-                .setTitle("API Key")
-                .setView(edit)
-                .setPositiveButton("保存") { _, _ ->
-                    val key = edit.text.toString().trim()
-                    // 使用 AppConfig 加密存储 API Key
-                    AppConfig.setApiKey(this@SettingsActivity, key)
-                    try {
-                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("set_api_key", key)
-                    } catch (e: Exception) {
-                        Toast.makeText(this@SettingsActivity, "Python 同步失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                    refreshUI()
-                    Toast.makeText(this@SettingsActivity, "API Key 已保存", Toast.LENGTH_SHORT).show()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        }
-    }
-
-    private fun setupRolePreset() {
-        binding.itemRolePreset.setOnClickListener {
-            val characters = CharacterStorage.loadAll(this)
-            val names = characters.map { it.name }.toTypedArray()
-            val currentId = prefs.getString("current_character_id", null)
-            val currentIdx = characters.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
-
-            MaterialAlertDialogBuilder(this)
-                .setTitle("选择角色")
-                .setSingleChoiceItems(names, currentIdx) { dialog, which ->
-                    val char = characters[which]
-                    CharacterStorage.setCurrent(this, char.id)
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        }
-    }
-
-    private fun setupModelSelect() {
-        binding.itemModel.setOnClickListener {
-            val currentModel = AppConfig.getModel(this@SettingsActivity).let {
-                if (it.isBlank()) "deepseek-v4-flash" else it
-            }
-            val idx = MODEL_VALUES.indexOf(currentModel).coerceAtLeast(0)
-
-            MaterialAlertDialogBuilder(this)
-                .setTitle("选择模型")
-                .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
-                    val model = MODEL_VALUES[which]
-                    AppConfig.setModel(this@SettingsActivity, model)
-                    applyAllParams()
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        }
-    }
-
-    private fun applyAllParams() {
+    private fun showAccountDialog() {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-            val ctx = AppConfig.getContextSize(this@SettingsActivity)
-            val temp = AppConfig.getTemperature(this@SettingsActivity).toDouble()
-            val maxTk = AppConfig.getMaxTokens(this@SettingsActivity)
-            val dialogues = AppConfig.getExampleDialogues(this@SettingsActivity)
-            val model = AppConfig.getModel(this@SettingsActivity).let {
-                if (it.isBlank()) "deepseek-v4-flash" else it
-            }
-            val result = module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)?.toString() ?: "{}"
-            Log.d("SettingsActivity", "apply_params 返回: $result")
-            val json = JSONObject(result)
-            if (json.optString("status") != "ok") {
-                Toast.makeText(this@SettingsActivity, "参数应用失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            Toast.makeText(this@SettingsActivity, "参数应用失败: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // ======================== 对话设置 ========================
-
-    private fun setupContextSize() {
-        binding.itemContextSize.setOnClickListener {
-            val current = AppConfig.getContextSize(this@SettingsActivity)
-            // 范围 500~8000，步长 500，共 16 档
-            val minCtx = 500
-            val maxCtx = 8000
-            val step = 500
-            val steps = (maxCtx - minCtx) / step  // 15
-            val currentStep = ((current - minCtx).coerceIn(0, maxCtx - minCtx)) / step
-
             val layout = android.widget.LinearLayout(this).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
-                setPadding(48, 20, 48, 0)
+                setPadding(48, 16, 48, 0)
             }
 
-            val tvSubtitle = TextView(this@SettingsActivity).apply {
-                text = "保留多少对话历史给AI看（单位：token，约1token≈0.5~1个中文字）"
-                textSize = 13f
-                setTextColor(getColor(android.R.color.darker_gray))
-                setPadding(0, 0, 0, 12)
+            // API Key 行
+            val apiKey = AppConfig.getApiKey(this)
+            val apiKeyRow = createSettingsRow("API Key",
+                if (apiKey.isNotEmpty()) "已配置 (${apiKey.take(4)}...)" else "未配置",
+                apiKey.isNotEmpty()
+            ) {
+                showApiKeyEditDialog()
             }
-            layout.addView(tvSubtitle)
+            layout.addView(apiKeyRow)
+            layout.addView(createDivider())
 
-            val tvValue = TextView(this@SettingsActivity).apply {
-                text = "${current} token"
-                textSize = 20f
-                setTextColor(getColor(R.color.primary))
-                textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
-                setPadding(0, 0, 0, 8)
+            // 角色预设行
+            val char = CharacterStorage.getCurrent(this)
+            val roleRow = createSettingsRow("角色预设", char.name, true) {
+                showRoleSelectDialog()
             }
-            layout.addView(tvValue)
+            layout.addView(roleRow)
+            layout.addView(createDivider())
 
-            // EditText 必须声明在 SeekBar 之前，因为 SeekBar 回调会引用它
-            val etInput = EditText(this@SettingsActivity).apply {
-                setText(current.toString())
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                textSize = 14f
-                setTextColor(getColor(R.color.text_primary))
-                setBackgroundColor(getColor(android.R.color.transparent))
-                setPadding(16, 8, 16, 8)
+            // 模型选择行
+            val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
+            val modelRow = createSettingsRow("模型选择", model, true) {
+                showModelSelectDialog()
             }
-
-            val seekBar = android.widget.SeekBar(this).apply {
-                max = steps
-                progress = currentStep
-                setPadding(8, 0, 8, 0)
-                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(sb: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
-                        val value = minCtx + progress * step
-                        tvValue.text = "${value} token"
-                        etInput.setText(value.toString())
-                    }
-                    override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
-                    override fun onStopTrackingTouch(sb: android.widget.SeekBar) {}
-                })
-            }
-            layout.addView(seekBar)
-
-            // 标签行
-            val labelLayout = android.widget.LinearLayout(this).apply {
-                orientation = android.widget.LinearLayout.HORIZONTAL
-                setPadding(8, 2, 8, 12)
-            }
-            val labelMin = TextView(this@SettingsActivity).apply {
-                text = "500"
-                textSize = 11f
-                setTextColor(getColor(android.R.color.darker_gray))
-                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            val labelMid = TextView(this@SettingsActivity).apply {
-                text = "4000"
-                textSize = 11f
-                setTextColor(getColor(android.R.color.darker_gray))
-                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
-            }
-            val labelMax = TextView(this@SettingsActivity).apply {
-                text = "8000"
-                textSize = 11f
-                setTextColor(getColor(android.R.color.darker_gray))
-                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = android.view.View.TEXT_ALIGNMENT_TEXT_END
-            }
-            labelLayout.addView(labelMin)
-            labelLayout.addView(labelMid)
-            labelLayout.addView(labelMax)
-            layout.addView(labelLayout)
-
-            // 自定义输入行
-            val inputRow = android.widget.LinearLayout(this).apply {
-                orientation = android.widget.LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(0, 0, 0, 8)
-            }
-            val tvCustom = TextView(this@SettingsActivity).apply {
-                text = "自定义："
-                textSize = 14f
-                setTextColor(getColor(android.R.color.darker_gray))
-            }
-            inputRow.addView(tvCustom)
-            inputRow.addView(etInput.apply {
-                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-
-            val tvUnit = TextView(this@SettingsActivity).apply {
-                text = " token"
-                textSize = 14f
-                setTextColor(getColor(android.R.color.darker_gray))
-            }
-            inputRow.addView(tvUnit)
-            layout.addView(inputRow)
+            layout.addView(modelRow)
 
             MaterialAlertDialogBuilder(this)
-                .setTitle("上下文窗口")
+                .setTitle("账户设置")
                 .setView(layout)
-                .setPositiveButton("确定") { _, _ ->
-                    var value = etInput.text.toString().toIntOrNull()
-                    if (value == null || value < minCtx) value = minCtx
-                    if (value > maxCtx) value = maxCtx
-                    // 对齐到步长
-                    value = ((value - minCtx + step / 2) / step) * step + minCtx
-                    value = value.coerceIn(minCtx, maxCtx)
-                    AppConfig.setContextSize(this@SettingsActivity, value)
-                    applyAllParams()
-                    refreshUI()
-                }
-                .setNegativeButton("取消", null)
+                .setPositiveButton("关闭", null)
                 .show()
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "showAccountDialog 失败: ${e.message}", e)
+            Toast.makeText(this, "加载账户设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun setupTemperature() {
-        binding.itemTemperature.setOnClickListener {
-            val values = floatArrayOf(0.5f, 0.7f, 0.9f)
-            val labels = arrayOf("0.5", "0.7", "0.9")
-            val descs = arrayOf("保守", "中等", "创意")
-            val current = AppConfig.getTemperature(this@SettingsActivity)
-            val idx = when { current <= 0.5f -> 0; current >= 0.9f -> 2; else -> 1 }
+    private fun showApiKeyEditDialog() {
+        val currentKey = AppConfig.getApiKey(this)
+        val edit = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            hint = "输入 DeepSeek API Key"
+            setText(currentKey)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("API Key")
+            .setView(edit)
+            .setPositiveButton("保存") { _, _ ->
+                val key = edit.text.toString().trim()
+                AppConfig.setApiKey(this, key)
+                try {
+                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    module?.callAttr("set_api_key", key)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Python 同步失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+                refreshUI()
+                Toast.makeText(this, "API Key 已保存", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
 
-            showSliderDialog("创意度", "控制AI回复的随机性和想象力", labels, descs, idx, 2) { which ->
-                AppConfig.setTemperature(this@SettingsActivity, values[which])
+    private fun showRoleSelectDialog() {
+        val characters = CharacterStorage.loadAll(this)
+        val names = characters.map { it.name }.toTypedArray()
+        val currentId = prefs.getString("current_character_id", null)
+        val currentIdx = characters.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("选择角色")
+            .setSingleChoiceItems(names, currentIdx) { dialog, which ->
+                val char = characters[which]
+                CharacterStorage.setCurrent(this, char.id)
+                refreshUI()
+                dialog.dismiss()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showModelSelectDialog() {
+        val currentModel = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
+        val idx = MODEL_VALUES.indexOf(currentModel).coerceAtLeast(0)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("选择模型")
+            .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
+                val model = MODEL_VALUES[which]
+                AppConfig.setModel(this, model)
                 applyAllParams()
                 refreshUI()
+                dialog.dismiss()
             }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    // ======================== 对话设置弹窗 ========================
+
+    private fun showChatDialog() {
+        try {
+            val layout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+            }
+
+            val ctxSize = AppConfig.getContextSize(this)
+            val ctxRow = createSettingsRow("上下文窗口", "${ctxSize} token", true) {
+                showContextSizeDialog()
+            }
+            layout.addView(ctxRow)
+            layout.addView(createDivider())
+
+            val temp = AppConfig.getTemperature(this)
+            val tempLabel = when { temp <= 0.5f -> "0.5 保守"; temp >= 0.9f -> "0.9 创意"; else -> "0.7 中等" }
+            val tempRow = createSettingsRow("创意度", tempLabel, true) {
+                showTemperatureDialog()
+            }
+            layout.addView(tempRow)
+            layout.addView(createDivider())
+
+            val maxTk = AppConfig.getMaxTokens(this)
+            val tokenLabel = when (maxTk) { 500 -> "500（简洁）"; 2000 -> "2000（详细）"; else -> "1000（适中）" }
+            val tkRow = createSettingsRow("回复详细度", tokenLabel, true) {
+                showMaxTokensDialog()
+            }
+            layout.addView(tkRow)
+            layout.addView(createDivider())
+
+            val dialogues = AppConfig.getExampleDialogues(this)
+            val diaRow = createSettingsRow("示例对话数", "${dialogues}条", true) {
+                showExampleDialoguesDialog()
+            }
+            layout.addView(diaRow)
+            layout.addView(createDivider())
+
+            val newChatRow = createSettingsRow("开始新对话", "清空当前对话历史", true) {
+                showNewChatDialog()
+            }
+            layout.addView(newChatRow)
+            layout.addView(createDivider())
+
+            val clearMemRow = createSettingsRow("清空长期记忆", "删除所有记忆数据", true, R.color.accent_orange) {
+                showClearMemoryDialog()
+            }
+            layout.addView(clearMemRow)
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("对话设置")
+                .setView(layout)
+                .setPositiveButton("关闭", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "showChatDialog 失败: ${e.message}", e)
+            Toast.makeText(this, "加载对话设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun setupMaxTokens() {
-        binding.itemMaxTokens.setOnClickListener {
-            val values = intArrayOf(500, 1000, 2000)
-            val labels = arrayOf("500", "1000", "2000")
-            val descs = arrayOf("简洁", "适中", "详细")
-            val current = AppConfig.getMaxTokens(this@SettingsActivity)
-            val idx = values.toList().indexOf(current).coerceAtLeast(1)
+    private fun showContextSizeDialog() {
+        val current = AppConfig.getContextSize(this)
+        val minCtx = 500; val maxCtx = 8000; val step = 500
+        val steps = (maxCtx - minCtx) / step
+        val currentStep = ((current - minCtx).coerceIn(0, maxCtx - minCtx)) / step
 
-            showSliderDialog("回复详细度", "每条AI回复的Token上限（单次，非累计）。连续对话中每条消息独立计算", labels, descs, idx, 2) { which ->
-                AppConfig.setMaxTokens(this@SettingsActivity, values[which])
-                applyAllParams()
-                refreshUI()
-            }
-        }
-    }
-
-    private fun setupExampleDialogues() {
-        binding.itemExampleDialogues.setOnClickListener {
-            val values = intArrayOf(0, 1, 2, 3)
-            val labels = arrayOf("0", "1", "2", "3")
-            val descs = arrayOf("不展示", "1条", "2条", "3条")
-            val current = AppConfig.getExampleDialogues(this@SettingsActivity)
-            val idx = current.coerceIn(0, 3)
-
-            showSliderDialog("示例对话数", "角色卡中展示的示例对话条数，越多越能体现角色风格", labels, descs, idx, 3) { which ->
-                AppConfig.setExampleDialogues(this@SettingsActivity, values[which])
-                applyAllParams()
-                refreshUI()
-            }
-        }
-    }
-
-    /**
-     * 通用滑动条对话框。
-     * @param title 对话框标题
-     * @param subtitle 说明文字
-     * @param labels 各档位标签（如 "1000", "2000", "4000"）
-     * @param descs 各档位描述（如 "小窗口", "中等", "大窗口"）
-     * @param currentIdx 当前选中档位
-     * @param max 最大档位（SeekBar max）
-     * @param onSelected 选中回调，参数为档位索引
-     */
-    private fun showSliderDialog(
-        title: String,
-        subtitle: String,
-        labels: Array<String>,
-        descs: Array<String>,
-        currentIdx: Int,
-        max: Int,
-        onSelected: (Int) -> Unit,
-    ) {
         val layout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(48, 20, 48, 0)
         }
 
         val tvSubtitle = TextView(this).apply {
-            text = subtitle
-            textSize = 13f
-            setTextColor(getColor(android.R.color.darker_gray))
-            setPadding(0, 0, 0, 16)
+            text = "保留多少对话历史给AI看（单位：token）"
+            textSize = 13f; setTextColor(getColor(android.R.color.darker_gray)); setPadding(0, 0, 0, 12)
         }
         layout.addView(tvSubtitle)
 
         val tvValue = TextView(this).apply {
-            text = "${labels[currentIdx]} — ${descs[currentIdx]}"
-            textSize = 18f
-            setTextColor(getColor(R.color.primary))
-            textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
-            setPadding(0, 0, 0, 12)
+            text = "${current} token"; textSize = 20f
+            setTextColor(getColor(R.color.primary)); textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
         }
         layout.addView(tvValue)
 
+        val etInput = EditText(this).apply {
+            setText(current.toString()); inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            textSize = 14f; setTextColor(getColor(R.color.text_primary))
+            setBackgroundColor(getColor(android.R.color.transparent)); setPadding(16, 8, 16, 8)
+        }
+
         val seekBar = android.widget.SeekBar(this).apply {
-            this.max = max
-            progress = currentIdx
-            setPadding(8, 0, 8, 0)
+            max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
             setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
-                    tvValue.text = "${labels[progress]} — ${descs[progress]}"
+                override fun onProgressChanged(sb: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
+                    val value = minCtx + progress * step
+                    tvValue.text = "${value} token"; etInput.setText(value.toString())
                 }
-                override fun onStartTrackingTouch(seekBar: android.widget.SeekBar) {}
-                override fun onStopTrackingTouch(seekBar: android.widget.SeekBar) {}
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar) {}
             })
         }
         layout.addView(seekBar)
 
-        // 标签行
         val labelLayout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            setPadding(8, 4, 8, 0)
+            orientation = android.widget.LinearLayout.HORIZONTAL; setPadding(8, 2, 8, 12)
         }
-        for (i in 0..max) {
-            val label = TextView(this@SettingsActivity).apply {
-                text = descs[i]
-                textSize = 11f
-                setTextColor(getColor(android.R.color.darker_gray))
+        for ((i, label) in listOf("500", "4000", "8000").withIndex()) {
+            labelLayout.addView(TextView(this).apply {
+                text = label; textSize = 11f; setTextColor(getColor(android.R.color.darker_gray))
                 layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = if (i == 0) android.view.View.TEXT_ALIGNMENT_TEXT_START
-                    else if (i == max) android.view.View.TEXT_ALIGNMENT_TEXT_END
-                    else android.view.View.TEXT_ALIGNMENT_CENTER
-            }
-            labelLayout.addView(label)
+                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
+            })
         }
         layout.addView(labelLayout)
 
-        MaterialAlertDialogBuilder(this)
-            .setTitle(title)
-            .setView(layout)
+        val inputRow = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, 8)
+        }
+        inputRow.addView(TextView(this).apply { text = "自定义："; textSize = 14f; setTextColor(getColor(android.R.color.darker_gray)) })
+        inputRow.addView(etInput.apply { layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+        inputRow.addView(TextView(this).apply { text = " token"; textSize = 14f; setTextColor(getColor(android.R.color.darker_gray)) })
+        layout.addView(inputRow)
+
+        MaterialAlertDialogBuilder(this).setTitle("上下文窗口").setView(layout)
             .setPositiveButton("确定") { _, _ ->
-                onSelected(seekBar.progress)
+                var value = etInput.text.toString().toIntOrNull()
+                if (value == null || value < minCtx) value = minCtx
+                if (value > maxCtx) value = maxCtx
+                value = ((value - minCtx + step / 2) / step) * step + minCtx
+                value = value.coerceIn(minCtx, maxCtx)
+                AppConfig.setContextSize(this, value)
+                applyAllParams()
+                refreshUI()
             }
-            .setNegativeButton("取消", null)
-            .show()
+            .setNegativeButton("取消", null).show()
     }
 
-    private fun setupNewChat() {
-        binding.itemNewChat.setOnClickListener {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("开始新对话")
-                .setMessage("将清空当前对话历史。确定继续吗？")
-                .setPositiveButton("确定") { _, _ ->
-                    try {
-                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("reset")  // 正确的方法名是 reset
-                    } catch (e: Exception) {
-                        Toast.makeText(this@SettingsActivity, "清空对话失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                        return@setPositiveButton
-                    }
-                    Toast.makeText(this, "对话已清空", Toast.LENGTH_SHORT).show()
-                }
-                .setNegativeButton("取消", null)
-                .show()
+    private fun showTemperatureDialog() {
+        val values = floatArrayOf(0.5f, 0.7f, 0.9f)
+        val labels = arrayOf("0.5", "0.7", "0.9")
+        val descs = arrayOf("保守", "中等", "创意")
+        val current = AppConfig.getTemperature(this)
+        val idx = when { current <= 0.5f -> 0; current >= 0.9f -> 2; else -> 1 }
+        showSliderDialog("创意度", "控制AI回复的随机性和想象力", labels, descs, idx, 2) { which ->
+            AppConfig.setTemperature(this, values[which])
+            applyAllParams(); refreshUI()
         }
     }
 
-    private fun setupClearMemory() {
-        binding.itemClearMemory.setOnClickListener {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("清空长期记忆")
-                .setMessage("将删除所有长期记忆数据，无法恢复。确定吗？")
-                .setPositiveButton("确认清空") { _, _ ->
-                    try {
-                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("clear_memories")  // 正确的方法名是 clear_memories
-                    } catch (e: Exception) {
-                        Toast.makeText(this@SettingsActivity, "清空记忆失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                        return@setPositiveButton
-                    }
-                    Toast.makeText(this, "记忆已清空", Toast.LENGTH_SHORT).show()
+    private fun showMaxTokensDialog() {
+        val values = intArrayOf(500, 1000, 2000)
+        val labels = arrayOf("500", "1000", "2000")
+        val descs = arrayOf("简洁", "适中", "详细")
+        val current = AppConfig.getMaxTokens(this)
+        val idx = values.toList().indexOf(current).coerceAtLeast(1)
+        showSliderDialog("回复详细度", "每条AI回复的Token上限", labels, descs, idx, 2) { which ->
+            AppConfig.setMaxTokens(this, values[which])
+            applyAllParams(); refreshUI()
+        }
+    }
+
+    private fun showExampleDialoguesDialog() {
+        val values = intArrayOf(0, 1, 2, 3)
+        val labels = arrayOf("0", "1", "2", "3")
+        val descs = arrayOf("不展示", "1条", "2条", "3条")
+        val current = AppConfig.getExampleDialogues(this)
+        val idx = current.coerceIn(0, 3)
+        showSliderDialog("示例对话数", "角色卡中展示的示例对话条数", labels, descs, idx, 3) { which ->
+            AppConfig.setExampleDialogues(this, values[which])
+            applyAllParams(); refreshUI()
+        }
+    }
+
+    private fun showNewChatDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("开始新对话")
+            .setMessage("将清空当前对话历史。确定继续吗？")
+            .setPositiveButton("确定") { _, _ ->
+                try {
+                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    module?.callAttr("reset")
+                } catch (e: Exception) {
+                    Toast.makeText(this, "清空对话失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                Toast.makeText(this, "对话已清空", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun showClearMemoryDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("清空长期记忆")
+            .setMessage("将删除所有长期记忆数据，无法恢复。确定吗？")
+            .setPositiveButton("确认清空") { _, _ ->
+                try {
+                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    module?.callAttr("clear_memories")
+                } catch (e: Exception) {
+                    Toast.makeText(this, "清空记忆失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                Toast.makeText(this, "记忆已清空", Toast.LENGTH_SHORT).show()
+                refreshUI()
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun showSliderDialog(
+        title: String, subtitle: String, labels: Array<String>, descs: Array<String>,
+        currentIdx: Int, max: Int, onSelected: (Int) -> Unit,
+    ) {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
+        }
+        layout.addView(TextView(this).apply {
+            text = subtitle; textSize = 13f; setTextColor(getColor(android.R.color.darker_gray)); setPadding(0, 0, 0, 16)
+        })
+        val tvValue = TextView(this).apply {
+            text = "${labels[currentIdx]} — ${descs[currentIdx]}"; textSize = 18f
+            setTextColor(getColor(R.color.primary)); textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 12)
+        }
+        layout.addView(tvValue)
+        val seekBar = android.widget.SeekBar(this).apply {
+            this.max = max; progress = currentIdx; setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar, progress: Int, fromUser: Boolean) {
+                    tvValue.text = "${labels[progress]} — ${descs[progress]}"
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+        val labelLayout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL; setPadding(8, 4, 8, 0)
+        }
+        for (i in 0..max) {
+            labelLayout.addView(TextView(this).apply {
+                text = descs[i]; textSize = 11f; setTextColor(getColor(android.R.color.darker_gray))
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; max -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
+            })
+        }
+        layout.addView(labelLayout)
+        MaterialAlertDialogBuilder(this).setTitle(title).setView(layout)
+            .setPositiveButton("确定") { _, _ -> onSelected(seekBar.progress) }
+            .setNegativeButton("取消", null).show()
+    }
+
+    // ======================== 主动消息弹窗 ========================
+
+    private fun showProactiveDialog() {
+        try {
+            val layout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+            }
+
+            // 开关行
+            val toggleRow = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(0, 8, 0, 8)
+            }
+            toggleRow.addView(TextView(this).apply {
+                text = "主动消息"; textSize = 16f; setTextColor(getColor(R.color.text_primary))
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            val sw = androidx.appcompat.widget.SwitchCompat(this).apply {
+                isChecked = prefs.getBoolean("proactive_enabled", false)
+                setOnCheckedChangeListener { _, isChecked ->
+                    prefs.edit().putBoolean("proactive_enabled", isChecked).apply()
                     refreshUI()
                 }
-                .setNegativeButton("取消", null)
-                .show()
-        }
-    }
+            }
+            toggleRow.addView(sw)
+            layout.addView(toggleRow)
+            layout.addView(createDivider())
 
-    // ======================== 主动消息 ========================
+            // 发送频率行
+            val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
+            val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
+            val intervalRow = createSettingsRow("发送频率", intervalLabel, true) {
+                val idx = INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("发送频率")
+                    .setSingleChoiceItems(INTERVAL_OPTIONS, idx) { dialog, which ->
+                        prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
+                        refreshUI(); dialog.dismiss()
+                    }
+                    .setNegativeButton("取消", null).show()
+            }
+            layout.addView(intervalRow)
+            layout.addView(createDivider())
 
-    private fun setupProactiveToggle() {
-        binding.swProactive.isChecked = prefs.getBoolean("proactive_enabled", false)
-        binding.swProactive.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("proactive_enabled", isChecked).apply()
-        }
-    }
-
-    private fun setupProactiveInterval() {
-        binding.itemProactiveInterval.setOnClickListener {
-            val currentMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
-            val idx = INTERVAL_MS.indexOf(currentMs).coerceAtLeast(0)
-            MaterialAlertDialogBuilder(this)
-                .setTitle("发送频率")
-                .setSingleChoiceItems(INTERVAL_OPTIONS, idx) { dialog, which ->
-                    prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        }
-    }
-
-    private fun setupQuietTime() {
-        binding.itemQuietTime.setOnClickListener {
+            // 免打扰行
             val start = prefs.getString("quiet_start", "") ?: ""
             val end = prefs.getString("quiet_end", "") ?: ""
-            val current = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
-
-            val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00")
-            val idx = options.indexOfFirst { it == current || (current != "不设置" && it != "不设置" && it.take(5) == start.take(5)) }.coerceAtLeast(0)
+            val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
+            val quietRow = createSettingsRow("免打扰时段", quietLabel, true) {
+                val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00")
+                val current = quietLabel
+                val idx = options.indexOfFirst { it == current || (current != "不设置" && it != "不设置" && it.take(5) == start.take(5)) }.coerceAtLeast(0)
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("静默时段")
+                    .setSingleChoiceItems(options, idx) { dialog, which ->
+                        if (options[which] == "不设置") {
+                            prefs.edit().remove("quiet_start").remove("quiet_end").apply()
+                        } else {
+                            val parts = options[which].split(" - ")
+                            prefs.edit().putString("quiet_start", parts[0].trim()).putString("quiet_end", parts[1].trim()).apply()
+                        }
+                        refreshUI(); dialog.dismiss()
+                    }
+                    .setNegativeButton("取消", null).show()
+            }
+            layout.addView(quietRow)
 
             MaterialAlertDialogBuilder(this)
-                .setTitle("静默时段")
-                .setSingleChoiceItems(options, idx) { dialog, which ->
-                    if (options[which] == "不设置") {
-                        prefs.edit().remove("quiet_start").remove("quiet_end").apply()
-                    } else {
-                        val parts = options[which].split(" - ")
-                        prefs.edit().putString("quiet_start", parts[0].trim()).putString("quiet_end", parts[1].trim()).apply()
-                    }
-                    refreshUI()
-                    dialog.dismiss()
-                }
-                .setNegativeButton("取消", null)
+                .setTitle("主动消息")
+                .setView(layout)
+                .setPositiveButton("关闭", null)
                 .show()
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "showProactiveDialog 失败: ${e.message}", e)
+            Toast.makeText(this, "加载主动消息设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // ======================== 记忆管理 ========================
+    // ======================== 世界书弹窗 ========================
 
-    private fun setupMemoryManage() {
-        binding.itemMemoryManage.setOnClickListener {
-            startActivity(Intent(this, MemoryManageActivity::class.java))
-        }
-    }
-
-    // ======================== 世界书 ========================
-
-    private fun setupWorldBook() {
+    private fun showWorldBookDialog() {
         try {
             val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
             val result = module?.callAttr("list_world_books")?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
-                binding.tvWorldBookEmpty.visibility = View.VISIBLE
+                Toast.makeText(this, "世界书加载失败", Toast.LENGTH_SHORT).show()
                 return
             }
+            val books = json.optJSONArray("books") ?: JSONArray()
 
-            val books = json.optJSONArray("books") ?: run {
-                binding.tvWorldBookEmpty.visibility = View.VISIBLE
-                return
-            }
-
-            if (books.length() == 0) {
-                binding.tvWorldBookEmpty.visibility = View.VISIBLE
-                return
-            }
-
-            binding.tvWorldBookEmpty.visibility = View.GONE
-            binding.worldBookContainer.removeAllViews()
-
-            // 获取已启用的世界书列表
             val enabledResult = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
             val enabledJson = JSONObject(enabledResult)
             val enabledArray = enabledJson.optJSONArray("enabled")
             val enabledSet = mutableSetOf<String>()
             if (enabledArray != null) {
-                for (i in 0 until enabledArray.length()) {
-                    enabledSet.add(enabledArray.optString(i, ""))
+                for (i in 0 until enabledArray.length()) enabledSet.add(enabledArray.optString(i, ""))
+            }
+
+            val layout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+            }
+
+            if (books.length() == 0) {
+                layout.addView(TextView(this).apply {
+                    text = "暂无世界书，点击下方按钮创建"
+                    textSize = 14f; setTextColor(getColor(android.R.color.darker_gray))
+                    setPadding(0, 8, 0, 8); gravity = android.view.Gravity.CENTER
+                })
+            } else {
+                // 提示文字
+                layout.addView(TextView(this).apply {
+                    text = "点击条目编辑，右滑开关启用/禁用"
+                    textSize = 12f; setTextColor(getColor(android.R.color.darker_gray))
+                    setPadding(0, 0, 0, 8)
+                })
+                layout.addView(createDivider())
+
+                for (i in 0 until books.length()) {
+                    val book = books.getJSONObject(i)
+                    val name = book.optString("name", "")
+                    val description = book.optString("description", "")
+                    val entries = book.optInt("entry_count", 0)
+
+                    val row = createWorldBookRow(name, description, entries, name in enabledSet)
+                    layout.addView(row)
+                    if (i < books.length() - 1) layout.addView(createDivider())
                 }
             }
 
-            for (i in 0 until books.length()) {
-                val book = books.getJSONObject(i)
-                val name = book.optString("name", "")
-                val description = book.optString("description", "")
-                val entries = book.optInt("entries", 0)
+            layout.addView(createDivider())
+            // 创建按钮
+            val createBtn = android.widget.Button(this).apply {
+                text = "＋ 创建世界书"
+                textSize = 14f; setTextColor(getColor(R.color.primary))
+                setBackgroundColor(getColor(android.R.color.transparent))
+                setPadding(0, 12, 0, 12)
+                setOnClickListener { showCreateWorldBookDialog() }
+            }
+            layout.addView(createBtn)
 
-                val row = createWorldBookRow(name, description, entries, name in enabledSet)
-                binding.worldBookContainer.addView(row)
+            MaterialAlertDialogBuilder(this)
+                .setTitle("世界书（知识/常识注入）")
+                .setView(layout)
+                .setPositiveButton("关闭") { _, _ -> refreshUI() }
+                .show()
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "showWorldBookDialog 失败: ${e.message}", e)
+            Toast.makeText(this, "世界书加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
 
-                // 添加分割线（最后一项不加）
-                if (i < books.length() - 1) {
-                    val divider = View(this).apply {
-                        layoutParams = android.widget.LinearLayout.LayoutParams(
-                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                            resources.getDimensionPixelSize(R.dimen.divider_thickness)
-                        )
-                        setBackgroundColor(getColor(R.color.glass_border))
-                    }
-                    binding.worldBookContainer.addView(divider)
+    private fun showCreateWorldBookDialog() {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+        }
+        val etName = EditText(this).apply {
+            hint = "世界书名称（如：二次元幻想世界）"
+            textSize = 14f; setTextColor(getColor(R.color.text_primary))
+            setPadding(0, 8, 0, 8)
+        }
+        layout.addView(TextView(this).apply {
+            text = "名称"; textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+        })
+        layout.addView(etName)
+        layout.addView(createDivider())
+
+        val etDesc = EditText(this).apply {
+            hint = "简短描述（如：一个剑与魔法的异世界）"
+            textSize = 14f; setTextColor(getColor(R.color.text_primary))
+            setPadding(0, 8, 0, 8); maxLines = 3
+        }
+        layout.addView(TextView(this).apply {
+            text = "描述"; textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+        })
+        layout.addView(etDesc)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("创建世界书")
+            .setView(layout)
+            .setPositiveButton("创建") { _, _ ->
+                val name = etName.text.toString().trim()
+                if (name.isEmpty()) {
+                    Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
                 }
+                val desc = etDesc.text.toString().trim()
+                createWorldBook(name, desc)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun createWorldBook(name: String, description: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("create_world_book", name, description, "[]")?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") == "ok") {
+                Toast.makeText(this, "世界书「${name}」已创建", Toast.LENGTH_SHORT).show()
+                refreshUI()
+                showWorldBookDialog()
+            } else {
+                Toast.makeText(this, "创建失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Log.e("SettingsActivity", "setupWorldBook 失败: ${e.message}", e)
-            binding.tvWorldBookEmpty.visibility = View.VISIBLE
+            Toast.makeText(this, "创建失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showEditWorldBookDialog(name: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("get_world_book", name)?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") != "ok") {
+                Toast.makeText(this, "加载失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val book = json.optJSONObject("book") ?: return
+            val description = book.optString("description", "")
+            val entryCount = book.optInt("entry_count", 0)
+
+            val layout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+            }
+
+            // 描述信息行
+            layout.addView(TextView(this).apply {
+                text = "描述：${description.take(50)}"
+                textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+                setPadding(0, 0, 0, 8)
+            })
+            layout.addView(TextView(this).apply {
+                text = "条目数：${entryCount} 条"
+                textSize = 13f; setTextColor(getColor(android.R.color.darker_gray))
+                setPadding(0, 0, 0, 12)
+            })
+            layout.addView(createDivider())
+
+            // 编辑描述按钮
+            val editDescBtn = android.widget.Button(this).apply {
+                text = "编辑描述"
+                textSize = 14f; setTextColor(getColor(R.color.primary))
+                setBackgroundColor(getColor(android.R.color.transparent))
+                setPadding(0, 12, 0, 12)
+                setOnClickListener {
+                    showEditDescriptionDialog(name, description)
+                }
+            }
+            layout.addView(editDescBtn)
+            layout.addView(createDivider())
+
+            // 管理条目按钮
+            val editEntriesBtn = android.widget.Button(this).apply {
+                text = "管理条目（${entryCount}条）"
+                textSize = 14f; setTextColor(getColor(R.color.primary))
+                setBackgroundColor(getColor(android.R.color.transparent))
+                setPadding(0, 12, 0, 12)
+                setOnClickListener {
+                    Toast.makeText(this@SettingsActivity, "条目管理功能将在后续版本中完善", Toast.LENGTH_SHORT).show()
+                }
+            }
+            layout.addView(editEntriesBtn)
+            layout.addView(createDivider())
+
+            // 删除按钮
+            val deleteBtn = android.widget.Button(this).apply {
+                text = "删除世界书"
+                textSize = 14f; setTextColor(getColor(R.color.accent_red))
+                setBackgroundColor(getColor(android.R.color.transparent))
+                setPadding(0, 12, 0, 12)
+                setOnClickListener {
+                    showDeleteWorldBookConfirmDialog(name)
+                }
+            }
+            layout.addView(deleteBtn)
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle("编辑世界书 — ${name}")
+                .setView(layout)
+                .setPositiveButton("关闭", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "showEditWorldBookDialog 失败: ${e.message}", e)
+            Toast.makeText(this, "加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showEditDescriptionDialog(name: String, currentDescription: String) {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+        }
+        val etDesc = EditText(this).apply {
+            setText(currentDescription)
+            textSize = 14f; setTextColor(getColor(R.color.text_primary))
+            setPadding(0, 8, 0, 8); maxLines = 5
+        }
+        layout.addView(etDesc)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("编辑描述")
+            .setView(layout)
+            .setPositiveButton("保存") { _, _ ->
+                val newDesc = etDesc.text.toString().trim()
+                updateWorldBookDescription(name, newDesc)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun updateWorldBookDescription(name: String, description: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            // 获取现有条目，保留不变
+            val bookResult = module?.callAttr("get_world_book", name)?.toString() ?: "{}"
+            val bookJson = JSONObject(bookResult)
+            val book = bookJson.optJSONObject("book")
+            val entries = if (book != null) book.optJSONArray("entries")?.toString() ?: "[]" else "[]"
+
+            val result = module?.callAttr("update_world_book", name, description, entries)?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") == "ok") {
+                Toast.makeText(this, "描述已更新", Toast.LENGTH_SHORT).show()
+                refreshUI()
+            } else {
+                Toast.makeText(this, "更新失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "更新失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showDeleteWorldBookConfirmDialog(name: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("删除世界书")
+            .setMessage("确定要删除世界书「${name}」吗？\n\n此操作不可撤销！")
+            .setPositiveButton("确认删除") { _, _ ->
+                deleteWorldBook(name)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun deleteWorldBook(name: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("delete_world_book", name)?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") == "ok") {
+                saveEnabledWorldBooks()
+                Toast.makeText(this, "世界书「${name}」已删除", Toast.LENGTH_SHORT).show()
+                refreshUI()
+                showWorldBookDialog()
+            } else {
+                Toast.makeText(this, "删除失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun createWorldBookRow(
-        name: String,
-        description: String,
-        entries: Int,
-        isEnabled: Boolean,
+        name: String, description: String, entries: Int, isEnabled: Boolean,
     ): android.widget.LinearLayout {
         val row = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(0, resources.getDimensionPixelSize(R.dimen.spacing_sm),
-                0, resources.getDimensionPixelSize(R.dimen.spacing_sm))
+            setPadding(0, 8, 0, 8)
+            // 点击整行进入编辑
+            isClickable = true; isFocusable = true
+            setBackgroundResource(android.R.attr.selectableItemBackground)
+            setOnClickListener { showEditWorldBookDialog(name) }
         }
-
-        // 左侧：名称 + 描述
         val textLayout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                0,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-
-        val tvName = TextView(this).apply {
-            text = name
-            textSize = resources.getDimension(R.dimen.text_body) / resources.displayMetrics.scaledDensity
-            setTextColor(getColor(R.color.text_primary))
-            setPadding(0, 0, 0, 2)
-        }
-        textLayout.addView(tvName)
-
-        val tvInfo = TextView(this).apply {
-            text = "${getString(R.string.label_world_book_entries).format(entries)} · ${description.take(30)}"
-            textSize = resources.getDimension(R.dimen.text_caption) / resources.displayMetrics.scaledDensity
-            setTextColor(getColor(R.color.text_secondary))
-            maxLines = 1
+        textLayout.addView(TextView(this).apply {
+            text = name; textSize = 15f; setTextColor(getColor(R.color.text_primary)); setPadding(0, 0, 0, 2)
+        })
+        textLayout.addView(TextView(this).apply {
+            text = "${entries}条 · ${description.take(30)}"
+            textSize = 12f; setTextColor(getColor(R.color.text_secondary)); maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-        }
-        textLayout.addView(tvInfo)
+        })
         row.addView(textLayout)
-
-        // 右侧：Switch
         val switch = androidx.appcompat.widget.SwitchCompat(this).apply {
             isChecked = isEnabled
             setOnCheckedChangeListener { _, checked ->
                 try {
                     val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                     if (checked) {
-                        val result = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
-                        val json = JSONObject(result)
-                        if (json.optString("status") == "ok") {
+                        val r = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
+                        val j = JSONObject(r)
+                        if (j.optString("status") == "ok") {
                             saveEnabledWorldBooks()
                             Toast.makeText(this@SettingsActivity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
                         } else {
                             isChecked = false
-                            Toast.makeText(this@SettingsActivity, "启用失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@SettingsActivity, "启用失败: ${j.optString("message")}", Toast.LENGTH_SHORT).show()
                         }
                     } else {
                         module?.callAttr("disable_world_book", name)
@@ -667,17 +831,14 @@ class SettingsActivity : AppCompatActivity() {
                         Toast.makeText(this@SettingsActivity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    isChecked = !checked
-                    Toast.makeText(this@SettingsActivity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    isChecked = !checked; Toast.makeText(this@SettingsActivity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
         row.addView(switch)
-
         return row
     }
 
-    /** 将当前已启用的世界书列表持久化到 SharedPreferences。 */
     private fun saveEnabledWorldBooks() {
         try {
             val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
@@ -691,57 +852,108 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    // ======================== 辅助方法 ========================
+
+    private fun createSettingsRow(
+        label: String, value: String, clickable: Boolean, valueColor: Int = R.color.text_secondary,
+        onClick: (() -> Unit)? = null,
+    ): android.widget.LinearLayout {
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 12, 0, 12)
+            if (clickable) {
+                isClickable = true; isFocusable = true
+                setBackgroundResource(android.R.attr.selectableItemBackground)
+                setOnClickListener { onClick?.invoke() }
+            }
+        }
+        row.addView(TextView(this).apply {
+            text = label; textSize = 15f; setTextColor(getColor(R.color.text_primary))
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        row.addView(TextView(this).apply {
+            text = value; textSize = 13f; setTextColor(getColor(valueColor))
+        })
+        return row
+    }
+
+    private fun createDivider(): View {
+        return View(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                resources.getDimensionPixelSize(R.dimen.divider_thickness)
+            )
+            setBackgroundColor(getColor(R.color.glass_border))
+        }
+    }
+
+    private fun applyAllParams() {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val ctx = AppConfig.getContextSize(this)
+            val temp = AppConfig.getTemperature(this).toDouble()
+            val maxTk = AppConfig.getMaxTokens(this)
+            val dialogues = AppConfig.getExampleDialogues(this)
+            val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
+            val result = module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") != "ok") {
+                Toast.makeText(this, "参数应用失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "参数应用失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // ======================== UI刷新 ========================
 
     private fun refreshUI() {
-        // API Key 从加密存储读取
+        // 账户摘要
         val apiKey = AppConfig.getApiKey(this)
-        if (apiKey.isNotEmpty()) {
-            binding.tvApiKeyStatus.text = "已配置 (${apiKey.take(4)}...)"
-            binding.tvApiKeyStatus.setTextColor(getColor(android.R.color.holo_green_light))
-        } else {
-            binding.tvApiKeyStatus.text = "未配置"
-            binding.tvApiKeyStatus.setTextColor(getColor(android.R.color.holo_red_light))
-        }
-
+        val apiStatus = if (apiKey.isNotEmpty()) "已配置" else "未配置"
         val char = CharacterStorage.getCurrent(this)
-        binding.tvRolePreset.text = char.name
+        val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
+        binding.tvAccountSummary.text = "$apiStatus · ${char.name} · $model"
 
-        val model = AppConfig.getModel(this@SettingsActivity).let {
-            if (it.isBlank()) "deepseek-v4-flash（默认）" else it
-        }
-        binding.tvModel.text = model
+        // 对话摘要
+        val ctxSize = AppConfig.getContextSize(this)
+        val temp = AppConfig.getTemperature(this)
+        val tempLabel = when { temp <= 0.5f -> "保守"; temp >= 0.9f -> "创意"; else -> "中等" }
+        val maxTk = AppConfig.getMaxTokens(this)
+        binding.tvChatSummary.text = "${ctxSize} token · 创意度${tempLabel} · 回复${maxTk}字"
 
-        val ctxSize = AppConfig.getContextSize(this@SettingsActivity)
-        binding.tvContextSize.text = "${ctxSize} token"
-
-        val temp = AppConfig.getTemperature(this@SettingsActivity)
-        val tempLabel = when {
-            temp <= 0.5f -> "0.5 保守"
-            temp >= 0.9f -> "0.9 创意"
-            else -> "0.7 中等"
-        }
-        binding.tvTemperature.text = tempLabel
-
-        val maxTk = AppConfig.getMaxTokens(this@SettingsActivity)
-        val tokenLabel = when (maxTk) {
-            500 -> "500（简洁）"
-            2000 -> "2000（详细）"
-            else -> "1000（适中）"
-        }
-        binding.tvMaxTokens.text = tokenLabel
-
-        val dialogues = AppConfig.getExampleDialogues(this@SettingsActivity)
-        binding.tvExampleDialogues.text = "${dialogues}条"
-
+        // 主动消息摘要
+        val enabled = prefs.getBoolean("proactive_enabled", false)
         val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
         val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
-        binding.tvProactiveInterval.text = intervalLabel
-
         val start = prefs.getString("quiet_start", "") ?: ""
         val end = prefs.getString("quiet_end", "") ?: ""
-        binding.tvQuietTime.text =
-            if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
+        val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "免打扰 $start-$end" else "无免打扰"
+        binding.tvProactiveSummary.text = if (enabled) "已开启 · $intervalLabel · $quietLabel" else "已关闭"
+
+        // 记忆摘要
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("get_memory_count")?.toString() ?: "{}"
+            val json = JSONObject(result)
+            val count = json.optInt("count", 0)
+            binding.tvMemorySummary.text = "${count}条长期记忆"
+        } catch (e: Exception) {
+            binding.tvMemorySummary.text = "加载中..."
+        }
+
+        // 世界书摘要
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
+            val json = JSONObject(result)
+            val enabled = json.optJSONArray("enabled")
+            val count = enabled?.length() ?: 0
+            binding.tvWorldBookSummary.text = if (count > 0) "已启用${count}本" else "未启用"
+        } catch (e: Exception) {
+            binding.tvWorldBookSummary.text = "未启用"
+        }
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
     }

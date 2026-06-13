@@ -68,6 +68,10 @@ from ._world_book import (
     enable_world_book,
     disable_world_book,
     get_enabled_world_books,
+    create_world_book,
+    delete_world_book,
+    get_world_book,
+    update_world_book,
 )
 
 # 保持向后兼容的 __all__
@@ -102,4 +106,8 @@ __all__ = [
     "enable_world_book",
     "disable_world_book",
     "get_enabled_world_books",
+    "create_world_book",
+    "delete_world_book",
+    "get_world_book",
+    "update_world_book",
 ]

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 设置页面：ScrollView 内包含 5 个设置卡片区域 -->
-<!-- 优化：增大点击区域(44→52dp)、加大卡片间距和内边距，适配 HyperOS/MagicOS 缩放 -->
+<!-- 设置页面：简洁卡片式，子级控件点击后弹出 -->
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -54,544 +53,201 @@
 
         <!-- ===== 账户设置卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardAccount"
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/spacing_page"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_account_settings"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvAccountSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
 
                 <TextView
-                    style="@style/SettingsItemTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_account_settings"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="@dimen/spacing_lg" />
-
-                <LinearLayout
-                    android:id="@+id/itemApiKey"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_api_key"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvApiKeyStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/status_not_configured"
-                        android:textColor="@color/accent_red"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemRolePreset"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_role_preset"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvRolePreset"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/preset_xiaomei"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemModel"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_model_selection"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvModel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/value_follow_preset"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
+                    android:textColor="@color/text_tertiary"
+                    android:gravity="center" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 对话设置卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardChat"
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/spacing_page"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_chat_settings"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvChatSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
 
                 <TextView
-                    style="@style/SettingsItemTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_chat_settings"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="@dimen/spacing_lg" />
-
-                <LinearLayout
-                    android:id="@+id/itemContextSize"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_context_window"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvContextSize"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/default_context_size"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemTemperature"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_temperature"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvTemperature"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/default_temperature"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemMaxTokens"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_max_tokens"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvMaxTokens"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/default_max_tokens"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemExampleDialogues"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_example_dialogues"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvExampleDialogues"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/default_example_dialogues"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemNewChat"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_new_chat"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemClearMemory"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_clear_memory"
-                        android:textColor="@color/accent_orange"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
+                    android:textColor="@color/text_tertiary"
+                    android:gravity="center" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 主动消息卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardProactive"
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/spacing_page"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_proactive_messages"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvProactiveSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
 
                 <TextView
-                    style="@style/SettingsItemTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_proactive_messages"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="@dimen/spacing_lg" />
-
-                <LinearLayout
-                    android:id="@+id/itemProactiveToggle"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_proactive_toggle"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/swProactive"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="false" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemProactiveInterval"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_send_frequency"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvProactiveInterval"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/default_proactive_interval"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/divider_thickness"
-                    android:background="@color/glass_border" />
-
-                <LinearLayout
-                    android:id="@+id/itemQuietTime"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_quiet_time"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvQuietTime"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/value_not_set"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-
-                    <TextView
-                        android:layout_width="@dimen/icon_size_small"
-                        android:layout_height="@dimen/icon_size_small"
-                        android:text="@string/icon_chevron"
-                        android:textSize="@dimen/text_heading"
-                        android:textColor="@color/text_tertiary"
-                        android:gravity="center" />
-                </LinearLayout>
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
+                    android:textColor="@color/text_tertiary"
+                    android:gravity="center" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- ===== 记忆管理卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardMemory"
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/spacing_page"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
-                android:id="@+id/itemMemoryManage"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/settings_item_height"
+                android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackground">
+                android:orientation="horizontal">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/label_memory_manage"
-                    android:textColor="@color/text_primary"
-                    android:textSize="@dimen/text_body"
-                    android:textStyle="bold" />
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/tvMemoryCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/value_loading_ellipsis"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="@dimen/text_caption"
-                    android:layout_marginEnd="@dimen/spacing_md" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_memory_manage"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvMemorySummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="@dimen/icon_size_small"
@@ -605,50 +261,53 @@
 
         <!-- ===== 世界书卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardWorldBook"
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/spacing_page"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/SettingsItemTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_world_book"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="@dimen/spacing_sm" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/desc_world_book"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="@dimen/text_caption"
-                    android:layout_marginBottom="@dimen/spacing_lg" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <LinearLayout
-                    android:id="@+id/worldBookContainer"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_world_book"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvWorldBookSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/tvWorldBookEmpty"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/world_book_no_books"
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
                     android:textColor="@color/text_tertiary"
-                    android:textSize="@dimen/text_body"
-                    android:gravity="center"
-                    android:padding="@dimen/spacing_lg"
-                    android:visibility="gone" />
-
+                    android:gravity="center" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -663,42 +322,29 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <TextView
-                    style="@style/SettingsItemTitle"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:text="@string/section_about"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="@dimen/spacing_lg" />
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/text_body"
+                    android:textStyle="bold" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/settings_item_height"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/label_version"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body" />
-
-                    <TextView
-                        android:id="@+id/tvVersion"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/app_version"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="@dimen/text_caption" />
-                </LinearLayout>
+                <TextView
+                    android:id="@+id/tvVersion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_version"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_caption" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 底部留白，避免被导航栏遮挡 -->
+        <!-- 底部留白 -->
         <View
             android:layout_width="match_parent"
             android:layout_height="@dimen/bottom_spacer" />

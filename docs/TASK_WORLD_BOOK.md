@@ -374,4 +374,7 @@ engine.match_and_inject(txt) → str         (已有)
 | role_player 缺少世界书注入方法 | 中 | 中 | T2 中预留新增方法的时间，已有 `inject_memories` 可参考 |
 | APK 打包未包含 world_books 数据 | 低 | 高 | T3 中显式检查 build.gradle.kts 配置 |
 | 世界书 prompt 过长导致超 token 限制 | 低 | 中 | TokenPreset 中已预留 `world_book_max_chars=15%` |
+| 切换世界书后历史含旧设定 | 中 | 中 | T4 切换时弹出提示"建议开始新对话" |
+| 重启后世界书勾选丢失 | 高 | 高 | T6 持久化到 SharedPreferences，启动时自动恢复 |
+| 多轮对话上下文累积导致重复注入 | 中 | 中 | 确认 WorldBookEngine 内部有轮次去重机制 |
 | Chaquopy 路径解析问题 | 低 | 中 | 参考 _state.py 已有的路径修复模式 |

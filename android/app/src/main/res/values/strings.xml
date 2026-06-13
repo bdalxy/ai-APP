@@ -67,7 +67,7 @@
     <string name="value_not_set">不设置</string>
 
     <!-- 记忆管理 -->
-    <string name="label_memory_manage">记忆管理</string>
+    <string name="label_memory_manage">AI 记忆管理</string>
     <string name="value_loading_ellipsis">...</string>
 
     <!-- 关于 -->
@@ -83,13 +83,14 @@
     <string name="preset_xiaomei">小美</string>
 
     <!-- ===== 记忆管理页 (activity_memory_manage) ===== -->
-    <string name="title_memory_manage">记忆管理</string>
+    <string name="title_memory_manage">AI 的记忆</string>
     <string name="stats_total_memories">总记忆数：-- 条</string>
     <string name="status_loading">加载中...</string>
-    <string name="hint_search_memories">搜索记忆内容...</string>
-    <string name="empty_memories">还没有任何记忆\n聊聊天，AI 会自动记住重要信息</string>
+    <string name="hint_search_memories">搜索 AI 记忆内容...</string>
+    <string name="empty_memories">AI 还没有形成记忆\n聊聊天，AI 会自动从对话中提取重要信息</string>
     <string name="action_load_more">加载更多...</string>
     <string name="action_clear_all_memories">清空全部记忆</string>
+    <string name="desc_memory_ai_perspective">以下是 AI 对你们对话的记忆（以 AI 的视角记录）</string>
 
     <!-- ===== 角色管理页 (activity_character_manage) ===== -->
     <string name="title_character_manage">角色管理</string>
