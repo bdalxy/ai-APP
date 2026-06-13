@@ -125,6 +125,16 @@ class MainActivity : AppCompatActivity() {
                 val character = CharacterStorage.getCurrent(this@MainActivity)
                 module.callAttr("set_character_card", character.name, character.personality, character.speakingStyle, character.backstory)
 
+                // 5. 恢复已启用的世界书
+                val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                val savedBooks = prefs.getString("enabled_world_books", "") ?: ""
+                if (savedBooks.isNotBlank()) {
+                    savedBooks.split(",").filter { it.isNotBlank() }.forEach { name ->
+                        val result = module.callAttr("enable_world_book", name.trim()).toString()
+                        Log.d("MainActivity", "恢复世界书 $name: $result")
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
                     pythonModule = module
                     binding.tvStatus.text = ""

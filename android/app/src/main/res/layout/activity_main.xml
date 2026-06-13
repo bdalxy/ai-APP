@@ -23,19 +23,19 @@
         <!-- 顶栏：玻璃态 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/topbar_height"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="@dimen/spacing_page"
             android:background="@drawable/bg_glass_top">
 
             <!-- 头像占位 -->
             <ImageView
                 android:id="@+id/ivAvatar"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/avatar_size_small"
+                android:layout_height="@dimen/avatar_size_small"
                 android:src="@drawable/ic_avatar_placeholder"
-                android:contentDescription="角色头像" />
+                android:contentDescription="@string/cd_avatar" />
 
             <!-- 角色名 + 在线状态 -->
             <LinearLayout
@@ -43,14 +43,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical"
-                android:paddingHorizontal="10dp">
+                android:paddingHorizontal="@dimen/spacing_lg">
 
                 <TextView
                     android:id="@+id/tvTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="小美"
-                    android:textSize="17sp"
+                    android:text="@string/tv_default_character_name"
+                    android:textSize="@dimen/text_title_small"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary" />
 
@@ -58,23 +58,23 @@
                     android:id="@+id/tvStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="在线"
-                    android:textSize="12sp"
+                    android:text="@string/status_online"
+                    android:textSize="@dimen/text_small"
                     android:textColor="@color/accent_green" />
             </LinearLayout>
 
             <!-- 设置按钮 -->
             <TextView
                 android:id="@+id/btnSettings"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:text="≡"
-                android:textSize="24sp"
+                android:layout_width="@dimen/avatar_size_small"
+                android:layout_height="@dimen/avatar_size_small"
+                android:text="@string/btn_menu"
+                android:textSize="@dimen/text_xlarge"
                 android:textColor="@color/text_primary"
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
-                android:contentDescription="设置" />
+                android:contentDescription="@string/cd_settings" />
         </LinearLayout>
 
         <!-- 消息列表 -->
@@ -83,7 +83,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:padding="8dp"
+            android:padding="@dimen/message_list_padding"
             android:clipToPadding="false"
             android:overScrollMode="never" />
 
@@ -93,7 +93,7 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="10dp"
+            android:padding="@dimen/input_padding"
             android:background="@drawable/bg_glass_bottom">
 
             <EditText
@@ -101,23 +101,23 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:padding="10dp"
+                android:padding="@dimen/input_padding"
                 android:maxLines="4"
-                android:hint="说点什么..."
+                android:hint="@string/hint_input_message"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
+                android:textSize="@dimen/text_body"
                 android:background="@drawable/bg_input_field"
                 android:inputType="textMultiLine"
                 android:imeOptions="actionSend" />
 
             <TextView
                 android:id="@+id/btnSend"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="8dp"
-                android:text="↑"
-                android:textSize="18sp"
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small"
+                android:layout_marginStart="@dimen/spacing_md"
+                android:text="@string/btn_send"
+                android:textSize="@dimen/text_title"
                 android:textColor="@color/text_on_pink"
                 android:gravity="center"
                 android:clickable="true"

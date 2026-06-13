@@ -15,49 +15,50 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="@dimen/spacing_page">
 
         <!-- ===== 顶栏 ===== -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="52dp"
+            android:layout_height="@dimen/topbar_height_alt"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="@dimen/spacing_3xl">
 
             <TextView
                 android:id="@+id/btnBack"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:text="\u2190"
-                android:textSize="22sp"
+                android:layout_width="@dimen/button_medium"
+                android:layout_height="@dimen/button_medium"
+                android:text="@string/btn_back_arrow"
+                android:textSize="@dimen/text_large"
                 android:textColor="@color/text_primary"
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
-                android:contentDescription="返回" />
+                android:contentDescription="@string/cd_back" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="设置"
-                android:textSize="20sp"
+                android:text="@string/title_settings"
+                android:textSize="@dimen/text_heading"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:gravity="center" />
 
             <View
-                android:layout_width="44dp"
-                android:layout_height="44dp" />
+                android:layout_width="@dimen/button_medium"
+                android:layout_height="@dimen/button_medium" />
         </LinearLayout>
 
+        <!-- ===== 账户设置卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:contentPadding="16dp">
+            android:layout_marginBottom="@dimen/spacing_page"
+            app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -68,14 +69,14 @@
                     style="@style/SettingsItemTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="账户设置"
+                    android:text="@string/section_account_settings"
                     android:textStyle="bold"
-                    android:layout_marginBottom="10dp" />
+                    android:layout_marginBottom="@dimen/spacing_lg" />
 
                 <LinearLayout
                     android:id="@+id/itemApiKey"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -86,36 +87,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="API Key"
+                        android:text="@string/label_api_key"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvApiKeyStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="未配置"
+                        android:text="@string/status_not_configured"
                         android:textColor="@color/accent_red"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemRolePreset"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -126,36 +127,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="角色预设"
+                        android:text="@string/label_role_preset"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvRolePreset"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="小美"
+                        android:text="@string/preset_xiaomei"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemModel"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -166,35 +167,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="模型选择"
+                        android:text="@string/label_model_selection"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvModel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="跟随预设"
+                        android:text="@string/value_follow_preset"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- ===== 对话设置卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:contentPadding="16dp">
+            android:layout_marginBottom="@dimen/spacing_page"
+            app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -205,14 +207,14 @@
                     style="@style/SettingsItemTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="对话设置"
+                    android:text="@string/section_chat_settings"
                     android:textStyle="bold"
-                    android:layout_marginBottom="10dp" />
+                    android:layout_marginBottom="@dimen/spacing_lg" />
 
                 <LinearLayout
                     android:id="@+id/itemContextSize"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -223,36 +225,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="上下文窗口"
+                        android:text="@string/label_context_window"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvContextSize"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="2000"
+                        android:text="@string/default_context_size"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemTemperature"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -263,36 +265,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="创意度（温度）"
+                        android:text="@string/label_temperature"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvTemperature"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0.7"
+                        android:text="@string/default_temperature"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemMaxTokens"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -303,36 +305,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="回复详细度"
+                        android:text="@string/label_max_tokens"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvMaxTokens"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="1000"
+                        android:text="@string/default_max_tokens"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemExampleDialogues"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -343,36 +345,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="示例对话数"
+                        android:text="@string/label_example_dialogues"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvExampleDialogues"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="1条"
+                        android:text="@string/default_example_dialogues"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemNewChat"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -383,28 +385,28 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="开始新对话"
+                        android:text="@string/action_new_chat"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemClearMemory"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -415,27 +417,28 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="清空对话记忆"
+                        android:text="@string/action_clear_memory"
                         android:textColor="@color/accent_orange"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- ===== 主动消息卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:contentPadding="16dp">
+            android:layout_marginBottom="@dimen/spacing_page"
+            app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -446,14 +449,14 @@
                     style="@style/SettingsItemTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="主动消息"
+                    android:text="@string/section_proactive_messages"
                     android:textStyle="bold"
-                    android:layout_marginBottom="10dp" />
+                    android:layout_marginBottom="@dimen/spacing_lg" />
 
                 <LinearLayout
                     android:id="@+id/itemProactiveToggle"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -461,9 +464,9 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="开启主动消息"
+                        android:text="@string/label_proactive_toggle"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <androidx.appcompat.widget.SwitchCompat
                         android:id="@+id/swProactive"
@@ -474,13 +477,13 @@
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemProactiveInterval"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -491,36 +494,36 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="发送频率"
+                        android:text="@string/label_send_frequency"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvProactiveInterval"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="每3小时"
+                        android:text="@string/default_proactive_interval"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="0.5dp"
+                    android:layout_height="@dimen/divider_thickness"
                     android:background="@color/glass_border" />
 
                 <LinearLayout
                     android:id="@+id/itemQuietTime"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:clickable="true"
@@ -531,40 +534,41 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="静默时段"
+                        android:text="@string/label_quiet_time"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvQuietTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="不设置"
+                        android:text="@string/value_not_set"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
 
                     <TextView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:text="\u203A"
-                        android:textSize="20sp"
+                        android:layout_width="@dimen/icon_size_small"
+                        android:layout_height="@dimen/icon_size_small"
+                        android:text="@string/icon_chevron"
+                        android:textSize="@dimen/text_heading"
                         android:textColor="@color/text_tertiary"
                         android:gravity="center" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- ===== 记忆管理卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:contentPadding="16dp">
+            android:layout_marginBottom="@dimen/spacing_page"
+            app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:id="@+id/itemMemoryManage"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="@dimen/settings_item_height"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:clickable="true"
@@ -575,36 +579,37 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="记忆管理"
+                    android:text="@string/label_memory_manage"
                     android:textColor="@color/text_primary"
-                    android:textSize="15sp"
+                    android:textSize="@dimen/text_body"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvMemoryCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="..."
+                    android:text="@string/value_loading_ellipsis"
                     android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:layout_marginEnd="8dp" />
+                    android:textSize="@dimen/text_caption"
+                    android:layout_marginEnd="@dimen/spacing_md" />
 
                 <TextView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:text="\u203A"
-                    android:textSize="20sp"
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
                     android:textColor="@color/text_tertiary"
                     android:gravity="center" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- ===== 世界书卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:contentPadding="16dp">
+            android:layout_marginBottom="@dimen/spacing_page"
+            app:contentPadding="@dimen/card_padding">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -615,13 +620,62 @@
                     style="@style/SettingsItemTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="关于"
+                    android:text="@string/section_world_book"
                     android:textStyle="bold"
-                    android:layout_marginBottom="10dp" />
+                    android:layout_marginBottom="@dimen/spacing_sm" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/desc_world_book"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_caption"
+                    android:layout_marginBottom="@dimen/spacing_lg" />
+
+                <LinearLayout
+                    android:id="@+id/worldBookContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/tvWorldBookEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/world_book_no_books"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="@dimen/text_body"
+                    android:gravity="center"
+                    android:padding="@dimen/spacing_lg"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ===== 关于卡片 ===== -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_page"
+            app:contentPadding="@dimen/card_padding">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsItemTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_about"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="@dimen/spacing_lg" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -629,17 +683,17 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="版本号"
+                        android:text="@string/label_version"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
+                        android:textSize="@dimen/text_body" />
 
                     <TextView
                         android:id="@+id/tvVersion"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="v1.0.0"
+                        android:text="@string/app_version"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/text_caption" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -647,7 +701,7 @@
         <!-- 底部留白，避免被导航栏遮挡 -->
         <View
             android:layout_width="match_parent"
-            android:layout_height="24dp" />
+            android:layout_height="@dimen/bottom_spacer" />
 
     </LinearLayout>
 </ScrollView>

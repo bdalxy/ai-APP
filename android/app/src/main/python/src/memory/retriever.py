@@ -249,12 +249,9 @@ class MemoryRetriever:
         return [entry for entry, _ in scored[:top_k]]
 
     def get_recent(self, top_k: int = 10) -> list[MemoryEntry]:
-        all_entries = self.vector_store.get_all()
-        all_entries.sort(key=lambda e: e.created_at, reverse=True)
-        return all_entries[:top_k]
+        """获取最近 N 条记忆（SQL 层 ORDER BY created_at DESC，避免全量加载）。"""
+        return self.vector_store.get_recent_entries(top_k)
 
     def get_important(self, min_importance: float = 0.7, top_k: int = 10) -> list[MemoryEntry]:
-        all_entries = self.vector_store.get_all()
-        filtered = [e for e in all_entries if e.importance >= min_importance]
-        filtered.sort(key=lambda e: e.importance, reverse=True)
-        return filtered[:top_k]
+        """获取重要记忆（SQL 层 WHERE importance >= ? + ORDER BY，避免全量加载）。"""
+        return self.vector_store.get_important_entries(min_importance, top_k)

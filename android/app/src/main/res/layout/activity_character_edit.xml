@@ -11,25 +11,25 @@
     <!-- ===== 玻璃态顶栏 ===== -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="@dimen/topbar_height"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
+        android:paddingHorizontal="@dimen/spacing_xl"
         android:background="@color/glass_bg"
-        android:elevation="4dp">
+        android:elevation="@dimen/topbar_elevation">
 
         <!-- 返回按钮 -->
         <TextView
             android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:text="←"
-            android:textSize="22sp"
+            android:layout_width="@dimen/button_small"
+            android:layout_height="@dimen/button_small"
+            android:text="@string/btn_back_arrow"
+            android:textSize="@dimen/text_large"
             android:textColor="@color/text_primary"
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="返回" />
+            android:contentDescription="@string/cd_back" />
 
         <!-- 页面标题 -->
         <TextView
@@ -37,8 +37,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="创建角色"
-            android:textSize="18sp"
+            android:text="@string/title_create_character"
+            android:textSize="@dimen/text_title"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:gravity="center" />
@@ -46,23 +46,23 @@
         <!-- 保存按钮（粉紫渐变） -->
         <TextView
             android:id="@+id/btnSave"
-            android:layout_width="56dp"
-            android:layout_height="34dp"
-            android:text="保存"
-            android:textSize="13sp"
+            android:layout_width="@dimen/tag_width_narrow"
+            android:layout_height="@dimen/tag_height"
+            android:text="@string/btn_save"
+            android:textSize="@dimen/text_caption"
             android:textColor="@color/bubble_user_text"
             android:gravity="center"
             android:background="@drawable/bg_btn_send"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="保存角色" />
+            android:contentDescription="@string/cd_save_character" />
     </LinearLayout>
 
     <!-- ===== 表单滚动区 ===== -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp">
+        android:padding="@dimen/spacing_page">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -73,142 +73,142 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="角色名称"
-                android:textSize="13sp"
+                android:text="@string/label_character_name"
+                android:textSize="@dimen/text_caption"
                 android:textColor="@color/text_secondary"
-                android:layout_marginBottom="6dp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:layout_marginStart="@dimen/spacing_xs" />
 
             <EditText
                 android:id="@+id/etName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="给角色起个名字"
+                android:hint="@string/hint_character_name"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
+                android:textSize="@dimen/text_body"
+                android:paddingHorizontal="@dimen/input_padding_horizontal"
+                android:paddingVertical="@dimen/input_padding_vertical"
                 android:background="@drawable/bg_input_field"
                 android:maxLines="1"
                 android:inputType="text"
                 android:importantForAutofill="no"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="@dimen/spacing_page" />
 
             <!-- 性格特征 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="性格特征"
-                android:textSize="13sp"
+                android:text="@string/label_personality"
+                android:textSize="@dimen/text_caption"
                 android:textColor="@color/text_secondary"
-                android:layout_marginBottom="6dp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:layout_marginStart="@dimen/spacing_xs" />
 
             <EditText
                 android:id="@+id/etPersonality"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="描述角色的性格特点，如：温柔、活泼、善解人意"
+                android:hint="@string/hint_personality"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
+                android:textSize="@dimen/text_body"
+                android:paddingHorizontal="@dimen/input_padding_horizontal"
+                android:paddingVertical="@dimen/input_padding_vertical"
                 android:background="@drawable/bg_input_field"
                 android:minLines="3"
                 android:maxLines="6"
                 android:gravity="top"
                 android:inputType="textMultiLine"
                 android:importantForAutofill="no"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="@dimen/spacing_page" />
 
             <!-- 说话风格 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="说话风格"
-                android:textSize="13sp"
+                android:text="@string/label_speaking_style"
+                android:textSize="@dimen/text_caption"
                 android:textColor="@color/text_secondary"
-                android:layout_marginBottom="6dp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:layout_marginStart="@dimen/spacing_xs" />
 
             <EditText
                 android:id="@+id/etSpeakingStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="描述角色的说话方式，如语气、常用词、语速等"
+                android:hint="@string/hint_speaking_style"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
+                android:textSize="@dimen/text_body"
+                android:paddingHorizontal="@dimen/input_padding_horizontal"
+                android:paddingVertical="@dimen/input_padding_vertical"
                 android:background="@drawable/bg_input_field"
                 android:minLines="3"
                 android:maxLines="6"
                 android:gravity="top"
                 android:inputType="textMultiLine"
                 android:importantForAutofill="no"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="@dimen/spacing_page" />
 
             <!-- 背景故事 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="背景故事"
-                android:textSize="13sp"
+                android:text="@string/label_backstory"
+                android:textSize="@dimen/text_caption"
                 android:textColor="@color/text_secondary"
-                android:layout_marginBottom="6dp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:layout_marginStart="@dimen/spacing_xs" />
 
             <EditText
                 android:id="@+id/etBackstory"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="角色的出身、经历和世界观设定"
+                android:hint="@string/hint_backstory"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
+                android:textSize="@dimen/text_body"
+                android:paddingHorizontal="@dimen/input_padding_horizontal"
+                android:paddingVertical="@dimen/input_padding_vertical"
                 android:background="@drawable/bg_input_field"
                 android:minLines="3"
                 android:maxLines="8"
                 android:gravity="top"
                 android:inputType="textMultiLine"
                 android:importantForAutofill="no"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="@dimen/spacing_page" />
 
             <!-- 开场白 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="开场白"
-                android:textSize="13sp"
+                android:text="@string/label_greeting"
+                android:textSize="@dimen/text_caption"
                 android:textColor="@color/text_secondary"
-                android:layout_marginBottom="6dp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:layout_marginStart="@dimen/spacing_xs" />
 
             <EditText
                 android:id="@+id/etGreeting"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="角色见到用户时说的第一句话"
+                android:hint="@string/hint_greeting"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
+                android:textSize="@dimen/text_body"
+                android:paddingHorizontal="@dimen/input_padding_horizontal"
+                android:paddingVertical="@dimen/input_padding_vertical"
                 android:background="@drawable/bg_input_field"
                 android:maxLines="2"
                 android:inputType="textMultiLine"
                 android:importantForAutofill="no"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginBottom="@dimen/spacing_4xl" />
 
             <!-- 底部留白，防止被导航栏遮挡 -->
             <View
                 android:layout_width="match_parent"
-                android:layout_height="32dp" />
+                android:layout_height="@dimen/bottom_spacer_large" />
 
         </LinearLayout>
     </ScrollView>

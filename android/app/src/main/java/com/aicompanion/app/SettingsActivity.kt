@@ -71,6 +71,9 @@ class SettingsActivity : AppCompatActivity() {
         // —— 记忆管理 ——
         setupMemoryManage()
 
+        // —— 世界书 ——
+        setupWorldBook()
+
         refreshUI()
     }
 
@@ -531,6 +534,160 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupMemoryManage() {
         binding.itemMemoryManage.setOnClickListener {
             startActivity(Intent(this, MemoryManageActivity::class.java))
+        }
+    }
+
+    // ======================== 世界书 ========================
+
+    private fun setupWorldBook() {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("list_world_books")?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") != "ok") {
+                binding.tvWorldBookEmpty.visibility = View.VISIBLE
+                return
+            }
+
+            val books = json.optJSONArray("books") ?: run {
+                binding.tvWorldBookEmpty.visibility = View.VISIBLE
+                return
+            }
+
+            if (books.length() == 0) {
+                binding.tvWorldBookEmpty.visibility = View.VISIBLE
+                return
+            }
+
+            binding.tvWorldBookEmpty.visibility = View.GONE
+            binding.worldBookContainer.removeAllViews()
+
+            // 获取已启用的世界书列表
+            val enabledResult = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
+            val enabledJson = JSONObject(enabledResult)
+            val enabledArray = enabledJson.optJSONArray("enabled")
+            val enabledSet = mutableSetOf<String>()
+            if (enabledArray != null) {
+                for (i in 0 until enabledArray.length()) {
+                    enabledSet.add(enabledArray.optString(i, ""))
+                }
+            }
+
+            for (i in 0 until books.length()) {
+                val book = books.getJSONObject(i)
+                val name = book.optString("name", "")
+                val description = book.optString("description", "")
+                val entries = book.optInt("entries", 0)
+
+                val row = createWorldBookRow(name, description, entries, name in enabledSet)
+                binding.worldBookContainer.addView(row)
+
+                // 添加分割线（最后一项不加）
+                if (i < books.length() - 1) {
+                    val divider = View(this).apply {
+                        layoutParams = android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                            resources.getDimensionPixelSize(R.dimen.divider_thickness)
+                        )
+                        setBackgroundColor(getColor(R.color.glass_border))
+                    }
+                    binding.worldBookContainer.addView(divider)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "setupWorldBook 失败: ${e.message}", e)
+            binding.tvWorldBookEmpty.visibility = View.VISIBLE
+        }
+    }
+
+    private fun createWorldBookRow(
+        name: String,
+        description: String,
+        entries: Int,
+        isEnabled: Boolean,
+    ): android.widget.LinearLayout {
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setPadding(0, resources.getDimensionPixelSize(R.dimen.spacing_sm),
+                0, resources.getDimensionPixelSize(R.dimen.spacing_sm))
+        }
+
+        // 左侧：名称 + 描述
+        val textLayout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                0,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        }
+
+        val tvName = TextView(this).apply {
+            text = name
+            textSize = resources.getDimension(R.dimen.text_body) / resources.displayMetrics.scaledDensity
+            setTextColor(getColor(R.color.text_primary))
+            setPadding(0, 0, 0, 2)
+        }
+        textLayout.addView(tvName)
+
+        val tvInfo = TextView(this).apply {
+            text = "${getString(R.string.label_world_book_entries).format(entries)} · ${description.take(30)}"
+            textSize = resources.getDimension(R.dimen.text_caption) / resources.displayMetrics.scaledDensity
+            setTextColor(getColor(R.color.text_secondary))
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+        textLayout.addView(tvInfo)
+        row.addView(textLayout)
+
+        // 右侧：Switch
+        val switch = androidx.appcompat.widget.SwitchCompat(this).apply {
+            isChecked = isEnabled
+            setOnCheckedChangeListener { _, checked ->
+                try {
+                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    if (checked) {
+                        val result = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
+                        val json = JSONObject(result)
+                        if (json.optString("status") == "ok") {
+                            saveEnabledWorldBooks()
+                            Toast.makeText(this@SettingsActivity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
+                        } else {
+                            isChecked = false
+                            Toast.makeText(this@SettingsActivity, "启用失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        module?.callAttr("disable_world_book", name)
+                        saveEnabledWorldBooks()
+                        Toast.makeText(this@SettingsActivity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    isChecked = !checked
+                    Toast.makeText(this@SettingsActivity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        row.addView(switch)
+
+        return row
+    }
+
+    /** 将当前已启用的世界书列表持久化到 SharedPreferences。 */
+    private fun saveEnabledWorldBooks() {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
+            val json = JSONObject(result)
+            val enabled = json.optJSONArray("enabled") ?: return
+            val names = (0 until enabled.length()).map { enabled.optString(it, "") }.filter { it.isNotEmpty() }
+            prefs.edit().putString("enabled_world_books", names.joinToString(",")).apply()
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "saveEnabledWorldBooks 失败: ${e.message}", e)
         }
     }
 

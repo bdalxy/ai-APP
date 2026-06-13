@@ -62,6 +62,14 @@ from ._proactive import (
     generate_proactive_message,
 )
 
+# ---- 世界书 ----
+from ._world_book import (
+    list_world_books,
+    enable_world_book,
+    disable_world_book,
+    get_enabled_world_books,
+)
+
 # 保持向后兼容的 __all__
 __all__ = [
     "init",
@@ -90,4 +98,8 @@ __all__ = [
     "set_character_card",
     "get_character_card",
     "generate_proactive_message",
+    "list_world_books",
+    "enable_world_book",
+    "disable_world_book",
+    "get_enabled_world_books",
 ]

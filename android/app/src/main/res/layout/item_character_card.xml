@@ -6,18 +6,18 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp"
+    android:paddingHorizontal="@dimen/card_list_padding_horizontal"
+    android:paddingVertical="@dimen/card_list_padding_vertical_item"
     android:background="?attr/selectableItemBackground">
 
     <!-- 左侧：圆形头像边框占位 -->
     <ImageView
         android:id="@+id/ivCharacterAvatar"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="@dimen/avatar_size_medium"
+        android:layout_height="@dimen/avatar_size_medium"
         android:background="@drawable/bg_avatar_border"
         android:scaleType="centerCrop"
-        android:contentDescription="角色头像" />
+        android:contentDescription="@string/cd_avatar" />
 
     <!-- 中间：名称 + 简介预览 -->
     <LinearLayout
@@ -25,14 +25,14 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="8dp">
+        android:layout_marginStart="@dimen/spacing_xl"
+        android:layout_marginEnd="@dimen/spacing_md">
 
         <TextView
             android:id="@+id/tvCharacterName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
+            android:textSize="@dimen/text_subtitle"
             android:textStyle="bold"
             android:textColor="@color/text_primary" />
 
@@ -40,11 +40,11 @@
             android:id="@+id/tvCharacterPreview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
+            android:textSize="@dimen/text_small"
             android:textColor="@color/text_secondary"
             android:maxLines="1"
             android:ellipsize="end"
-            android:layout_marginTop="2dp" />
+            android:layout_marginTop="@dimen/spacing_xxs" />
     </LinearLayout>
 
     <!-- 右侧：当前指示绿点 + 编辑 + 删除 -->
@@ -57,37 +57,37 @@
         <!-- 当前选中指示绿点 -->
         <View
             android:id="@+id/ivCurrentDot"
-            android:layout_width="8dp"
-            android:layout_height="8dp"
+            android:layout_width="@dimen/spacing_md"
+            android:layout_height="@dimen/spacing_md"
             android:background="@drawable/bg_status_online"
             android:visibility="gone"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="@dimen/spacing_md" />
 
         <!-- 编辑按钮 -->
         <TextView
             android:id="@+id/btnEditCharacter"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:text="✎"
-            android:textSize="18sp"
+            android:layout_width="@dimen/avatar_size_small"
+            android:layout_height="@dimen/avatar_size_small"
+            android:text="@string/btn_edit"
+            android:textSize="@dimen/text_title"
             android:textColor="@color/text_secondary"
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="编辑角色"
-            android:layout_marginEnd="4dp" />
+            android:contentDescription="@string/cd_edit_character"
+            android:layout_marginEnd="@dimen/spacing_xs" />
 
         <!-- 删除按钮 -->
         <TextView
             android:id="@+id/btnDeleteCharacter"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:text="✕"
-            android:textSize="16sp"
+            android:layout_width="@dimen/avatar_size_small"
+            android:layout_height="@dimen/avatar_size_small"
+            android:text="@string/btn_clear"
+            android:textSize="@dimen/text_subtitle"
             android:textColor="@color/accent_red"
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="删除角色" />
+            android:contentDescription="@string/cd_delete_character" />
     </LinearLayout>
 </LinearLayout>

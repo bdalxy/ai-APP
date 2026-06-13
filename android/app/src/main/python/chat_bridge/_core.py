@@ -90,6 +90,7 @@ def chat(user_input: str) -> dict:
     """发送一条消息，获取 AI 角色回复。
 
     自动注入相关记忆：每 N 轮（默认3轮）检索一次记忆并注入到 System Prompt。
+    自动注入世界书：每次对话时对所有已启用的世界书执行关键词匹配注入。
     """
     player = _ctx.player
     orchestrator = _ctx.orchestrator
@@ -115,6 +116,18 @@ def chat(user_input: str) -> dict:
 
         if _state._cached_memories:
             player.inject_memories(_state._cached_memories)
+
+        # 世界书注入：对所有已启用的世界书执行关键词匹配
+        try:
+            from ._world_book import _match_and_inject_for_all
+            world_book_context = _match_and_inject_for_all(user_input)
+            if world_book_context:
+                player.world_book_entries = [world_book_context]
+                _log.debug(f"[世界书] 注入 {len(world_book_context)} 字符")
+            else:
+                player.world_book_entries = []
+        except Exception as e:
+            _log.warning(f"[世界书] 注入失败: {e}")
 
         reply = player.chat(user_input)
 
@@ -150,6 +163,14 @@ def reset() -> dict:
     player = _ctx.player
     if player is not None:
         player.clear_context()
+
+    # 重置世界书轮次计数
+    try:
+        from ._world_book import _reset_round_for_all
+        _reset_round_for_all()
+    except Exception as e:
+        _log.warning(f"[世界书] 重置轮次计数失败: {e}")
+
     return json.dumps({"status": "ok"})
 
 

@@ -72,6 +72,10 @@
 
     <!-- 关于 -->
     <string name="section_about">关于</string>
+    <string name="section_world_book">世界书（知识/常识注入）</string>
+    <string name="desc_world_book">勾选后 AI 将获得相应知识背景，在相关对话中自动注入</string>
+    <string name="world_book_no_books">暂无世界书数据</string>
+    <string name="label_world_book_entries">%d条</string>
     <string name="label_version">版本号</string>
     <string name="app_version">v1.0.0</string>
 

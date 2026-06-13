@@ -11,33 +11,33 @@
     <!-- ===== 玻璃态顶栏 ===== -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="@dimen/topbar_height"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
+        android:paddingHorizontal="@dimen/spacing_xl"
         android:background="@color/glass_bg"
-        android:elevation="4dp">
+        android:elevation="@dimen/topbar_elevation">
 
         <!-- 返回按钮 -->
         <TextView
             android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:text="←"
-            android:textSize="22sp"
+            android:layout_width="@dimen/button_small"
+            android:layout_height="@dimen/button_small"
+            android:text="@string/btn_back_arrow"
+            android:textSize="@dimen/text_large"
             android:textColor="@color/text_primary"
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="返回" />
+            android:contentDescription="@string/cd_back" />
 
         <!-- 标题 -->
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="角色管理"
-            android:textSize="18sp"
+            android:text="@string/title_character_manage"
+            android:textSize="@dimen/text_title"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:gravity="center" />
@@ -45,16 +45,16 @@
         <!-- 新建按钮 -->
         <TextView
             android:id="@+id/btnNewCharacter"
-            android:layout_width="60dp"
-            android:layout_height="34dp"
-            android:text="+ 新建"
-            android:textSize="13sp"
+            android:layout_width="@dimen/tag_width_wide"
+            android:layout_height="@dimen/tag_height"
+            android:text="@string/btn_new_character"
+            android:textSize="@dimen/text_caption"
             android:textColor="@color/text_primary"
             android:gravity="center"
             android:background="@drawable/bg_input_field"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="新建角色" />
+            android:contentDescription="@string/cd_new_character" />
     </LinearLayout>
 
     <!-- ===== 角色卡片列表 ===== -->
@@ -62,6 +62,6 @@
         android:id="@+id/rvCharacters"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingVertical="8dp"
+        android:paddingVertical="@dimen/card_list_padding_vertical"
         android:clipToPadding="false" />
 </LinearLayout>

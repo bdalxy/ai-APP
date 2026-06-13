@@ -12,64 +12,64 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp"
+        android:padding="@dimen/spacing_page"
         android:gravity="center_horizontal">
 
         <!-- ===== 顶栏 ===== -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="@dimen/button_default"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="@dimen/spacing_md">
 
             <TextView
                 android:id="@+id/btnBack"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:text="←"
-                android:textSize="22sp"
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small"
+                android:text="@string/btn_back_arrow"
+                android:textSize="@dimen/text_large"
                 android:textColor="@color/text_primary"
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
-                android:contentDescription="返回" />
+                android:contentDescription="@string/cd_back" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="角色卡片"
-                android:textSize="20sp"
+                android:text="@string/title_character_card"
+                android:textSize="@dimen/text_heading"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:gravity="center" />
 
             <View
-                android:layout_width="40dp"
-                android:layout_height="40dp" />
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small" />
         </LinearLayout>
 
         <!-- ===== 角色头像 ===== -->
         <FrameLayout
-            android:layout_width="128dp"
-            android:layout_height="128dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="16dp">
+            android:layout_width="@dimen/avatar_size_xlarge"
+            android:layout_height="@dimen/avatar_size_xlarge"
+            android:layout_marginTop="@dimen/spacing_xl"
+            android:layout_marginBottom="@dimen/spacing_page">
 
             <View
-                android:layout_width="120dp"
-                android:layout_height="120dp"
+                android:layout_width="@dimen/avatar_inner_large"
+                android:layout_height="@dimen/avatar_inner_large"
                 android:layout_gravity="center"
                 android:background="@drawable/bg_avatar_border" />
 
             <ImageView
                 android:id="@+id/ivCharacterAvatar"
-                android:layout_width="112dp"
-                android:layout_height="112dp"
+                android:layout_width="@dimen/avatar_size_large"
+                android:layout_height="@dimen/avatar_size_large"
                 android:layout_gravity="center"
                 android:scaleType="centerCrop"
-                android:contentDescription="角色头像" />
+                android:contentDescription="@string/cd_avatar" />
         </FrameLayout>
 
         <!-- 角色名称 -->
@@ -77,30 +77,30 @@
             android:id="@+id/tvCharacterName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="小美"
-            android:textSize="22sp"
+            android:text="@string/tv_default_character_name"
+            android:textSize="@dimen/text_large"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
-            android:layout_marginBottom="4dp" />
+            android:layout_marginBottom="@dimen/spacing_xs" />
 
         <!-- 角色描述 -->
         <TextView
             android:id="@+id/tvCharacterDesc"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="温柔体贴的AI伙伴，喜欢分享生活中的小确幸"
-            android:textSize="14sp"
+            android:text="@string/default_character_desc"
+            android:textSize="@dimen/text_body_small"
             android:textColor="@color/text_secondary"
             android:gravity="center"
-            android:layout_marginBottom="20dp" />
+            android:layout_marginBottom="@dimen/spacing_3xl" />
 
         <!-- ===== 性格特征卡片 ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:contentPadding="14dp">
+            android:layout_marginBottom="@dimen/spacing_xl"
+            app:contentPadding="@dimen/card_padding_small">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -109,18 +109,18 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
-                    android:text="性格特征"
+                    android:text="@string/label_personality"
                     android:textStyle="bold"
-                    android:layout_marginBottom="6dp" />
+                    android:layout_marginBottom="@dimen/spacing_sm" />
 
                 <TextView
                     android:id="@+id/tvPersonality"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="温暖、活泼、善解人意、乐于倾听"
-                    android:textSize="14sp"
+                    android:text="@string/default_personality"
+                    android:textSize="@dimen/text_body_small"
                     android:textColor="@color/text_primary"
-                    android:lineSpacingExtra="4dp" />
+                    android:lineSpacingExtra="@dimen/spacing_xs" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -129,8 +129,8 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            app:contentPadding="14dp">
+            android:layout_marginBottom="@dimen/spacing_3xl"
+            app:contentPadding="@dimen/card_padding_small">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -139,18 +139,18 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
-                    android:text="说话风格"
+                    android:text="@string/label_speaking_style"
                     android:textStyle="bold"
-                    android:layout_marginBottom="6dp" />
+                    android:layout_marginBottom="@dimen/spacing_sm" />
 
                 <TextView
                     android:id="@+id/tvSpeakingStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="语气轻柔，喜欢使用可爱的语气词，偶尔夹杂日文短语"
-                    android:textSize="14sp"
+                    android:text="@string/default_speaking_style"
+                    android:textSize="@dimen/text_body_small"
                     android:textColor="@color/text_primary"
-                    android:lineSpacingExtra="4dp" />
+                    android:lineSpacingExtra="@dimen/spacing_xs" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -159,8 +159,8 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:contentPadding="12dp">
+            android:layout_marginBottom="@dimen/spacing_xl"
+            app:contentPadding="@dimen/card_padding_min">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -169,9 +169,9 @@
 
                 <TextView
                     style="@style/SettingsItemTitle"
-                    android:text="角色切换"
+                    android:text="@string/label_character_switch"
                     android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="@dimen/spacing_md" />
 
                 <RadioGroup
                     android:id="@+id/rgCharacter"
@@ -182,29 +182,29 @@
                     <RadioButton
                         android:id="@+id/rbCharacter1"
                         android:layout_width="match_parent"
-                        android:layout_height="40dp"
-                        android:text="小美 — 温柔女友"
+                        android:layout_height="@dimen/radio_item_height"
+                        android:text="@string/character_option_1"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/text_body_small"
                         android:checked="true"
                         android:buttonTint="@color/elysian_purple" />
 
                     <RadioButton
                         android:id="@+id/rbCharacter2"
                         android:layout_width="match_parent"
-                        android:layout_height="40dp"
-                        android:text="小美 — 活泼妹妹"
+                        android:layout_height="@dimen/radio_item_height"
+                        android:text="@string/character_option_2"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/text_body_small"
                         android:buttonTint="@color/elysian_purple" />
 
                     <RadioButton
                         android:id="@+id/rbCharacter3"
                         android:layout_width="match_parent"
-                        android:layout_height="40dp"
-                        android:text="小美 — 知性姐姐"
+                        android:layout_height="@dimen/radio_item_height"
+                        android:text="@string/character_option_3"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/text_body_small"
                         android:buttonTint="@color/elysian_purple" />
                 </RadioGroup>
             </LinearLayout>
@@ -214,9 +214,9 @@
         <TextView
             android:id="@+id/btnCustomCharacter"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="创建自定义角色卡（即将推出）"
-            android:textSize="14sp"
+            android:layout_height="@dimen/button_default"
+            android:text="@string/btn_custom_character_coming"
+            android:textSize="@dimen/text_body_small"
             android:textColor="@color/text_tertiary"
             android:gravity="center"
             android:background="@drawable/bg_input_field"
