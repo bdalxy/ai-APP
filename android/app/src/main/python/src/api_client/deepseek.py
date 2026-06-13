@@ -11,8 +11,9 @@
     - src.utils.logger: get_logger 日志实例
 """
 
+import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generator
 
 import requests
 
@@ -213,6 +214,111 @@ class DeepSeekClient:
         )
         self.cost_tracker.record(model=result.model, prompt_tokens=result.usage["prompt_tokens"], completion_tokens=result.usage["completion_tokens"])
         self._log.info(f"[Chat] 成功: model={result.model}, tokens={result.usage['total_tokens']}, finish={result.finish_reason}")
+        return result
+
+    def chat_stream(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+    ) -> Generator[str, None, ChatResponse]:
+        """流式聊天，逐 token yield 内容。
+
+        每收到一个 delta content 就 yield 出去，
+        调用方遍历完所有 token 后可通过 StopIteration.value 获取最终 ChatResponse。
+
+        Yields:
+            每个 delta content 字符串。
+
+        Returns:
+            最终 ChatResponse（通过 StopIteration.value 访问）。
+
+        Raises:
+            ValueError: messages 为空时。
+            APITimeoutError: 请求超时。
+            APIConnectionError: 连接失败。
+            其他 API 异常: 由 _handle_http_error() 处理。
+        """
+        self._ensure_auth()
+        if not messages:
+            raise ValueError("messages 不能为空")
+
+        url = f"{self._base_url}/v1/chat/completions"
+        payload: dict[str, Any] = {
+            "model": self._chat_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+
+        self._log.debug(f"[Chat Stream] 请求: model={self._chat_model}, msgs={len(messages)}")
+
+        try:
+            response = self.session.post(
+                url, json=payload,
+                timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT * 2),
+                stream=True,
+            )
+        except requests.exceptions.Timeout:
+            raise APITimeoutError("Chat Stream API 请求超时")
+        except requests.exceptions.ConnectionError as e:
+            raise APIConnectionError(f"Chat Stream API 连接失败: {e}")
+
+        if response.status_code != 200:
+            self._handle_http_error(response)
+
+        full_content = ""
+        finish_reason = "stop"
+        model = self._chat_model
+        usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+        for line in response.iter_lines(decode_unicode=True):
+            if not line or line.startswith(":"):
+                continue
+            if line.startswith("data: "):
+                data_str = line[6:]
+                if data_str == "[DONE]":
+                    break
+                try:
+                    obj = json.loads(data_str)
+                    choices = obj.get("choices", [])
+                    if choices:
+                        delta = choices[0].get("delta", {})
+                        content = delta.get("content", "")
+                        if content:
+                            full_content += content
+                            yield content
+                        if choices[0].get("finish_reason"):
+                            finish_reason = choices[0]["finish_reason"]
+                    # 从最后一个 chunk 获取 usage 信息
+                    chunk_usage = obj.get("usage")
+                    if chunk_usage:
+                        usage = {
+                            "prompt_tokens": chunk_usage.get("prompt_tokens", 0),
+                            "completion_tokens": chunk_usage.get("completion_tokens", 0),
+                            "total_tokens": chunk_usage.get("total_tokens", 0),
+                        }
+                    model = obj.get("model", model)
+                except json.JSONDecodeError:
+                    self._log.debug(f"[Chat Stream] JSON 解析失败，跳过: {data_str[:50]}...")
+                    continue
+
+        result = ChatResponse(
+            content=full_content,
+            model=model,
+            usage=usage,
+            finish_reason=finish_reason,
+        )
+        self.cost_tracker.record(
+            model=result.model,
+            prompt_tokens=result.usage["prompt_tokens"],
+            completion_tokens=result.usage["completion_tokens"],
+        )
+        self._log.info(
+            f"[Chat Stream] 成功: model={result.model}, tokens={result.usage['total_tokens']}, "
+            f"finish={result.finish_reason}, 内容长度={len(full_content)}"
+        )
         return result
 
     @retry(max_retries=3, base_delay=1.0, max_delay=30.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError, APIConnectionError))

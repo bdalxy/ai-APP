@@ -31,7 +31,7 @@ DeepSeek API 调用，实现完整的角色扮演对话流程。
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from src.api_client.deepseek import ChatResponse, DeepSeekClient
 from src.chat_engine.card_parser import Card, CardParseError, CardParser
@@ -341,6 +341,79 @@ class RolePlayer:
         )
 
         return ai_reply
+
+    # -------------------------------------------------------------------------
+    # 流式对话
+    # -------------------------------------------------------------------------
+
+    def chat_stream(self, user_input: str) -> Generator[str, None, None]:
+        """流式对话，逐 token yield AI 回复内容。
+
+        流程与 chat() 相同，但使用 DeepSeekClient.chat_stream() 实现逐 token 输出。
+        在 stream 正常结束后 yield 一个特殊标记 "__DONE__:<完整回复>"，
+        调用方通过检测该标记获取最终完整回复并完成后续处理。
+
+        Yields:
+            每个 delta token 字符串。
+            最后 yield "__DONE__:<完整回复>" 表示流结束。
+            异常时 yield "__ERROR__:<错误信息>"。
+
+        Raises:
+            RolePlayerError: 角色卡未加载时。
+        """
+        if self.card is None:
+            yield f"__ERROR__:角色卡未加载，请先调用 load_card()"
+            return
+
+        user_input = user_input.strip()
+        if not user_input:
+            self._log.warning("用户输入为空，跳过")
+            yield f"__DONE__:"
+            return
+
+        self._log.debug(f"[流式对话] 收到用户输入: {user_input[:50]}...")
+
+        # 1. 添加用户输入到上下文
+        self.context.add_message("user", user_input)
+
+        # 2. 构建 System Prompt
+        system_prompt = self.prompt_builder.build_system_prompt(
+            card=self.card,
+            world_book_entries=self.world_book_entries if self.world_book_entries else None,
+            memories=self.memories if self.memories else None,
+        )
+
+        # 3. 组装完整 messages
+        messages = self.prompt_builder.build_messages(system_prompt, self.context)
+
+        try:
+            # 4. 流式调用 DeepSeek API
+            gen = self.client.chat_stream(
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+            full_reply = ""
+            for token in gen:
+                full_reply += token
+                yield token
+
+            # 5. 将 AI 回复添加到上下文
+            if full_reply:
+                self.context.add_message("assistant", full_reply)
+
+            self._log.debug(
+                f"[流式对话] AI 回复完成: 内容长度={len(full_reply)}"
+            )
+            yield f"__DONE__:{full_reply}"
+        except Exception as e:
+            # 异常时清空 memories
+            self.memories = []
+            self._log.error(f"[流式对话] 异常: {e}")
+            yield f"__ERROR__:{e}"
+        else:
+            # 仅在成功时清空本轮注入的记忆
+            self.memories = []
 
     # -------------------------------------------------------------------------
     # 上下文管理

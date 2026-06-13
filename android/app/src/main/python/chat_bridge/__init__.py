@@ -24,6 +24,7 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
 from ._core import (
     init,
     chat,
+    chat_stream,
     reset,
     get_card_info,
     set_api_key,
@@ -78,6 +79,7 @@ from ._world_book import (
 __all__ = [
     "init",
     "chat",
+    "chat_stream",
     "reset",
     "get_card_info",
     "set_api_key",

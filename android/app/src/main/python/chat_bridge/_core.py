@@ -152,6 +152,94 @@ def chat(user_input: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
+def chat_stream(user_input: str):
+    """流式对话，逐 token yield JSON 状态更新。
+
+    与 chat() 相同的记忆注入和世界书注入流程，
+    但使用 Player.chat_stream() 实现逐 token 输出。
+
+    每收到一个 token 就 yield 一个 JSON 字符串：
+        {"status": "streaming", "token": "..."}
+    完成时 yield：
+        {"status": "done", "reply": "完整回复"}
+    错误时 yield：
+        {"status": "error", "message": "错误信息"}
+    """
+    player = _ctx.player
+    orchestrator = _ctx.orchestrator
+
+    if player is None:
+        yield json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+        return
+
+    if not user_input or not user_input.strip():
+        yield json.dumps({"status": "error", "message": "消息不能为空"})
+        return
+
+    try:
+        user_input = user_input.strip()
+
+        # 自动记忆注入：每 N 轮检索一次相关记忆
+        with _state._lock:
+            _state._turn_since_last_inject += 1
+            need_inject = (
+                orchestrator is not None
+                and _state._turn_since_last_inject >= _state._memory_inject_interval
+            )
+        if need_inject:
+            try:
+                new_memories = orchestrator.recall(user_input)
+                with _state._lock:
+                    _state._cached_memories = new_memories
+                    _state._turn_since_last_inject = 0
+                _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
+            except Exception as e:
+                _log.warning(f"[记忆注入] 检索失败: {e}")
+
+        with _state._lock:
+            memories = list(_state._cached_memories)
+        if memories:
+            player.inject_memories(memories)
+
+        # 世界书注入：对所有已启用的世界书执行关键词匹配
+        try:
+            from ._world_book import _match_and_inject_for_all
+            world_book_context = _match_and_inject_for_all(user_input)
+            if world_book_context:
+                player.world_book_entries = [world_book_context]
+                _log.debug(f"[世界书] 注入 {len(world_book_context)} 字符")
+            else:
+                player.world_book_entries = []
+        except Exception as e:
+            _log.warning(f"[世界书] 注入失败: {e}")
+
+        # 流式对话
+        gen = player.chat_stream(user_input)
+        full_reply = ""
+        for token in gen:
+            if token.startswith("__DONE__:"):
+                full_reply = token[len("__DONE__:"):]
+            elif token.startswith("__ERROR__:"):
+                error_msg = token[len("__ERROR__:"):]
+                _log.error(f"[流式对话] 角色扮演器返回错误: {error_msg}")
+                yield json.dumps({"status": "error", "message": error_msg})
+                return
+            else:
+                yield json.dumps({"status": "streaming", "token": token})
+
+        # 记忆存储：使用线程池异步执行，不阻塞对话回复
+        if orchestrator is not None and full_reply:
+            _executor.submit(_auto_remember, user_input, full_reply)
+
+        yield json.dumps({"status": "done", "reply": full_reply})
+
+    except RolePlayerError as e:
+        yield json.dumps({"status": "error", "message": str(e)})
+    except Exception as e:
+        _log.error(f"[流式对话] 异常: {e}")
+        yield json.dumps({"status": "error", "message": str(e)})
+
+
 def _auto_remember(user_input: str, ai_reply: str) -> None:
     """内部函数：对话完成后自动存储记忆。"""
     orchestrator = _ctx.orchestrator
