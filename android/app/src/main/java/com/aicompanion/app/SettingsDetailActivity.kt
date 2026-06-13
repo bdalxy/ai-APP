@@ -183,10 +183,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         addClickRow("示例对话数", "${dialogues}条") { showExampleDialoguesDialog() }
         addDivider()
 
-        addSectionTitle("操作")
         addClickRow("开始新对话", "清空当前对话历史") { showNewChatDialog() }
-        addDivider()
-        addClickRow("清空长期记忆", "删除所有记忆数据", R.color.accent_orange) { showClearMemoryDialog() }
     }
 
     private fun showContextSizeDialog() {
@@ -788,19 +785,20 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun addClickRow(label: String, value: String, valueColor: Int = R.color.text_secondary, onClick: () -> Unit) {
         val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, 20, 0, 20)
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 16, 0, 16)
             isClickable = true; isFocusable = true
-            minimumHeight = resources.getDimensionPixelSize(R.dimen.button_medium)
             setBackgroundResource(getSelectableItemBackground())
             setOnClickListener { onClick() }
         }
+        // 标签：加粗、加大、单独一行
         row.addView(TextView(this).apply {
-            text = label; textSize = 17f
+            text = label; textSize = 18f
             setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            paint.isFakeBoldText = true
+            setPadding(0, 0, 0, 6)
         })
+        // 预览值：灰色小字
         row.addView(TextView(this).apply {
             text = value; textSize = 14f
             setTextColor(ContextCompat.getColor(context, valueColor))

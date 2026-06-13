@@ -50,7 +50,7 @@ class CharacterSelectActivity : AppCompatActivity() {
     override fun finish() {
         super.finish()
         // 返回时从右滑出
-        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
     }
 
     private fun finishWithAnimation() {

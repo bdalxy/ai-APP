@@ -1,5 +1,6 @@
 package com.aicompanion.app
 
+import android.app.ActivityOptions
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -71,11 +72,13 @@ class MainActivity : AppCompatActivity() {
             false
         }
 
-        // 点击角色名称或头像，跳转角色选择页（带左滑动画）
+        // 点击角色名称或头像，跳转角色选择页（从左边滑入）
         val openCharacterSelect = {
             val intent = Intent(this, CharacterSelectActivity::class.java)
-            startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+            val options = ActivityOptions.makeCustomAnimation(
+                this, R.anim.slide_in_left, R.anim.slide_out_right
+            )
+            startActivity(intent, options.toBundle())
         }
         binding.tvTitle.setOnClickListener { openCharacterSelect() }
         binding.ivAvatar.setOnClickListener { openCharacterSelect() }
