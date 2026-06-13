@@ -70,6 +70,8 @@
     <!-- ===== 消息列表 ===== -->
     <dimen name="message_list_padding">8dp</dimen>
     <dimen name="message_bubble_max_width">280dp</dimen>
+    <dimen name="message_bubble_padding_h">14dp</dimen>
+    <dimen name="message_bubble_padding_v">10dp</dimen>
 
     <!-- ===== 角色卡列表 ===== -->
     <dimen name="card_list_padding_vertical">8dp</dimen>

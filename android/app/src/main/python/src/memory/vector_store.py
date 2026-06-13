@@ -934,7 +934,13 @@ class VectorStore:
             candidates = self._get_by_ids(list(candidate_ids))
             self._log.debug(f"[关键字搜索] 倒排索引命中 {len(candidates)} 条候选")
         else:
-            # 倒排索引无命中：回退到全量加载
+            # 倒排索引无命中：回退到全量加载，但有阈值保护
+            total_count = self.count()
+            if total_count > 2000:
+                self._log.warning(
+                    f"[关键字搜索] 全量回退已拒绝: 记忆数 {total_count} > 2000，防止 OOM"
+                )
+                return []
             candidates = self._get_all()
             self._log.debug(f"[关键字搜索] 倒排索引无命中，回退全量 ({len(candidates)} 条)")
 

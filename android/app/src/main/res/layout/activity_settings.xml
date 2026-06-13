@@ -34,6 +34,7 @@
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
+                android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/cd_back" />
 
             <TextView
@@ -57,7 +58,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_page"
+            android:layout_marginBottom="@dimen/spacing_3xl"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
@@ -109,7 +110,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_page"
+            android:layout_marginBottom="@dimen/spacing_3xl"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
@@ -161,7 +162,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_page"
+            android:layout_marginBottom="@dimen/spacing_3xl"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
@@ -213,7 +214,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_page"
+            android:layout_marginBottom="@dimen/spacing_3xl"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
@@ -265,7 +266,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_page"
+            android:layout_marginBottom="@dimen/spacing_3xl"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
@@ -316,7 +317,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_page"
+            android:layout_marginBottom="@dimen/spacing_3xl"
             app:contentPadding="@dimen/card_padding">
 
             <LinearLayout

@@ -240,7 +240,7 @@ class MemoryOrchestrator:
                 apply_decay=True,
             )
             result = [entry.content for entry in entries]
-            self._log.info(
+            self._log.debug(
                 f"[记忆检索] 完成: query='{query_text[:30]}...', "
                 f"返回={len(result)} 条"
             )

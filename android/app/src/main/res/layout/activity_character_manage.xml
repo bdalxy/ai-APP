@@ -15,7 +15,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="@dimen/spacing_xl"
-        android:background="@color/glass_bg"
+        android:background="@drawable/bg_glass_top"
         android:elevation="@dimen/topbar_elevation">
 
         <!-- 返回按钮 -->
@@ -29,6 +29,7 @@
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
+            android:background="?attr/selectableItemBackground"
             android:contentDescription="@string/cd_back" />
 
         <!-- 标题 -->

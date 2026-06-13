@@ -293,12 +293,16 @@ def _match_and_inject_for_all(user_input: str) -> str:
         return ""
 
     engine = _get_engine()
+    # 统一递增轮次计数（所有世界书共享同一轮次）
+    engine._current_round += 1
+    current_round = engine._current_round
     results = []
 
     for name in sorted(_enabled_books):
         try:
-            if engine.set_active(name):
-                injected = engine.match_and_inject(user_input)
+            if name in engine._books:
+                book = engine._books[name]
+                injected = book.build_context(user_input, current_round)
                 if injected.strip():
                     results.append(injected)
                     _log.debug(f"[世界书] {name} 匹配注入: {len(injected)} 字符")

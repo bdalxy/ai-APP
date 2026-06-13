@@ -15,7 +15,7 @@
         android:layout_height="@dimen/topbar_height_alt"
         android:gravity="center_vertical"
         android:paddingHorizontal="@dimen/spacing_xl"
-        android:background="?attr/colorPrimary"
+        android:background="@drawable/bg_glass_top"
         android:elevation="@dimen/topbar_elevation">
 
         <!-- 返回按钮 -->

@@ -20,9 +20,9 @@
             android:id="@+id/tvContent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
+            android:textSize="@dimen/text_body"
+            android:paddingHorizontal="@dimen/message_bubble_padding_h"
+            android:paddingVertical="@dimen/message_bubble_padding_v"
             android:lineSpacingExtra="4dp"
             android:elevation="2dp"
             android:maxWidth="@dimen/message_bubble_max_width" />
