@@ -6,19 +6,13 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.inputmethod.EditorInfo
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.TextView
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import android.view.ViewGroup
-import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
+import com.aicompanion.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,13 +32,7 @@ import kotlin.random.Random
 class MainActivity : AppCompatActivity() {
 
     private lateinit var pythonModule: com.chaquo.python.PyObject
-    private lateinit var rvMessages: RecyclerView
-    private lateinit var etInput: EditText
-    private lateinit var btnSend: TextView
-    private lateinit var tvStatus: TextView
-    private lateinit var tvTitle: TextView
-    private lateinit var btnSettings: TextView
-    private lateinit var ivAvatar: ImageView
+    private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: ChatAdapter
 
     /** 等待发送的消息队列 */
@@ -58,44 +46,37 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         // 适配刘海屏/挖孔屏/状态栏
         ViewUtils.setupEdgeToEdge(this)
-        applyInsets(findViewById<android.view.ViewGroup>(R.id.main_root))
-
-        rvMessages = findViewById(R.id.rvMessages)
-        etInput = findViewById(R.id.etInput)
-        btnSend = findViewById(R.id.btnSend)
-        tvStatus = findViewById(R.id.tvStatus)
-        tvTitle = findViewById(R.id.tvTitle)
-        btnSettings = findViewById(R.id.btnSettings)
-        ivAvatar = findViewById(R.id.ivAvatar)
+        applyInsets(binding.mainRoot)
 
         adapter = ChatAdapter(mutableListOf())
-        rvMessages.adapter = adapter
-        rvMessages.layoutManager = LinearLayoutManager(this)
+        binding.rvMessages.adapter = adapter
+        binding.rvMessages.layoutManager = LinearLayoutManager(this)
 
-        btnSend.setOnClickListener { sendMessage() }
-        btnSettings.setOnClickListener {
+        binding.btnSend.setOnClickListener { sendMessage() }
+        binding.btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         // 点击聊天消息区域空白处收起键盘
-        rvMessages.setOnTouchListener { _, _ ->
+        binding.rvMessages.setOnTouchListener { _, _ ->
             hideKeyboard()
             false
         }
 
         // 点击角色名称或头像，跳转角色管理页
-        tvTitle.setOnClickListener {
+        binding.tvTitle.setOnClickListener {
             startActivity(Intent(this, CharacterManageActivity::class.java))
         }
-        ivAvatar.setOnClickListener {
+        binding.ivAvatar.setOnClickListener {
             startActivity(Intent(this, CharacterManageActivity::class.java))
         }
 
-        etInput.setOnEditorActionListener { _, actionId, _ ->
+        binding.etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage()
                 true
@@ -110,7 +91,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
-                    tvStatus.text = "正在初始化..."
+                    binding.tvStatus.text = "正在初始化..."
                 }
 
                 val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
@@ -119,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                 val apiKey = AppConfig.getApiKey(this@MainActivity)
                 if (apiKey.isNullOrBlank()) {
                     withContext(Dispatchers.Main) {
-                        tvStatus.text = "初始化失败：API Key 未配置"
+                        binding.tvStatus.text = "初始化失败：API Key 未配置"
                     }
                     return@launch
                 }
@@ -146,25 +127,25 @@ class MainActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     pythonModule = module
-                    tvStatus.text = ""
-                    btnSend.isEnabled = true
-                    btnSend.setBackgroundResource(R.drawable.bg_send_active)
+                    binding.tvStatus.text = ""
+                    binding.btnSend.isEnabled = true
+                    binding.btnSend.setBackgroundResource(R.drawable.bg_send_active)
                     // 显示角色名
-                    tvTitle.text = character.name
+                    binding.tvTitle.text = character.name
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
                 withContext(Dispatchers.Main) {
-                    tvStatus.text = "初始化失败：${e.message}"
+                    binding.tvStatus.text = "初始化失败：${e.message}"
                 }
             }
         }
     }
 
     private fun sendMessage() {
-        val text = etInput.text.toString().trim()
+        val text = binding.etInput.text.toString().trim()
         if (text.isEmpty() || !::pythonModule.isInitialized) return
-        etInput.text.clear()
+        binding.etInput.text.clear()
 
         addUserBubble(text)
         showTypingIndicator()
@@ -251,7 +232,7 @@ class MainActivity : AppCompatActivity() {
             isUser = true
         )
         adapter.addMessage(msg)
-        rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
     }
 
     private fun addAIBubble(text: String) {
@@ -260,7 +241,7 @@ class MainActivity : AppCompatActivity() {
             isUser = false
         )
         adapter.addMessage(msg)
-        rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
     }
 
     private fun showTypingIndicator() {
@@ -272,7 +253,7 @@ class MainActivity : AppCompatActivity() {
         )
         adapter.addMessage(msg)
         typingMsgPosition = adapter.itemCount - 1
-        rvMessages.smoothScrollToPosition(typingMsgPosition)
+        binding.rvMessages.smoothScrollToPosition(typingMsgPosition)
     }
 
     private fun hideTypingIndicator() {
@@ -283,7 +264,7 @@ class MainActivity : AppCompatActivity() {
 
     // ======================== 屏幕适配 ========================
 
-    private fun applyInsets(root: ViewGroup) {
+    private fun applyInsets(root: android.view.ViewGroup) {
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
@@ -296,9 +277,9 @@ class MainActivity : AppCompatActivity() {
             )
             // 键盘 + 导航栏底部间距 — 施加到内容 LinearLayout 的 margin
             // 注意：手势导航手机 navBar 高度=0，键盘收起时 bottomInset=0 也需要更新
-            val contentLayout = (v as? ViewGroup)?.getChildAt(1) as? ViewGroup
+            val contentLayout = (v as? android.view.ViewGroup)?.getChildAt(1) as? android.view.ViewGroup
             val bottomInset = maxOf(systemBars.bottom, ime.bottom)
-            (contentLayout?.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+            (contentLayout?.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { lp ->
                 if (lp.bottomMargin != bottomInset) {
                     lp.bottomMargin = bottomInset
                     contentLayout?.requestLayout()
@@ -310,6 +291,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.hideSoftInputFromWindow(etInput.windowToken, 0)
+        imm?.hideSoftInputFromWindow(binding.etInput.windowToken, 0)
     }
 }

@@ -5,14 +5,11 @@ import android.os.Bundle
 import android.text.InputType
 import android.util.Log
 import android.view.View
-import android.view.WindowManager
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
+import com.aicompanion.app.databinding.ActivitySettingsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.json.JSONObject
 
@@ -39,17 +36,19 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
+    private lateinit var binding: ActivitySettingsBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_settings)
+        binding = ActivitySettingsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         // 适配刘海屏/挖孔屏/状态栏——解决"靠太上"的问题
         ViewUtils.setupEdgeToEdge(this)
-        ViewUtils.applyInsets(findViewById(R.id.settings_root))
+        ViewUtils.applyInsets(binding.settingsRoot)
 
         // 返回按钮
-        findViewById<TextView>(R.id.btnBack)?.setOnClickListener { finish() }
+        binding.btnBack.setOnClickListener { finish() }
 
         // —— 账户设置 ——
         setupApiKey()
@@ -80,7 +79,7 @@ class SettingsActivity : AppCompatActivity() {
     // ======================== 账户设置 ========================
 
     private fun setupApiKey() {
-        findViewById<View>(R.id.itemApiKey).setOnClickListener {
+        binding.itemApiKey.setOnClickListener {
             val currentKey = AppConfig.getApiKey(this@SettingsActivity)
             val edit = EditText(this).apply {
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -109,7 +108,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupRolePreset() {
-        findViewById<View>(R.id.itemRolePreset).setOnClickListener {
+        binding.itemRolePreset.setOnClickListener {
             val characters = CharacterStorage.loadAll(this)
             val names = characters.map { it.name }.toTypedArray()
             val currentId = prefs.getString("current_character_id", null)
@@ -129,7 +128,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupModelSelect() {
-        findViewById<View>(R.id.itemModel).setOnClickListener {
+        binding.itemModel.setOnClickListener {
             val currentModel = AppConfig.getModel(this@SettingsActivity).let {
                 if (it.isBlank()) "deepseek-v4-flash" else it
             }
@@ -173,7 +172,7 @@ class SettingsActivity : AppCompatActivity() {
     // ======================== 对话设置 ========================
 
     private fun setupContextSize() {
-        findViewById<View>(R.id.itemContextSize).setOnClickListener {
+        binding.itemContextSize.setOnClickListener {
             val current = AppConfig.getContextSize(this@SettingsActivity)
             // 范围 500~8000，步长 500，共 16 档
             val minCtx = 500
@@ -304,7 +303,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupTemperature() {
-        findViewById<View>(R.id.itemTemperature).setOnClickListener {
+        binding.itemTemperature.setOnClickListener {
             val values = floatArrayOf(0.5f, 0.7f, 0.9f)
             val labels = arrayOf("0.5", "0.7", "0.9")
             val descs = arrayOf("保守", "中等", "创意")
@@ -320,7 +319,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupMaxTokens() {
-        findViewById<View>(R.id.itemMaxTokens).setOnClickListener {
+        binding.itemMaxTokens.setOnClickListener {
             val values = intArrayOf(500, 1000, 2000)
             val labels = arrayOf("500", "1000", "2000")
             val descs = arrayOf("简洁", "适中", "详细")
@@ -336,7 +335,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupExampleDialogues() {
-        findViewById<View>(R.id.itemExampleDialogues).setOnClickListener {
+        binding.itemExampleDialogues.setOnClickListener {
             val values = intArrayOf(0, 1, 2, 3)
             val labels = arrayOf("0", "1", "2", "3")
             val descs = arrayOf("不展示", "1条", "2条", "3条")
@@ -436,7 +435,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupNewChat() {
-        findViewById<View>(R.id.itemNewChat).setOnClickListener {
+        binding.itemNewChat.setOnClickListener {
             MaterialAlertDialogBuilder(this)
                 .setTitle("开始新对话")
                 .setMessage("将清空当前对话历史。确定继续吗？")
@@ -456,7 +455,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupClearMemory() {
-        findViewById<View>(R.id.itemClearMemory).setOnClickListener {
+        binding.itemClearMemory.setOnClickListener {
             MaterialAlertDialogBuilder(this)
                 .setTitle("清空长期记忆")
                 .setMessage("将删除所有长期记忆数据，无法恢复。确定吗？")
@@ -479,15 +478,14 @@ class SettingsActivity : AppCompatActivity() {
     // ======================== 主动消息 ========================
 
     private fun setupProactiveToggle() {
-        val sw = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.swProactive)
-        sw.isChecked = prefs.getBoolean("proactive_enabled", false)
-        sw.setOnCheckedChangeListener { _, isChecked ->
+        binding.swProactive.isChecked = prefs.getBoolean("proactive_enabled", false)
+        binding.swProactive.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("proactive_enabled", isChecked).apply()
         }
     }
 
     private fun setupProactiveInterval() {
-        findViewById<View>(R.id.itemProactiveInterval).setOnClickListener {
+        binding.itemProactiveInterval.setOnClickListener {
             val currentMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
             val idx = INTERVAL_MS.indexOf(currentMs).coerceAtLeast(0)
             MaterialAlertDialogBuilder(this)
@@ -503,7 +501,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupQuietTime() {
-        findViewById<View>(R.id.itemQuietTime).setOnClickListener {
+        binding.itemQuietTime.setOnClickListener {
             val start = prefs.getString("quiet_start", "") ?: ""
             val end = prefs.getString("quiet_end", "") ?: ""
             val current = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
@@ -531,7 +529,7 @@ class SettingsActivity : AppCompatActivity() {
     // ======================== 记忆管理 ========================
 
     private fun setupMemoryManage() {
-        findViewById<View>(R.id.itemMemoryManage).setOnClickListener {
+        binding.itemMemoryManage.setOnClickListener {
             startActivity(Intent(this, MemoryManageActivity::class.java))
         }
     }
@@ -541,26 +539,24 @@ class SettingsActivity : AppCompatActivity() {
     private fun refreshUI() {
         // API Key 从加密存储读取
         val apiKey = AppConfig.getApiKey(this)
-        findViewById<TextView>(R.id.tvApiKeyStatus)?.apply {
-            if (apiKey.isNotEmpty()) {
-                text = "已配置 (${apiKey.take(4)}...)"
-                setTextColor(getColor(android.R.color.holo_green_light))
-            } else {
-                text = "未配置"
-                setTextColor(getColor(android.R.color.holo_red_light))
-            }
+        if (apiKey.isNotEmpty()) {
+            binding.tvApiKeyStatus.text = "已配置 (${apiKey.take(4)}...)"
+            binding.tvApiKeyStatus.setTextColor(getColor(android.R.color.holo_green_light))
+        } else {
+            binding.tvApiKeyStatus.text = "未配置"
+            binding.tvApiKeyStatus.setTextColor(getColor(android.R.color.holo_red_light))
         }
 
         val char = CharacterStorage.getCurrent(this)
-        findViewById<TextView>(R.id.tvRolePreset)?.text = char.name
+        binding.tvRolePreset.text = char.name
 
         val model = AppConfig.getModel(this@SettingsActivity).let {
             if (it.isBlank()) "deepseek-v4-flash（默认）" else it
         }
-        findViewById<TextView>(R.id.tvModel)?.text = model
+        binding.tvModel.text = model
 
         val ctxSize = AppConfig.getContextSize(this@SettingsActivity)
-        findViewById<TextView>(R.id.tvContextSize)?.text = "${ctxSize} token"
+        binding.tvContextSize.text = "${ctxSize} token"
 
         val temp = AppConfig.getTemperature(this@SettingsActivity)
         val tempLabel = when {
@@ -568,7 +564,7 @@ class SettingsActivity : AppCompatActivity() {
             temp >= 0.9f -> "0.9 创意"
             else -> "0.7 中等"
         }
-        findViewById<TextView>(R.id.tvTemperature)?.text = tempLabel
+        binding.tvTemperature.text = tempLabel
 
         val maxTk = AppConfig.getMaxTokens(this@SettingsActivity)
         val tokenLabel = when (maxTk) {
@@ -576,20 +572,20 @@ class SettingsActivity : AppCompatActivity() {
             2000 -> "2000（详细）"
             else -> "1000（适中）"
         }
-        findViewById<TextView>(R.id.tvMaxTokens)?.text = tokenLabel
+        binding.tvMaxTokens.text = tokenLabel
 
         val dialogues = AppConfig.getExampleDialogues(this@SettingsActivity)
-        findViewById<TextView>(R.id.tvExampleDialogues)?.text = "${dialogues}条"
+        binding.tvExampleDialogues.text = "${dialogues}条"
 
         val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
         val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
-        findViewById<TextView>(R.id.tvProactiveInterval)?.text = intervalLabel
+        binding.tvProactiveInterval.text = intervalLabel
 
         val start = prefs.getString("quiet_start", "") ?: ""
         val end = prefs.getString("quiet_end", "") ?: ""
-        findViewById<TextView>(R.id.tvQuietTime)?.text =
+        binding.tvQuietTime.text =
             if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
 
-        findViewById<TextView>(R.id.tvVersion)?.text = "v${BuildConfig.VERSION_NAME}"
+        binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
     }
 }

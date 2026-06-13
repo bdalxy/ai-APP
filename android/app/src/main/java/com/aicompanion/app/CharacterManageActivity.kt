@@ -5,16 +5,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.aicompanion.app.databinding.ActivityCharacterManageBinding
 
 /**
  * 角色卡管理列表页。
@@ -22,29 +20,29 @@ import androidx.recyclerview.widget.RecyclerView
  */
 class CharacterManageActivity : AppCompatActivity() {
 
-    private lateinit var rvCharacters: RecyclerView
+    private lateinit var binding: ActivityCharacterManageBinding
     private lateinit var adapter: CharacterListAdapter
     private var characters: List<CharacterData> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_character_manage)
+        binding = ActivityCharacterManageBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         // 适配刘海屏/挖孔屏/状态栏
         ViewUtils.setupEdgeToEdge(this)
-        ViewUtils.applyInsets(findViewById(R.id.character_manage_root))
+        ViewUtils.applyInsets(binding.characterManageRoot)
 
         // 返回按钮
-        findViewById<TextView>(R.id.btnBack)?.setOnClickListener { finish() }
+        binding.btnBack.setOnClickListener { finish() }
 
         // 新建角色按钮
-        findViewById<TextView>(R.id.btnNewCharacter)?.setOnClickListener {
+        binding.btnNewCharacter.setOnClickListener {
             startActivity(Intent(this, CharacterEditActivity::class.java))
         }
 
         // 初始化 RecyclerView
-        rvCharacters = findViewById(R.id.rvCharacters)
-        rvCharacters.layoutManager = LinearLayoutManager(this)
+        binding.rvCharacters.layoutManager = LinearLayoutManager(this)
 
         loadCharacters()
     }
@@ -59,28 +57,31 @@ class CharacterManageActivity : AppCompatActivity() {
     private fun loadCharacters() {
         characters = CharacterStorage.loadAll(this)
         val currentId = CharacterStorage.getCurrent(this).id
-        adapter = CharacterListAdapter(characters, currentId,
-            onSelect = { char ->
-                // 切换当前角色，返回聊天页
-                CharacterStorage.setCurrent(this, char.id)
-                setResult(RESULT_OK)
-                finish()
-            },
-            onEdit = { char ->
-                val intent = Intent(this, CharacterEditActivity::class.java)
-                intent.putExtra("character_id", char.id)
-                startActivity(intent)
-            },
-            onDelete = { char ->
-                if (char.isDefault) {
-                    Toast.makeText(this, "默认角色不可删除", Toast.LENGTH_SHORT).show()
-                    return@CharacterListAdapter
+
+        if (!::adapter.isInitialized) {
+            adapter = CharacterListAdapter(
+                onSelect = { char ->
+                    CharacterStorage.setCurrent(this, char.id)
+                    setResult(RESULT_OK)
+                    finish()
+                },
+                onEdit = { char ->
+                    val intent = Intent(this, CharacterEditActivity::class.java)
+                    intent.putExtra("character_id", char.id)
+                    startActivity(intent)
+                },
+                onDelete = { char ->
+                    if (char.isDefault) {
+                        Toast.makeText(this, "默认角色不可删除", Toast.LENGTH_SHORT).show()
+                        return@CharacterListAdapter
+                    }
+                    CharacterStorage.delete(this, char.id)
+                    loadCharacters()
                 }
-                CharacterStorage.delete(this, char.id)
-                loadCharacters()
-            }
-        )
-        rvCharacters.adapter = adapter
+            )
+            binding.rvCharacters.adapter = adapter
+        }
+        adapter.replaceItems(characters, currentId)
     }
 
     /**
@@ -88,12 +89,13 @@ class CharacterManageActivity : AppCompatActivity() {
      * 每行展示角色头像、名称、简介预览，以及当前选中指示和操作按钮。
      */
     private class CharacterListAdapter(
-        private val characters: List<CharacterData>,
-        private val currentId: String,
         private val onSelect: (CharacterData) -> Unit,
         private val onEdit: (CharacterData) -> Unit,
         private val onDelete: (CharacterData) -> Unit
     ) : RecyclerView.Adapter<CharacterListAdapter.ViewHolder>() {
+
+        private var characters: List<CharacterData> = emptyList()
+        private var currentId: String = ""
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val ivAvatar: ImageView = view.findViewById(R.id.ivCharacterAvatar)
@@ -125,7 +127,34 @@ class CharacterManageActivity : AppCompatActivity() {
         }
 
         override fun getItemCount() = characters.size
-    }
 
-    // ======================== 适配辅助方法 ========================
+        /** 使用 DiffUtil 替换列表数据 */
+        fun replaceItems(newItems: List<CharacterData>, newCurrentId: String) {
+            val diffResult = DiffUtil.calculateDiff(
+                DiffCallback(characters, newItems)
+            )
+            characters = newItems
+            currentId = newCurrentId
+            diffResult.dispatchUpdatesTo(this)
+        }
+
+        private class DiffCallback(
+            private val oldList: List<CharacterData>,
+            private val newList: List<CharacterData>,
+        ) : DiffUtil.Callback() {
+            override fun getOldListSize() = oldList.size
+            override fun getNewListSize() = newList.size
+            override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+                return oldList[oldPos].id == newList[newPos].id
+            }
+            override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
+                val old = oldList[oldPos]
+                val new = newList[newPos]
+                return old.name == new.name &&
+                    old.personality == new.personality &&
+                    old.speakingStyle == new.speakingStyle &&
+                    old.backstory == new.backstory
+            }
+        }
+    }
 }

@@ -8,18 +8,11 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.aicompanion.app.databinding.ActivityMemoryManageBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,18 +42,8 @@ class MemoryManageActivity : AppCompatActivity() {
     }
 
     // ── UI 组件 ──
-    private lateinit var rvMemories: RecyclerView
+    private lateinit var binding: ActivityMemoryManageBinding
     private lateinit var adapter: MemoryAdapter
-    private lateinit var etSearch: EditText
-    private lateinit var btnClearSearch: Button
-    private lateinit var btnRefresh: Button
-    private lateinit var btnClearAll: Button
-    private lateinit var btnBack: Button
-    private lateinit var tvStats: TextView
-    private lateinit var tvStatsLoading: TextView
-    private lateinit var tvEmpty: TextView
-    private lateinit var tvLoadMore: TextView
-    private lateinit var layoutStats: View
 
     // ── 数据状态 ──
     private val memoryItems = mutableListOf<MemoryItem>()
@@ -76,14 +59,12 @@ class MemoryManageActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_memory_manage)
+        binding = ActivityMemoryManageBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         // 适配刘海屏/挖孔屏/状态栏
         ViewUtils.setupEdgeToEdge(this)
-        ViewUtils.applyInsets(findViewById(R.id.memory_manage_root))
-
-        // 绑定视图
-        bindViews()
+        ViewUtils.applyInsets(binding.memoryManageRoot)
 
         // 设置 RecyclerView
         setupRecyclerView()
@@ -96,31 +77,15 @@ class MemoryManageActivity : AppCompatActivity() {
         loadMemories(page = 1, keyword = "")
     }
 
-    // ── 视图绑定 ──
-
-    private fun bindViews() {
-        btnBack = findViewById(R.id.btnBack)
-        btnRefresh = findViewById(R.id.btnRefresh)
-        btnClearAll = findViewById(R.id.btnClearAll)
-        btnClearSearch = findViewById(R.id.btnClearSearch)
-        etSearch = findViewById(R.id.etSearch)
-        tvStats = findViewById(R.id.tvStats)
-        tvStatsLoading = findViewById(R.id.tvStatsLoading)
-        tvEmpty = findViewById(R.id.tvEmpty)
-        tvLoadMore = findViewById(R.id.tvLoadMore)
-        layoutStats = findViewById(R.id.layoutStats)
-        rvMemories = findViewById(R.id.rvMemories)
-    }
-
     // ── RecyclerView 设置 ──
 
     private fun setupRecyclerView() {
         adapter = MemoryAdapter(memoryItems) { item -> showDeleteConfirmDialog(item) }
-        rvMemories.adapter = adapter
-        rvMemories.layoutManager = LinearLayoutManager(this)
+        binding.rvMemories.adapter = adapter
+        binding.rvMemories.layoutManager = LinearLayoutManager(this)
 
         // 滚动监听 — 触底加载更多
-        rvMemories.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        binding.rvMemories.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 if (dy <= 0) return // 只处理向下滚动
@@ -141,23 +106,23 @@ class MemoryManageActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         // 返回
-        btnBack.setOnClickListener { finish() }
+        binding.btnBack.setOnClickListener { finish() }
 
         // 刷新
-        btnRefresh.setOnClickListener { refreshAll() }
+        binding.btnRefresh.setOnClickListener { refreshAll() }
 
         // 清空全部
-        btnClearAll.setOnClickListener { showClearAllConfirmDialog() }
+        binding.btnClearAll.setOnClickListener { showClearAllConfirmDialog() }
 
         // 搜索输入 — 防抖
-        etSearch.addTextChangedListener(object : TextWatcher {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
                 val keyword = s?.toString()?.trim() ?: ""
                 // 控制清除按钮可见性
-                btnClearSearch.visibility = if (keyword.isNotEmpty()) View.VISIBLE else View.GONE
+                binding.btnClearSearch.visibility = if (keyword.isNotEmpty()) View.VISIBLE else View.GONE
 
                 // 防抖搜索
                 searchRunnable?.let { searchHandler.removeCallbacks(it) }
@@ -175,17 +140,17 @@ class MemoryManageActivity : AppCompatActivity() {
         })
 
         // 清除搜索
-        btnClearSearch.setOnClickListener {
-            etSearch.setText("")
+        binding.btnClearSearch.setOnClickListener {
+            binding.etSearch.setText("")
             // afterTextChanged 会自动触发重新加载
         }
 
         // 搜索键盘动作
-        etSearch.setOnEditorActionListener { _, actionId, _ ->
+        binding.etSearch.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 // 立即触发搜索（取消防抖）
                 searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                val keyword = etSearch.text?.toString()?.trim() ?: ""
+                val keyword = binding.etSearch.text?.toString()?.trim() ?: ""
                 currentKeyword = keyword
                 currentPage = 1
                 hasMore = true
@@ -205,7 +170,7 @@ class MemoryManageActivity : AppCompatActivity() {
     /** 加载记忆统计 */
     private fun loadStats() {
         lifecycleScope.launch {
-            tvStatsLoading.visibility = View.VISIBLE
+            binding.tvStatsLoading.visibility = View.VISIBLE
             val result = try {
                 withContext(Dispatchers.IO) {
                     val py = com.chaquo.python.Python.getInstance()
@@ -217,7 +182,7 @@ class MemoryManageActivity : AppCompatActivity() {
                 null
             }
 
-            tvStatsLoading.visibility = View.GONE
+            binding.tvStatsLoading.visibility = View.GONE
 
             if (result != null) {
                 try {
@@ -234,18 +199,18 @@ class MemoryManageActivity : AppCompatActivity() {
                         parts.joinToString("  ")
                     } else ""
 
-                    tvStats.text = if (typeStr.isNotEmpty()) {
+                    binding.tvStats.text = if (typeStr.isNotEmpty()) {
                         "总记忆：${total} 条    $typeStr"
                     } else {
                         "总记忆：${total} 条"
                     }
-                    layoutStats.visibility = View.VISIBLE
+                    binding.layoutStats.visibility = View.VISIBLE
                 } catch (e: Exception) {
                     Log.w(TAG, "解析统计结果失败: ${e.message}")
-                    layoutStats.visibility = View.GONE
+                    binding.layoutStats.visibility = View.GONE
                 }
             } else {
-                layoutStats.visibility = View.GONE
+                binding.layoutStats.visibility = View.GONE
             }
         }
     }
@@ -257,9 +222,9 @@ class MemoryManageActivity : AppCompatActivity() {
 
         if (page == 1) {
             // 首页：显示加载状态，隐藏"加载更多"
-            tvLoadMore.visibility = View.GONE
+            binding.tvLoadMore.visibility = View.GONE
         } else {
-            tvLoadMore.visibility = View.VISIBLE
+            binding.tvLoadMore.visibility = View.VISIBLE
         }
 
         lifecycleScope.launch {
@@ -282,7 +247,7 @@ class MemoryManageActivity : AppCompatActivity() {
             }
 
             isLoading = false
-            tvLoadMore.visibility = View.GONE
+            binding.tvLoadMore.visibility = View.GONE
 
             if (result != null) {
                 try {
@@ -424,7 +389,7 @@ class MemoryManageActivity : AppCompatActivity() {
     private fun refreshAll() {
         currentPage = 1
         hasMore = true
-        currentKeyword = etSearch.text?.toString()?.trim() ?: ""
+        currentKeyword = binding.etSearch.text?.toString()?.trim() ?: ""
         memoryItems.clear()
         adapter.notifyDataSetChanged()
         showEmpty(false)
@@ -475,17 +440,17 @@ class MemoryManageActivity : AppCompatActivity() {
 
     /** 控制空状态提示的显示 */
     private fun showEmpty(show: Boolean) {
-        tvEmpty.visibility = if (show) View.VISIBLE else View.GONE
-        rvMemories.visibility = if (show) View.GONE else View.VISIBLE
+        binding.tvEmpty.visibility = if (show) View.VISIBLE else View.GONE
+        binding.rvMemories.visibility = if (show) View.GONE else View.VISIBLE
     }
 
     /** 更新统计栏显示 */
     private fun updateStatsDisplay() {
-        tvStats.text = "总记忆：${totalCount} 条"
+        binding.tvStats.text = "总记忆：${totalCount} 条"
         if (totalCount <= 0) {
-            layoutStats.visibility = View.GONE
+            binding.layoutStats.visibility = View.GONE
         } else {
-            layoutStats.visibility = View.VISIBLE
+            binding.layoutStats.visibility = View.VISIBLE
         }
     }
 
@@ -496,6 +461,4 @@ class MemoryManageActivity : AppCompatActivity() {
         "user_fact" -> "用户事实"
         else -> type
     }
-
-    // ======================== 适配辅助方法 ========================
 }

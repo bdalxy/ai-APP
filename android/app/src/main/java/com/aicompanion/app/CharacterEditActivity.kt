@@ -1,15 +1,9 @@
 package com.aicompanion.app
 
 import android.os.Bundle
-import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.EditText
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
+import com.aicompanion.app.databinding.ActivityCharacterEditBinding
 
 /**
  * 角色卡创建/编辑页。
@@ -18,29 +12,19 @@ import androidx.core.view.WindowInsetsCompat
 class CharacterEditActivity : AppCompatActivity() {
 
     private var editingId: String? = null
-    private lateinit var etName: EditText
-    private lateinit var etPersonality: EditText
-    private lateinit var etSpeakingStyle: EditText
-    private lateinit var etBackstory: EditText
-    private lateinit var etGreeting: EditText
+    private lateinit var binding: ActivityCharacterEditBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_character_edit)
+        binding = ActivityCharacterEditBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         // 适配刘海屏/挖孔屏/状态栏
         ViewUtils.setupEdgeToEdge(this)
-        ViewUtils.applyInsets(findViewById(R.id.character_edit_root))
+        ViewUtils.applyInsets(binding.characterEditRoot)
 
         // 返回按钮
-        findViewById<TextView>(R.id.btnBack)?.setOnClickListener { finish() }
-
-        // 绑定表单控件
-        etName = findViewById(R.id.etName)
-        etPersonality = findViewById(R.id.etPersonality)
-        etSpeakingStyle = findViewById(R.id.etSpeakingStyle)
-        etBackstory = findViewById(R.id.etBackstory)
-        etGreeting = findViewById(R.id.etGreeting)
+        binding.btnBack.setOnClickListener { finish() }
 
         // 检查是否为编辑模式
         editingId = intent.getStringExtra("character_id")
@@ -48,25 +32,23 @@ class CharacterEditActivity : AppCompatActivity() {
             // 编辑模式：加载已有数据
             val char = CharacterStorage.loadAll(this).find { it.id == editingId }
             char?.let {
-                etName.setText(it.name)
-                etPersonality.setText(it.personality)
-                etSpeakingStyle.setText(it.speakingStyle)
-                etBackstory.setText(it.backstory)
-                etGreeting.setText(it.greeting)
-                findViewById<TextView>(R.id.tvPageTitle)?.text = "编辑角色"
-                findViewById<TextView>(R.id.btnSave)?.text = "更新"
+                binding.etName.setText(it.name)
+                binding.etPersonality.setText(it.personality)
+                binding.etSpeakingStyle.setText(it.speakingStyle)
+                binding.etBackstory.setText(it.backstory)
+                binding.etGreeting.setText(it.greeting)
+                binding.tvPageTitle.text = "编辑角色"
+                binding.btnSave.text = "更新"
             }
         }
 
         // 保存按钮
-        findViewById<TextView>(R.id.btnSave)?.setOnClickListener {
-            saveCharacter()
-        }
+        binding.btnSave.setOnClickListener { saveCharacter() }
     }
 
     /** 保存角色卡到本地存储。 */
     private fun saveCharacter() {
-        val name = etName.text.toString().trim()
+        val name = binding.etName.text.toString().trim()
         if (name.isBlank()) {
             Toast.makeText(this, "请输入角色名称", Toast.LENGTH_SHORT).show()
             return
@@ -75,10 +57,10 @@ class CharacterEditActivity : AppCompatActivity() {
         val char = CharacterData(
             id = editingId ?: java.util.UUID.randomUUID().toString(),
             name = name,
-            personality = etPersonality.text.toString().trim(),
-            speakingStyle = etSpeakingStyle.text.toString().trim(),
-            backstory = etBackstory.text.toString().trim(),
-            greeting = etGreeting.text.toString().trim(),
+            personality = binding.etPersonality.text.toString().trim(),
+            speakingStyle = binding.etSpeakingStyle.text.toString().trim(),
+            backstory = binding.etBackstory.text.toString().trim(),
+            greeting = binding.etGreeting.text.toString().trim(),
             isDefault = false,
             createdAt = System.currentTimeMillis()
         )
