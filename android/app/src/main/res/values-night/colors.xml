@@ -19,6 +19,7 @@
     <color name="text_primary">#F5F0FF</color>
     <color name="text_secondary">#B8A9CC</color>
     <color name="text_tertiary">#7A6B8A</color>
+    <color name="darker_gray">#AAAAAA</color>
 
     <!-- 毛玻璃效果 -->
     <color name="glass_bg">#1DFFFFFF</color>

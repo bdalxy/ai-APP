@@ -53,8 +53,9 @@ def _record_params(context_size: int, temperature: float, max_tokens: int,
         "example_dialogues": example_dialogues,
         "model": actual_model,
     }
-    _current_params.clear()
-    _current_params.update(params)
+    with _state._lock:
+        _current_params.clear()
+        _current_params.update(params)
     return params
 
 
@@ -105,17 +106,26 @@ def chat(user_input: str) -> dict:
         user_input = user_input.strip()
 
         # 自动记忆注入：每 N 轮检索一次相关记忆
-        _state._turn_since_last_inject += 1
-        if orchestrator is not None and _state._turn_since_last_inject >= _state._memory_inject_interval:
+        with _state._lock:
+            _state._turn_since_last_inject += 1
+            need_inject = (
+                orchestrator is not None
+                and _state._turn_since_last_inject >= _state._memory_inject_interval
+            )
+        if need_inject:
             try:
-                _state._cached_memories = orchestrator.recall(user_input)
-                _state._turn_since_last_inject = 0
+                new_memories = orchestrator.recall(user_input)
+                with _state._lock:
+                    _state._cached_memories = new_memories
+                    _state._turn_since_last_inject = 0
                 _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
             except Exception as e:
                 _log.warning(f"[记忆注入] 检索失败: {e}")
 
-        if _state._cached_memories:
-            player.inject_memories(_state._cached_memories)
+        with _state._lock:
+            memories = list(_state._cached_memories)
+        if memories:
+            player.inject_memories(memories)
 
         # 世界书注入：对所有已启用的世界书执行关键词匹配
         try:
@@ -235,4 +245,6 @@ def apply_params(
 
 def get_current_params() -> dict:
     """获取当前生效的对话参数（供 Kotlin 端验证配置同步）。"""
-    return json.dumps({"status": "ok", "params": dict(_current_params)})
+    with _state._lock:
+        params_copy = dict(_current_params)
+    return json.dumps({"status": "ok", "params": params_copy})

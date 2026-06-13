@@ -3,6 +3,7 @@
 """
 import os
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -20,6 +21,9 @@ _ctx = AppContext.get_instance()
 # 全局线程池，用于异步记忆存储等后台任务
 # max_workers=2 足够（同时最多一个记忆存储 + 一个主动消息）
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat_bridge")
+
+# 线程锁，保护共享状态（_cached_memories、_current_params、_turn_since_last_inject 等）
+_lock = threading.Lock()
 
 # 当前生效的对话参数（由 init()/apply_params() 写入，get_current_params() 读取）
 _current_params: dict[str, object] = {}

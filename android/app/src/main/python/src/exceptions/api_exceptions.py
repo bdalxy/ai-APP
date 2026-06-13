@@ -43,6 +43,13 @@ class APITimeoutError(APIException):
         super().__init__(message, status_code=None)
 
 
+class APIConnectionError(APIException):
+    """网络连接失败，可重试的瞬时错误。"""
+
+    def __init__(self, message: str = "API 连接失败") -> None:
+        super().__init__(message, status_code=None)
+
+
 class APIRateLimitError(APIException):
     """请求频率超限，对应 HTTP 429。"""
 

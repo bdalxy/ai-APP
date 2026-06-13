@@ -18,6 +18,7 @@ import requests
 
 from src.config.settings import settings
 from src.exceptions import (
+    APIConnectionError,
     APIContentFilterError,
     APIException,
     APIKeyError,
@@ -105,9 +106,12 @@ class DeepSeekClient:
         self._embed_model: str = settings.DEEPSEEK_EMBEDDING_MODEL
         self.session = requests.Session()
         self.session.headers.update({
-            "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
         })
+        # 仅在 API Key 非空时初始化时设置 Authorization header
+        # 如果初始为空，将在首次 API 调用时通过 _ensure_auth() 延迟校验
+        if self._api_key:
+            self.session.headers["Authorization"] = f"Bearer {self._api_key}"
         self.cost_tracker = CostTracker()
         self._embed_cache = LRUCache(capacity=500)
         self._log = get_logger()
@@ -134,6 +138,23 @@ class DeepSeekClient:
         self._api_key = api_key
         self.session.headers["Authorization"] = f"Bearer {api_key}"
         self._log.info("[API Key] session header 已更新")
+
+    def _ensure_auth(self) -> None:
+        """确保 Authorization header 已设置（延迟校验）。
+        
+        如果初始化时 API Key 为空，首次实际 API 调用时通过此方法检查。
+        若后续通过 set_api_key() 设置了 Key，此方法也会自动生效。
+        
+        Raises:
+            APIKeyError: API Key 仍为空时抛出。
+        """
+        if "Authorization" not in self.session.headers:
+            key = settings.DEEPSEEK_API_KEY
+            if not key:
+                raise APIKeyError("API Key 未配置，请先设置 API Key")
+            self.session.headers["Authorization"] = f"Bearer {key}"
+            self._api_key = key
+            self._log.info("[API Key] 延迟设置 Authorization header 成功")
 
     def _handle_http_error(self, response: requests.Response) -> None:
         status_code = response.status_code
@@ -162,8 +183,9 @@ class DeepSeekClient:
         else:
             raise APIException(f"未知错误 ({status_code}): {error_msg}", status_code=status_code)
 
-    @retry(max_retries=3, base_delay=1.0, max_delay=30.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError))
+    @retry(max_retries=3, base_delay=1.0, max_delay=30.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError, APIConnectionError))
     def chat(self, messages: list[dict[str, str]], temperature: float = 0.7, max_tokens: int = 2000, stream: bool = False) -> ChatResponse:
+        self._ensure_auth()
         if not messages:
             raise ValueError("messages 不能为空")
         if stream:
@@ -177,7 +199,7 @@ class DeepSeekClient:
         except requests.exceptions.Timeout:
             raise APITimeoutError(f"Chat API 请求超时 (连接={self.CONNECT_TIMEOUT}s, 读取={self.READ_TIMEOUT}s)")
         except requests.exceptions.ConnectionError as e:
-            raise APIException(f"连接失败: {e}")
+            raise APIConnectionError(f"Chat API 连接失败: {e}")
         if response.status_code != 200:
             self._handle_http_error(response)
         data = response.json()
@@ -193,8 +215,9 @@ class DeepSeekClient:
         self._log.info(f"[Chat] 成功: model={result.model}, tokens={result.usage['total_tokens']}, finish={result.finish_reason}")
         return result
 
-    @retry(max_retries=3, base_delay=1.0, max_delay=30.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError))
+    @retry(max_retries=3, base_delay=1.0, max_delay=30.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError, APIConnectionError))
     def embed(self, texts: str | list[str]) -> EmbeddingResponse:
+        self._ensure_auth()
         if isinstance(texts, str):
             texts = [texts]
         if not texts:
@@ -213,7 +236,7 @@ class DeepSeekClient:
             except requests.exceptions.Timeout:
                 raise APITimeoutError(f"Embedding API 请求超时")
             except requests.exceptions.ConnectionError as e:
-                raise APIException(f"连接失败: {e}")
+                raise APIConnectionError(f"Embedding API 连接失败: {e}")
             if response.status_code != 200:
                 self._log.warning(
                     f"[Embed] API 不可用 (status={response.status_code})，"

@@ -2,6 +2,6 @@
 <!-- 底部输入栏玻璃态背景 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#1A102030" />
+    <solid android:color="@color/glass_bottom_bg" />
     <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" />
 </shape>

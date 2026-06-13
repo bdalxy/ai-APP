@@ -361,6 +361,7 @@ class VectorStore:
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._create_table()
+        self._create_indexes()
         self.inverted_index = InvertedIndex()
         self._load_index()
         self._add_count = 0  # WAL checkpoint 计数器
@@ -378,6 +379,27 @@ class VectorStore:
             self._log.debug("数据库表已就绪")
         except sqlite3.Error as e:
             raise MemoryStorageError(f"创建数据库表失败: {e}", detail=self.db_path) from e
+
+    def _create_indexes(self) -> None:
+        """创建性能索引，加速按类型/重要性/创建时间的查询。
+
+        索引列表：
+            - idx_memories_type: 按记忆类型过滤（如 episodic/semantic）
+            - idx_memories_importance: 按重要性降序（Top-K 重要记忆）
+            - idx_memories_created: 按创建时间降序（最近记忆）
+        """
+        indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)",
+            "CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at DESC)",
+        ]
+        for idx_sql in indexes:
+            try:
+                self._conn.execute(idx_sql)
+            except sqlite3.Error as e:
+                self._log.warning(f"创建索引失败: {e}")
+        self._conn.commit()
+        self._log.debug("数据库索引已就绪")
 
     def _load_index(self) -> None:
         try:
@@ -490,6 +512,12 @@ class VectorStore:
                 candidates = self._get_by_ids(list(candidate_ids))
                 self._log.debug(f"[检索] 倒排索引命中 {len(candidates)} 条候选")
         if not candidates:
+            total_count = self.count()
+            if total_count > 2000:
+                self._log.warning(
+                    f"[检索] 全量回退已拒绝: 记忆数 {total_count} > 2000，防止 OOM"
+                )
+                return []
             candidates = self._get_all()
             self._log.debug(f"[检索] 倒排索引无命中，回退到全量检索 ({len(candidates)} 条)")
         if not candidates:
