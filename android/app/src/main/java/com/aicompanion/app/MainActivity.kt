@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pythonModule: com.chaquo.python.PyObject
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: ChatAdapter
+    private lateinit var gestureDetector: GestureDetector
 
     /** 等待发送的消息队列 */
     private val pendingMessages = mutableListOf<String>()
@@ -79,8 +80,8 @@ class MainActivity : AppCompatActivity() {
         binding.tvTitle.setOnClickListener { openCharacterSelect() }
         binding.ivAvatar.setOnClickListener { openCharacterSelect() }
 
-        // 左滑手势进入角色选择页
-        val gestureDetector = GestureDetector(this, object : GestureDetector.OnGestureListener {
+        // 左滑手势进入角色选择页（通过 dispatchTouchEvent 拦截，确保不会被子视图消费）
+        gestureDetector = GestureDetector(this, object : GestureDetector.OnGestureListener {
             override fun onDown(e: MotionEvent): Boolean = false
             override fun onShowPress(e: MotionEvent) {}
             override fun onSingleTapUp(e: MotionEvent): Boolean = false
@@ -89,7 +90,6 @@ class MainActivity : AppCompatActivity() {
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
                 if (e1 == null) return false
                 val diffX = e2.x - e1.x
-                val diffY = e2.y - e1.y
                 // 左滑（X位移 > 150，且水平速度远大于垂直速度）
                 if (diffX > 150 && Math.abs(velocityX) > Math.abs(velocityY) * 1.5f && velocityX > 0) {
                     openCharacterSelect()
@@ -98,10 +98,6 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
         })
-        binding.mainRoot.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
-            false
-        }
 
         binding.etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -324,6 +320,12 @@ class MainActivity : AppCompatActivity() {
             }
             insets
         }
+    }
+
+    // 将触摸事件分发给手势检测器（在子视图消费之前拦截）
+    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+        if (ev != null) gestureDetector.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
     }
 
     private fun hideKeyboard() {

@@ -790,18 +790,19 @@ class SettingsDetailActivity : AppCompatActivity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, 14, 0, 14)
+            setPadding(0, 20, 0, 20)
             isClickable = true; isFocusable = true
+            minimumHeight = resources.getDimensionPixelSize(R.dimen.button_medium)
             setBackgroundResource(getSelectableItemBackground())
             setOnClickListener { onClick() }
         }
         row.addView(TextView(this).apply {
-            text = label; textSize = 15f
+            text = label; textSize = 17f
             setTextColor(ContextCompat.getColor(context, R.color.text_primary))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         row.addView(TextView(this).apply {
-            text = value; textSize = 13f
+            text = value; textSize = 14f
             setTextColor(ContextCompat.getColor(context, valueColor))
         })
         contentLayout.addView(row)
