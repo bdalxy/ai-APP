@@ -103,10 +103,27 @@ class ChatAdapter(
         return msg
     }
 
+    /** 更新指定位置的消息内容（用于流式输出逐 token 刷新） */
+
+    fun updateMessage(position: Int, message: Message) {
+
+        if (position < 0 || position >= messages.size) return
+
+        messages[position] = message
+
+        notifyItemChanged(position)
+
+    }
+
+
     fun clear() {
+
         val count = messages.size
+
         messages.clear()
+
         notifyItemRangeRemoved(0, count)
+
     }
 
     /** 替换全部消息（使用 DiffUtil 避免全量刷新闪烁） */

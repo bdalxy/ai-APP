@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import kotlin.concurrent.thread
 import kotlin.random.Random
 
 /**
@@ -28,9 +29,10 @@ import kotlin.random.Random
  * 通过 Chaquopy 调用 Python chat_bridge 模块，
  * 实现与 AI 角色（小美）的实时对话。
  *
- * P3.1 打字延迟 + 连发消息：
- * - 发送消息后显示"对方正在输入..."，根据消息复杂度变速延迟后调用 Python
- * - 支持连发多条消息，在延迟期间积累的消息合并为一次 API 调用
+ * P3.1 流式消息输出：
+ * - 调用 chat_bridge.chat_stream() 获取 generator
+ * - 逐 token 实时更新 UI，无需等待完整回复
+ * - 输出期间禁用输入防止重复发送，完成后自动恢复
  */
 class MainActivity : AppCompatActivity() {
 
@@ -39,14 +41,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: ChatAdapter
     private lateinit var gestureDetector: GestureDetector
 
-    /** 等待发送的消息队列 */
-    private val pendingMessages = mutableListOf<String>()
-    private var isProcessing = false
+    /** 是否正在流式输出中（防止重复发送） */
 
-    /** 打字指示器位置。
-     * -1 表示没有正在显示的打字指示器。
-     */
-    private var typingMsgPosition = -1
+    private var isStreaming = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -186,87 +183,132 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendMessage() {
         val text = binding.etInput.text.toString().trim()
-        if (text.isEmpty() || !::pythonModule.isInitialized) return
-        binding.etInput.text.clear()
+        if (text.isEmpty() || !::pythonModule.isInitialized || isStreaming) return
 
-        addUserBubble(text)
-        showTypingIndicator()
-        pendingMessages.add(text)
-
-        if (!isProcessing) processMessages()
+        sendMessageStream(text)
     }
 
-    private fun processMessages() {
-        if (pendingMessages.isEmpty()) {
-            isProcessing = false
-            return
-        }
-        isProcessing = true
+    // ======================== 流式消息发送 ========================
 
-        val combinedMessage = pendingMessages.joinToString("\n")
-        pendingMessages.clear()
+    /**
+     * 流式发送消息。
+     * 调用 Python chat_bridge.chat_stream()，逐 token 实时更新 UI。
+     */
+    private fun sendMessageStream(userInput: String) {
+        isStreaming = true
+        disableInput()
 
-        val delay = calculateDelay(combinedMessage)
+        // 添加用户消息气泡
+        addUserBubble(userInput)
 
-        Handler(Looper.getMainLooper()).postDelayed({
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val replyJson = pythonModule.callAttr("chat", combinedMessage).toString()
+        // 添加占位 AI 消息（空内容，后续逐 token 填充）
+        val aiMsg = Message(content = "", isUser = false)
+        val aiMsgIndex = adapter.itemCount
+        adapter.addMessage(aiMsg)
+        binding.rvMessages.smoothScrollToPosition(aiMsgIndex)
 
-                    // 解析 JSON 提取 reply 字段
-                    val replyText = try {
-                        val json = JSONObject(replyJson)
-                        if (json.optString("status") == "error") {
-                            "错误：${json.optString("message")}"
-                        } else {
-                            json.optString("reply", "（无回复内容）")
-                        }
-                    } catch (e: Exception) {
-                        // 如果不是 JSON，直接使用原字符串（兼容旧格式）
-                        replyJson
-                    }
+        // 在后台线程调用 Python 流式接口
+        thread {
+            try {
+                val generator = pythonModule.callAttr("chat_stream", userInput)
 
-                    // 按双空行拆分为多条
-                    val parts = replyText.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
+                if (generator != null) {
+                    val fullReply = StringBuilder()
+                    for (item in generator) {
+                        val json = JSONObject(item.toString())
+                        val status = json.optString("status", "error")
 
-                    withContext(Dispatchers.Main) {
-                        hideTypingIndicator()
-
-                        if (parts.size <= 1) {
-                            addAIBubble(replyText.trim())
-                        } else {
-                            var accumDelay = 0L
-                            for ((i, part) in parts.withIndex()) {
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    addAIBubble(part.trim())
-                                }, accumDelay)
-                                accumDelay += 800 + Random.nextLong(400, 1200)
+                        when (status) {
+                            "streaming" -> {
+                                val token = json.optString("token", "")
+                                fullReply.append(token)
+                                // 在 UI 线程逐 token 更新
+                                runOnUiThread {
+                                    adapter.updateMessage(
+                                        aiMsgIndex,
+                                        aiMsg.copy(content = fullReply.toString())
+                                    )
+                                    binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                }
+                            }
+                            "done" -> {
+                                val reply = json.optString("reply", fullReply.toString())
+                                runOnUiThread {
+                                    val finalContent = reply.ifEmpty { fullReply.toString() }
+                                    adapter.updateMessage(
+                                        aiMsgIndex,
+                                        aiMsg.copy(content = finalContent)
+                                    )
+                                    saveConversation()
+                                }
+                            }
+                            "error" -> {
+                                val errorMsg = json.optString("message", "未知错误")
+                                runOnUiThread {
+                                    adapter.updateMessage(
+                                        aiMsgIndex,
+                                        aiMsg.copy(content = "[错误] $errorMsg")
+                                    )
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "对话失败: $errorMsg",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         }
-
-                        isProcessing = false
-                        processMessages()
                     }
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "Python 调用失败", e)
-                    withContext(Dispatchers.Main) {
-                        hideTypingIndicator()
-                        addAIBubble("唔...刚刚走神了，你说什么来着？")
-                        isProcessing = false
-                        processMessages()
+                } else {
+                    runOnUiThread {
+                        adapter.updateMessage(
+                            aiMsgIndex,
+                            aiMsg.copy(content = "[错误] Python 返回为空")
+                        )
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "流式对话失败", e)
+                runOnUiThread {
+                    adapter.updateMessage(
+                        aiMsgIndex,
+                        aiMsg.copy(content = "[错误] ${e.message}")
+                    )
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        "对话失败: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } finally {
+                isStreaming = false
+                runOnUiThread { enableInput() }
             }
-        }, delay)
-    }
-
-    private fun calculateDelay(message: String): Long {
-        return when {
-            message.length < 5 -> Random.nextLong(1000, 3000)
-            message.contains("?") || message.contains("？") -> Random.nextLong(5000, 12000)
-            else -> Random.nextLong(3000, 7000)
         }
     }
+
+    /** 流式输出期间禁用输入框和发送按钮 */
+    private fun disableInput() {
+        binding.etInput.isEnabled = false
+        binding.btnSend.isEnabled = false
+        binding.btnSend.alpha = 0.5f
+    }
+
+    /** 流式输出完成后恢复输入框和发送按钮 */
+    private fun enableInput() {
+        binding.etInput.isEnabled = true
+        binding.etInput.text.clear()
+        binding.btnSend.isEnabled = true
+        binding.btnSend.alpha = 1.0f
+        binding.etInput.requestFocus()
+    }
+
+    /** 保存当前对话历史（后续可接入持久化存储） */
+    private fun saveConversation() {
+        // TODO: 将消息列表持久化到本地存储或后端
+        Log.d("MainActivity", "对话历史已就绪，共 ${adapter.itemCount} 条消息")
+    }
+
+    // ======================== 消息气泡辅助方法 ========================
 
     private fun addUserBubble(text: String) {
         val msg = Message(
@@ -275,33 +317,6 @@ class MainActivity : AppCompatActivity() {
         )
         adapter.addMessage(msg)
         binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-    }
-
-    private fun addAIBubble(text: String) {
-        val msg = Message(
-            content = text,
-            isUser = false
-        )
-        adapter.addMessage(msg)
-        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-    }
-
-    private fun showTypingIndicator() {
-        if (typingMsgPosition >= 0) return
-        val msg = Message(
-            content = "",
-            isUser = false,
-            isTyping = true
-        )
-        adapter.addMessage(msg)
-        typingMsgPosition = adapter.itemCount - 1
-        binding.rvMessages.smoothScrollToPosition(typingMsgPosition)
-    }
-
-    private fun hideTypingIndicator() {
-        if (typingMsgPosition < 0) return
-        adapter.removeTypingAt(typingMsgPosition)
-        typingMsgPosition = -1
     }
 
     // ======================== 屏幕适配 ========================
