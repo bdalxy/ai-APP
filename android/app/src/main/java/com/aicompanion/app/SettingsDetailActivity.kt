@@ -113,11 +113,11 @@ class SettingsDetailActivity : AppCompatActivity() {
         val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
 
         addSectionTitle("API 配置")
-        addClickRow("API Key", apiKeyLabel) { showApiKeyEditDialog() }
+        addClickRow("API Key", apiKeyLabel, iconRes = R.drawable.ic_key) { showApiKeyEditDialog() }
         addDivider()
 
         addSectionTitle("模型")
-        addClickRow("模型选择", model) { showModelSelectDialog() }
+        addClickRow("模型选择", model, iconRes = R.drawable.ic_model) { showModelSelectDialog() }
     }
 
     private fun showApiKeyEditDialog() {
@@ -174,16 +174,16 @@ class SettingsDetailActivity : AppCompatActivity() {
         val dialogues = AppConfig.getExampleDialogues(this)
 
         addSectionTitle("对话参数")
-        addClickRow("上下文窗口", "${ctxSize} token") { showContextSizeDialog() }
+        addClickRow("上下文窗口", "${ctxSize} token", iconRes = R.drawable.ic_context) { showContextSizeDialog() }
         addDivider()
-        addClickRow("创意度", tempLabel) { showTemperatureDialog() }
+        addClickRow("创意度", tempLabel, iconRes = R.drawable.ic_creative) { showTemperatureDialog() }
         addDivider()
-        addClickRow("回复详细度", tokenLabel) { showMaxTokensDialog() }
+        addClickRow("回复详细度", tokenLabel, iconRes = R.drawable.ic_detail) { showMaxTokensDialog() }
         addDivider()
-        addClickRow("示例对话数", "${dialogues}条") { showExampleDialoguesDialog() }
+        addClickRow("示例对话数", "${dialogues}条", iconRes = R.drawable.ic_example) { showExampleDialoguesDialog() }
         addDivider()
 
-        addClickRow("开始新对话", "清空当前对话历史") { showNewChatDialog() }
+        addClickRow("开始新对话", "清空当前对话历史", iconRes = R.drawable.ic_new_chat) { showNewChatDialog() }
     }
 
     private fun showContextSizeDialog() {
@@ -413,7 +413,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         contentLayout.addView(toggleRow)
         addDivider()
 
-        addClickRow("发送频率", intervalLabel) {
+        addClickRow("发送频率", intervalLabel, iconRes = R.drawable.ic_frequency) {
             val idx = INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
             MaterialAlertDialogBuilder(this)
                 .setTitle("发送频率")
@@ -426,7 +426,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
         addDivider()
 
-        addClickRow("免打扰时段", quietLabel) {
+        addClickRow("免打扰时段", quietLabel, iconRes = R.drawable.ic_quiet) {
             val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00")
             val idx = options.indexOfFirst {
                 it == quietLabel || (quietLabel != "不设置" && it != "不设置" && it.take(5) == start.take(5))
@@ -510,6 +510,13 @@ class SettingsDetailActivity : AppCompatActivity() {
             setBackgroundResource(getSelectableItemBackground())
             setOnClickListener { showEditWorldBookDialog(name) }
         }
+        row.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_book)
+            layoutParams = LinearLayout.LayoutParams(20, 20).apply {
+                marginEnd = 12
+            }
+            setColorFilter(ContextCompat.getColor(context, R.color.primary))
+        })
         val textLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -783,7 +790,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         })
     }
 
-    private fun addClickRow(label: String, value: String, valueColor: Int = R.color.text_secondary, onClick: () -> Unit) {
+    private fun addClickRow(label: String, value: String, valueColor: Int = R.color.text_secondary, iconRes: Int = 0, onClick: () -> Unit) {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, 16, 0, 16)
@@ -791,13 +798,34 @@ class SettingsDetailActivity : AppCompatActivity() {
             setBackgroundResource(getSelectableItemBackground())
             setOnClickListener { onClick() }
         }
-        // 标签：加粗、加大、单独一行
-        row.addView(TextView(this).apply {
-            text = label; textSize = 18f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            paint.isFakeBoldText = true
-            setPadding(0, 0, 0, 6)
-        })
+        // 标签行：图标 + 文字
+        if (iconRes != 0) {
+            val labelRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, 6)
+            }
+            labelRow.addView(android.widget.ImageView(this).apply {
+                setImageResource(iconRes)
+                layoutParams = LinearLayout.LayoutParams(20, 20).apply {
+                    marginEnd = 8
+                }
+                setColorFilter(ContextCompat.getColor(context, R.color.primary))
+            })
+            labelRow.addView(TextView(this).apply {
+                text = label; textSize = 18f
+                setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+                paint.isFakeBoldText = true
+            })
+            row.addView(labelRow)
+        } else {
+            row.addView(TextView(this).apply {
+                text = label; textSize = 18f
+                setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+                paint.isFakeBoldText = true
+                setPadding(0, 0, 0, 6)
+            })
+        }
         // 预览值：灰色小字
         row.addView(TextView(this).apply {
             text = value; textSize = 14f
