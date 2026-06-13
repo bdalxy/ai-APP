@@ -8,7 +8,9 @@ import android.view.View
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.aicompanion.app.databinding.ActivitySettingsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.json.JSONArray
@@ -64,45 +66,40 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showAccountDialog() {
         try {
-            val layout = android.widget.LinearLayout(this).apply {
+            // 预计算所有值，避免在lambda中访问可能失败的方法
+            val apiKey = AppConfig.getApiKey(this)
+            val apiKeyLabel = if (apiKey.isNotEmpty()) "已配置 (${apiKey.take(4)}...)" else "未配置"
+            val char = CharacterStorage.getCurrent(this)
+            val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
+            val ctx = this
+
+            val layout = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
                 setPadding(48, 16, 48, 0)
             }
 
-            // API Key 行
-            val apiKey = AppConfig.getApiKey(this)
-            val apiKeyRow = createSettingsRow("API Key",
-                if (apiKey.isNotEmpty()) "已配置 (${apiKey.take(4)}...)" else "未配置",
-                apiKey.isNotEmpty()
-            ) {
+            layout.addView(createSettingsRow("API Key", apiKeyLabel, apiKey.isNotEmpty()) {
                 showApiKeyEditDialog()
-            }
-            layout.addView(apiKeyRow)
+            })
             layout.addView(createDivider())
 
-            // 角色预设行
-            val char = CharacterStorage.getCurrent(this)
-            val roleRow = createSettingsRow("角色预设", char.name, true) {
+            layout.addView(createSettingsRow("角色预设", char.name, true) {
                 showRoleSelectDialog()
-            }
-            layout.addView(roleRow)
+            })
             layout.addView(createDivider())
 
-            // 模型选择行
-            val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
-            val modelRow = createSettingsRow("模型选择", model, true) {
+            layout.addView(createSettingsRow("模型选择", model, true) {
                 showModelSelectDialog()
-            }
-            layout.addView(modelRow)
+            })
 
-            MaterialAlertDialogBuilder(this)
+            MaterialAlertDialogBuilder(ctx)
                 .setTitle("账户设置")
                 .setView(layout)
                 .setPositiveButton("关闭", null)
                 .show()
         } catch (e: Exception) {
-            Log.e("SettingsActivity", "showAccountDialog 失败: ${e.message}", e)
-            Toast.makeText(this, "加载账户设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("SettingsActivity", "showAccountDialog 失败: ${e.javaClass.simpleName}: ${e.message}", e)
+            Toast.makeText(this, "加载失败: ${e.javaClass.simpleName}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -171,60 +168,56 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showChatDialog() {
         try {
-            val layout = android.widget.LinearLayout(this).apply {
+            val ctx = this
+            val ctxSize = AppConfig.getContextSize(ctx)
+            val temp = AppConfig.getTemperature(ctx)
+            val tempLabel = when { temp <= 0.5f -> "0.5 保守"; temp >= 0.9f -> "0.9 创意"; else -> "0.7 中等" }
+            val maxTk = AppConfig.getMaxTokens(ctx)
+            val tokenLabel = when (maxTk) { 500 -> "500（简洁）"; 2000 -> "2000（详细）"; else -> "1000（适中）" }
+            val dialogues = AppConfig.getExampleDialogues(ctx)
+
+            val layout = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
                 setPadding(48, 16, 48, 0)
             }
 
-            val ctxSize = AppConfig.getContextSize(this)
-            val ctxRow = createSettingsRow("上下文窗口", "${ctxSize} token", true) {
+            layout.addView(createSettingsRow("上下文窗口", "${ctxSize} token", true) {
                 showContextSizeDialog()
-            }
-            layout.addView(ctxRow)
+            })
             layout.addView(createDivider())
 
-            val temp = AppConfig.getTemperature(this)
-            val tempLabel = when { temp <= 0.5f -> "0.5 保守"; temp >= 0.9f -> "0.9 创意"; else -> "0.7 中等" }
-            val tempRow = createSettingsRow("创意度", tempLabel, true) {
+            layout.addView(createSettingsRow("创意度", tempLabel, true) {
                 showTemperatureDialog()
-            }
-            layout.addView(tempRow)
+            })
             layout.addView(createDivider())
 
-            val maxTk = AppConfig.getMaxTokens(this)
-            val tokenLabel = when (maxTk) { 500 -> "500（简洁）"; 2000 -> "2000（详细）"; else -> "1000（适中）" }
-            val tkRow = createSettingsRow("回复详细度", tokenLabel, true) {
+            layout.addView(createSettingsRow("回复详细度", tokenLabel, true) {
                 showMaxTokensDialog()
-            }
-            layout.addView(tkRow)
+            })
             layout.addView(createDivider())
 
-            val dialogues = AppConfig.getExampleDialogues(this)
-            val diaRow = createSettingsRow("示例对话数", "${dialogues}条", true) {
+            layout.addView(createSettingsRow("示例对话数", "${dialogues}条", true) {
                 showExampleDialoguesDialog()
-            }
-            layout.addView(diaRow)
+            })
             layout.addView(createDivider())
 
-            val newChatRow = createSettingsRow("开始新对话", "清空当前对话历史", true) {
+            layout.addView(createSettingsRow("开始新对话", "清空当前对话历史", true) {
                 showNewChatDialog()
-            }
-            layout.addView(newChatRow)
+            })
             layout.addView(createDivider())
 
-            val clearMemRow = createSettingsRow("清空长期记忆", "删除所有记忆数据", true, R.color.accent_orange) {
+            layout.addView(createSettingsRow("清空长期记忆", "删除所有记忆数据", true, R.color.accent_orange) {
                 showClearMemoryDialog()
-            }
-            layout.addView(clearMemRow)
+            })
 
-            MaterialAlertDialogBuilder(this)
+            MaterialAlertDialogBuilder(ctx)
                 .setTitle("对话设置")
                 .setView(layout)
                 .setPositiveButton("关闭", null)
                 .show()
         } catch (e: Exception) {
-            Log.e("SettingsActivity", "showChatDialog 失败: ${e.message}", e)
-            Toast.makeText(this, "加载对话设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("SettingsActivity", "showChatDialog 失败: ${e.javaClass.simpleName}: ${e.message}", e)
+            Toast.makeText(this, "加载失败: ${e.javaClass.simpleName}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -421,23 +414,32 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showProactiveDialog() {
         try {
-            val layout = android.widget.LinearLayout(this).apply {
+            val ctx = this
+            val enabled = prefs.getBoolean("proactive_enabled", false)
+            val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
+            val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
+            val start = prefs.getString("quiet_start", "") ?: ""
+            val end = prefs.getString("quiet_end", "") ?: ""
+            val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
+
+            val layout = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
                 setPadding(48, 16, 48, 0)
             }
 
             // 开关行
-            val toggleRow = android.widget.LinearLayout(this).apply {
+            val toggleRow = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
                 setPadding(0, 8, 0, 8)
             }
-            toggleRow.addView(TextView(this).apply {
-                text = "主动消息"; textSize = 16f; setTextColor(getColor(R.color.text_primary))
+            toggleRow.addView(TextView(ctx).apply {
+                text = "主动消息"; textSize = 16f
+                setTextColor(ContextCompat.getColor(ctx, R.color.text_primary))
                 layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
-            val sw = androidx.appcompat.widget.SwitchCompat(this).apply {
-                isChecked = prefs.getBoolean("proactive_enabled", false)
+            val sw = androidx.appcompat.widget.SwitchCompat(ctx).apply {
+                isChecked = enabled
                 setOnCheckedChangeListener { _, isChecked ->
                     prefs.edit().putBoolean("proactive_enabled", isChecked).apply()
                     refreshUI()
@@ -447,31 +449,24 @@ class SettingsActivity : AppCompatActivity() {
             layout.addView(toggleRow)
             layout.addView(createDivider())
 
-            // 发送频率行
-            val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
-            val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
-            val intervalRow = createSettingsRow("发送频率", intervalLabel, true) {
+            layout.addView(createSettingsRow("发送频率", intervalLabel, true) {
                 val idx = INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
-                MaterialAlertDialogBuilder(this)
+                MaterialAlertDialogBuilder(ctx)
                     .setTitle("发送频率")
                     .setSingleChoiceItems(INTERVAL_OPTIONS, idx) { dialog, which ->
                         prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
                         refreshUI(); dialog.dismiss()
                     }
                     .setNegativeButton("取消", null).show()
-            }
-            layout.addView(intervalRow)
+            })
             layout.addView(createDivider())
 
-            // 免打扰行
-            val start = prefs.getString("quiet_start", "") ?: ""
-            val end = prefs.getString("quiet_end", "") ?: ""
-            val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
-            val quietRow = createSettingsRow("免打扰时段", quietLabel, true) {
+            layout.addView(createSettingsRow("免打扰时段", quietLabel, true) {
                 val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00")
-                val current = quietLabel
-                val idx = options.indexOfFirst { it == current || (current != "不设置" && it != "不设置" && it.take(5) == start.take(5)) }.coerceAtLeast(0)
-                MaterialAlertDialogBuilder(this)
+                val idx = options.indexOfFirst {
+                    it == quietLabel || (quietLabel != "不设置" && it != "不设置" && it.take(5) == start.take(5))
+                }.coerceAtLeast(0)
+                MaterialAlertDialogBuilder(ctx)
                     .setTitle("静默时段")
                     .setSingleChoiceItems(options, idx) { dialog, which ->
                         if (options[which] == "不设置") {
@@ -483,17 +478,16 @@ class SettingsActivity : AppCompatActivity() {
                         refreshUI(); dialog.dismiss()
                     }
                     .setNegativeButton("取消", null).show()
-            }
-            layout.addView(quietRow)
+            })
 
-            MaterialAlertDialogBuilder(this)
+            MaterialAlertDialogBuilder(ctx)
                 .setTitle("主动消息")
                 .setView(layout)
                 .setPositiveButton("关闭", null)
                 .show()
         } catch (e: Exception) {
-            Log.e("SettingsActivity", "showProactiveDialog 失败: ${e.message}", e)
-            Toast.makeText(this, "加载主动消息设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("SettingsActivity", "showProactiveDialog 失败: ${e.javaClass.simpleName}: ${e.message}", e)
+            Toast.makeText(this, "加载失败: ${e.javaClass.simpleName}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -858,7 +852,8 @@ class SettingsActivity : AppCompatActivity() {
         label: String, value: String, clickable: Boolean, valueColor: Int = R.color.text_secondary,
         onClick: (() -> Unit)? = null,
     ): android.widget.LinearLayout {
-        val row = android.widget.LinearLayout(this).apply {
+        val ctx = this
+        val row = android.widget.LinearLayout(ctx).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
             setPadding(0, 12, 0, 12)
@@ -868,23 +863,26 @@ class SettingsActivity : AppCompatActivity() {
                 setOnClickListener { onClick?.invoke() }
             }
         }
-        row.addView(TextView(this).apply {
-            text = label; textSize = 15f; setTextColor(getColor(R.color.text_primary))
+        row.addView(TextView(ctx).apply {
+            text = label; textSize = 15f
+            setTextColor(ContextCompat.getColor(ctx, R.color.text_primary))
             layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
-        row.addView(TextView(this).apply {
-            text = value; textSize = 13f; setTextColor(getColor(valueColor))
+        row.addView(TextView(ctx).apply {
+            text = value; textSize = 13f
+            setTextColor(ContextCompat.getColor(ctx, valueColor))
         })
         return row
     }
 
     private fun createDivider(): View {
-        return View(this).apply {
+        val ctx = this
+        return View(ctx).apply {
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 resources.getDimensionPixelSize(R.dimen.divider_thickness)
             )
-            setBackgroundColor(getColor(R.color.glass_border))
+            setBackgroundColor(ContextCompat.getColor(ctx, R.color.glass_border))
         }
     }
 
