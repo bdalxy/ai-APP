@@ -4,61 +4,96 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
- * WorkManager 定时 Worker（T5.3）。
+ * WorkManager 定时 Worker。
  *
- * 每 2 小时执行一次 doWork()：
- * 1. 调用 Python generate_proactive_message()
- * 2. 解析 JSON，若 status="ok" 则通过 NotificationHelper 弹出通知
+ * 每次执行 doWork() 时：
+ * 1. 检查 proactive_enabled 开关
+ * 2. 检查免打扰时段（支持跨天，如 23:00-07:00）
+ * 3. 调用 Python generate_proactive_message()
+ * 4. 解析 JSON，若 status="ok" 则通过 NotificationHelper 弹出通知
  *
- * WorkManager 保证在满足约束条件（如网络连接）时执行。
+ * 失败时返回 retry，WorkManager 会自动重试。
  */
 class ProactiveWorker(
-    appContext: Context,
-    params: WorkerParameters
-) : CoroutineWorker(appContext, params) {
+    context: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(context, params) {
 
     companion object {
-        private const val TAG = "ProactiveWorker"
+        const val TAG = "ProactiveWorker"
     }
 
-    override suspend fun doWork(): Result {
-        Log.d(TAG, "doWork 开始")
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        try {
+            val prefs = applicationContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
-        return try {
-            // 调用 Python 获取主动推送消息
-            val py = com.chaquo.python.Python.getInstance()
-            val module = py.getModule("chat_bridge")
-            val result = module.callAttr("generate_proactive_message").toString()
-
-            Log.d(TAG, "Python 返回: ${result.take(200)}")
-
-            val json = org.json.JSONObject(result)
-            val status = json.optString("status", "")
-
-            if (status == "ok") {
-                val title = json.optString("title", "AI 伙伴")
-                val message = json.optString("message", "有一则新消息")
-
-                // 控制通知内容长度
-                val shortMessage = if (message.length > 100) {
-                    message.take(97) + "..."
-                } else {
-                    message
-                }
-
-                NotificationHelper.showProactiveMessage(applicationContext, title, shortMessage)
-                Log.i(TAG, "主动推送通知已弹出: $title")
-            } else {
-                val reason = json.optString("message", "暂无消息")
-                Log.d(TAG, "无需推送: $reason")
+            // 1. 检查主动消息是否开启
+            if (!prefs.getBoolean("proactive_enabled", false)) {
+                Log.d(TAG, "主动消息未开启，跳过")
+                return@withContext Result.success()
             }
 
-            Result.success()
+            // 2. 免打扰时段检查
+            val quietStart = prefs.getString("quiet_start", "") ?: ""
+            val quietEnd = prefs.getString("quiet_end", "") ?: ""
+            if (quietStart.isNotEmpty() && quietEnd.isNotEmpty()) {
+                val now = java.time.LocalTime.now()
+                val start = java.time.LocalTime.parse(quietStart)
+                val end = java.time.LocalTime.parse(quietEnd)
+                if (start.isBefore(end)) {
+                    // 同一天内（如 08:00-22:00）
+                    if (now in start..end) {
+                        Log.d(TAG, "处于免打扰时段 ($quietStart-$quietEnd)，跳过")
+                        return@withContext Result.success()
+                    }
+                } else {
+                    // 跨天免打扰（如 23:00-07:00）
+                    if (now >= start || now <= end) {
+                        Log.d(TAG, "处于免打扰时段 ($quietStart-$quietEnd)，跳过")
+                        return@withContext Result.success()
+                    }
+                }
+            }
+
+            // 3. 调用 Python 生成主动消息
+            val resultJson: String
+            try {
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                val pyResult = module?.callAttr("generate_proactive_message")
+                resultJson = pyResult?.toString() ?: "{\"status\":\"error\",\"message\":\"Python 返回为空\"}"
+            } catch (e: Exception) {
+                Log.e(TAG, "Python 调用失败: ${e.message}", e)
+                return@withContext Result.retry()
+            }
+
+            // 4. 解析并处理结果
+            val json = JSONObject(resultJson)
+            val status = json.optString("status", "error")
+
+            when (status) {
+                "ok" -> {
+                    val title = json.optString("title", "AI伴侣")
+                    val message = json.optString("message", "")
+                    NotificationHelper.show(applicationContext, title, message)
+                    Log.i(TAG, "主动消息推送成功: ${message.take(50)}...")
+                    Result.success()
+                }
+                "skip" -> {
+                    Log.d(TAG, "主动消息跳过: ${json.optString("message")}")
+                    Result.success()
+                }
+                else -> {
+                    Log.w(TAG, "主动消息生成失败: ${json.optString("message")}")
+                    Result.retry()
+                }
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "doWork 执行失败: ${e.message}", e)
-            // 使用 retry 让 WorkManager 稍后重试
+            Log.e(TAG, "Worker 异常: ${e.message}", e)
             Result.retry()
         }
     }

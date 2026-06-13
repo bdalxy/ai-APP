@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 记忆图标：大脑 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/primary"
+        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10s10,-4.48 10,-10S17.52,2 12,2zM12,18c-2.21,0 -4,-1.79 -4,-4c0,-1.54 0.88,-2.87 2.15,-3.52C10.05,10.19 10,9.86 10,9.5c0,-1.38 1.12,-2.5 2.5,-2.5s2.5,1.12 2.5,2.5c0,0.36 -0.05,0.69 -0.15,0.98C16.12,11.13 17,12.46 17,14C17,16.21 15.21,18 13,18z" />
+</vector>

@@ -1,99 +1,75 @@
 package com.aicompanion.app
 
-import android.app.Service
-import android.content.Intent
-import android.os.IBinder
+import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 /**
- * 主动推送前台服务。
+ * 主动推送定时调度工具。
  *
- * 被 WorkManager 或外部 Intent 启动后：
- * 1. 立即进入前台模式（startForeground）
- * 2. 在后台线程调用 Python generate_proactive_message()
- * 3. 解析返回 JSON，若 status="ok" 则弹出通知
- * 4. 完成后 stopSelf()
+ * 负责向 WorkManager 注册/更新/取消 PeriodicWorkRequest，
+ * 由 ProactiveWorker 执行实际的推送检查逻辑。
  */
-class ProactiveService : Service() {
+object ProactiveService {
 
-    companion object {
-        private const val TAG = "ProactiveService"
-    }
+    private const val TAG = "ProactiveService"
+    private const val WORK_NAME = "proactive_message_work"
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    /**
+     * 注册或更新定时任务。
+     * 从 SharedPreferences 读取间隔配置，使用 UPDATE 策略覆盖已有任务。
+     *
+     * @param context 上下文
+     */
+    fun schedule(context: Context) {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        // 默认 3 小时，WorkManager 最小间隔是 15 分钟
+        val intervalMs = prefs.getLong("proactive_interval", 10800000L)
+        val intervalMinutes = (intervalMs / 60000).coerceAtLeast(15)
 
-    override fun onCreate() {
-        super.onCreate()
-        Log.d(TAG, "onCreate")
-    }
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand")
+        val request = PeriodicWorkRequestBuilder<ProactiveWorker>(
+            intervalMinutes, TimeUnit.MINUTES
+        )
+            .setConstraints(constraints)
+            .addTag(WORK_NAME)
+            .build()
 
-        // 进入前台模式
-        val notification = NotificationHelper.buildServiceNotification(this)
-        startForeground(NotificationHelper.SERVICE_NOTIFICATION_ID, notification)
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
 
-        // 后台执行主动推送检查
-        serviceScope.launch {
-            try {
-                checkAndPush()
-            } catch (e: Exception) {
-                Log.e(TAG, "主动推送执行失败: ${e.message}", e)
-            } finally {
-                stopSelf()
-            }
-        }
-
-        return START_NOT_STICKY
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onDestroy() {
-        Log.d(TAG, "onDestroy")
-        serviceScope.cancel()
-        super.onDestroy()
+        Log.i(TAG, "主动消息已调度: 每${intervalMinutes}分钟")
     }
 
     /**
-     * 调用 Python generate_proactive_message() 并处理结果。
+     * 取消定时任务。
+     *
+     * @param context 上下文
      */
-    private fun checkAndPush() {
-        try {
-            val py = com.chaquo.python.Python.getInstance()
-            val module = py.getModule("chat_bridge")
-            val result = module.callAttr("generate_proactive_message").toString()
+    fun cancel(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        Log.i(TAG, "主动消息已取消")
+    }
 
-            Log.d(TAG, "Python 返回: ${result.take(200)}")
-
-            val json = org.json.JSONObject(result)
-            val status = json.optString("status", "")
-
-            if (status == "ok") {
-                val title = json.optString("title", "AI 伙伴")
-                val message = json.optString("message", "有一则新消息")
-
-                // 通知内容控制在1-2行
-                val shortMessage = if (message.length > 100) {
-                    message.take(97) + "..."
-                } else {
-                    message
-                }
-
-                NotificationHelper.showProactiveMessage(this, title, shortMessage)
-                Log.i(TAG, "主动推送通知已弹出: $title")
-            } else {
-                val reason = json.optString("message", "暂无消息")
-                Log.d(TAG, "无需推送: $reason")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "checkAndPush 异常: ${e.message}", e)
-        }
+    /**
+     * 重新调度（先取消再注册）。
+     * 供设置页在用户修改参数后调用。
+     *
+     * @param context 上下文
+     */
+    fun reschedule(context: Context) {
+        cancel(context)
+        schedule(context)
     }
 }

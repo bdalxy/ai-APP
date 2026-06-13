@@ -60,6 +60,8 @@ class MainActivity : AppCompatActivity() {
         adapter = ChatAdapter(mutableListOf())
         binding.rvMessages.adapter = adapter
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
+        // 自定义消息入场动画（P2 UI 优化）
+        binding.rvMessages.itemAnimator = MessageItemAnimator()
 
         binding.btnSend.setOnClickListener { sendMessage() }
         binding.btnSettings.setOnClickListener {
@@ -168,6 +170,10 @@ class MainActivity : AppCompatActivity() {
                     binding.btnSend.setBackgroundResource(R.drawable.bg_send_active)
                     // 显示角色名
                     binding.tvTitle.text = character.name
+
+                    // 初始化主动消息通知渠道并调度 Worker
+                    NotificationHelper.createChannel(this@MainActivity)
+                    ProactiveService.schedule(this@MainActivity)
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
