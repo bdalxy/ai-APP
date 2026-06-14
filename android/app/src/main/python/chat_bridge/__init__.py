@@ -35,6 +35,7 @@ from ._core import (
     get_current_params,
     export_history,
     search_conversation,
+    _plugin_manager,
 )
 
 # ---- 记忆系统 ----
@@ -128,4 +129,5 @@ __all__ = [
     "update_world_book_entry",
     "delete_world_book_entry",
     "validate_world_book",
+    "_plugin_manager",
 ]

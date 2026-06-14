@@ -9,6 +9,7 @@ import uuid
 
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
+from src.plugins.plugin_manager import get_plugin_manager
 from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso
 
@@ -16,6 +17,9 @@ from . import _state
 from ._state import _ctx, _CARD_PATH, _executor, _current_params
 
 _log = get_logger()
+
+# 插件管理器（全局单例）
+_plugin_manager = get_plugin_manager()
 
 # 流式对话会话管理（队列+轮询方案，解决 Chaquopy 无法迭代 Python 生成器的问题）
 _streams: dict[str, dict] = {}
@@ -86,6 +90,11 @@ def init(
         info = player.get_card_info()
         params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
         info.update(params)
+
+        # 加载插件
+        plugin_count = _plugin_manager.load_all()
+        _log.info(f"已加载 {plugin_count} 个插件")
+
         return json.dumps({"status": "ok", "card": info, "params": params})
     except FileNotFoundError as e:
         return json.dumps({"status": "error", "message": f"角色卡文件不存在: {e}"})
@@ -158,10 +167,17 @@ def chat(user_input: str) -> dict:
     try:
         user_input = user_input.strip()
 
+        # 插件管道：预处理用户输入
+        user_input = _plugin_manager.pre_process(user_input)
+
         # 注入记忆和世界书上下文
         _inject_context(player, user_input, orchestrator)
 
         reply = player.chat(user_input)
+
+        # 插件管道：后处理 AI 回复
+        reply = _plugin_manager.post_process(reply)
+        _plugin_manager.on_turn_end(user_input, reply)
 
         # 记忆存储：使用线程池异步执行，不阻塞对话回复
         if orchestrator is not None and reply:
@@ -197,6 +213,9 @@ def chat_stream_start(user_input: str) -> str:
         return json.dumps({"status": "error", "message": "消息不能为空"})
 
     user_input = user_input.strip()
+
+    # 插件管道：预处理用户输入
+    user_input = _plugin_manager.pre_process(user_input)
 
     # 注入记忆和世界书上下文
     _inject_context(player, user_input, orchestrator)
@@ -234,6 +253,10 @@ def chat_stream_start(user_input: str) -> str:
             # 记忆存储：使用线程池异步执行，不阻塞对话回复
             if orchestrator is not None and full_reply:
                 _executor.submit(_auto_remember, user_input, full_reply)
+
+            # 插件管道：后处理 AI 回复（流式对话）
+            full_reply = _plugin_manager.post_process(full_reply)
+            _plugin_manager.on_turn_end(user_input, full_reply)
 
             stream["full_reply"] = full_reply
             token_queue.put(json.dumps({"status": "done", "reply": full_reply}))
