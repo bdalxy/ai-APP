@@ -55,8 +55,11 @@ chaquopy {
         // 使用 Python 3.10（运行时已缓存）
         version = "3.10"
 
-        // 不使用 pip {} 块和 buildPython，通过 requirements.txt 配置依赖
-        // 避免 Chaquopy 17.0.0 的 move_to_common bug 和 RECORD 文件兼容问题
+        // 配置国内 PyPI 镜像加速 pip 下载
+        pip {
+            options("--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple")
+            options("--trusted-host", "pypi.tuna.tsinghua.edu.cn")
+        }
     }
 }
 
