@@ -29,7 +29,7 @@ object ProactiveService {
     fun schedule(context: Context) {
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         // 默认 3 小时，WorkManager 最小间隔是 15 分钟
-        val intervalMs = prefs.getLong("proactive_interval", 10800000L)
+        val intervalMs = prefs.getLong("proactive_interval", AppConfig.DEFAULT_INTERVAL_MS)
         val intervalMinutes = (intervalMs / 60000).coerceAtLeast(15)
 
         val constraints = Constraints.Builder()

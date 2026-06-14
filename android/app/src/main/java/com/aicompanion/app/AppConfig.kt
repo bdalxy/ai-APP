@@ -28,23 +28,37 @@ object AppConfig {
     private const val KEY_PROACTIVE_QUIET_START = "proactive_quiet_start"
     private const val KEY_PROACTIVE_QUIET_END = "proactive_quiet_end"
 
+    // ── 主动消息间隔选项（公共常量，避免多处重复定义）──
+    val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
+    val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
+    val DEFAULT_INTERVAL_MS = 10800000L  // 默认 3 小时
+
+    /** 缓存的加密 SharedPreferences 实例（避免重复创建 MasterKey） */
+    @Volatile
+    private var cachedSecurePrefs: SharedPreferences? = null
+    private val securePrefsLock = Any()
+
     /** 普通配置（非敏感） */
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    /** 加密配置（API Key 等敏感数据） */
+    /** 加密配置（API Key 等敏感数据，带缓存） */
     private fun getSecurePrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        return EncryptedSharedPreferences.create(
-            context,
-            SECURE_PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        return cachedSecurePrefs ?: synchronized(securePrefsLock) {
+            cachedSecurePrefs ?: run {
+                val masterKey = MasterKey.Builder(context.applicationContext)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                EncryptedSharedPreferences.create(
+                    context.applicationContext,
+                    SECURE_PREFS_NAME,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                ).also { cachedSecurePrefs = it }
+            }
+        }
     }
 
     // ── API Key（加密存储）──

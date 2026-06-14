@@ -7,6 +7,8 @@ import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.time.LocalTime
+import java.time.format.DateTimeParseException
 
 /**
  * WorkManager 定时 Worker。
@@ -42,21 +44,29 @@ class ProactiveWorker(
             val quietStart = prefs.getString("quiet_start", "") ?: ""
             val quietEnd = prefs.getString("quiet_end", "") ?: ""
             if (quietStart.isNotEmpty() && quietEnd.isNotEmpty()) {
-                val now = java.time.LocalTime.now()
-                val start = java.time.LocalTime.parse(quietStart)
-                val end = java.time.LocalTime.parse(quietEnd)
-                if (start.isBefore(end)) {
-                    // 同一天内（如 08:00-22:00）
-                    if (now in start..end) {
-                        Log.d(TAG, "处于免打扰时段 ($quietStart-$quietEnd)，跳过")
+                try {
+                    val now = LocalTime.now()
+                    val start = LocalTime.parse(quietStart)
+                    val end = LocalTime.parse(quietEnd)
+                    if (start == end) {
+                        Log.w(TAG, "免打扰时段开始=结束 ($quietStart)，全天静默，跳过")
                         return@withContext Result.success()
                     }
-                } else {
-                    // 跨天免打扰（如 23:00-07:00）
-                    if (now >= start || now <= end) {
-                        Log.d(TAG, "处于免打扰时段 ($quietStart-$quietEnd)，跳过")
-                        return@withContext Result.success()
+                    if (start.isBefore(end)) {
+                        // 同一天内（如 08:00-22:00）
+                        if (now in start..end) {
+                            Log.d(TAG, "处于免打扰时段 ($quietStart-$quietEnd)，跳过")
+                            return@withContext Result.success()
+                        }
+                    } else {
+                        // 跨天免打扰（如 23:00-07:00）
+                        if (now >= start || now <= end) {
+                            Log.d(TAG, "处于免打扰时段 ($quietStart-$quietEnd)，跳过")
+                            return@withContext Result.success()
+                        }
                     }
+                } catch (e: DateTimeParseException) {
+                    Log.w(TAG, "免打扰时间格式错误: $quietStart-$quietEnd, 跳过免打扰检查")
                 }
             }
 

@@ -13,12 +13,8 @@ import org.json.JSONObject
 class SettingsActivity : AppCompatActivity() {
 
     companion object {
-        private val INTERVAL_OPTIONS = arrayOf(
-            "每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天"
-        )
-        private val INTERVAL_MS = longArrayOf(
-            3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L
-        )
+        private val INTERVAL_OPTIONS = AppConfig.INTERVAL_OPTIONS
+        private val INTERVAL_MS = AppConfig.INTERVAL_MS
     }
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }

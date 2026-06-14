@@ -344,6 +344,9 @@ private var lastScrollTime = 0L
                 Log.d("MainActivity", "对话已保存，共 ${messages.size} 条消息")
             } catch (e: Exception) {
                 Log.e("MainActivity", "保存对话失败: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "对话保存失败", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

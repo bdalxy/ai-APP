@@ -31,8 +31,8 @@ class SettingsDetailActivity : AppCompatActivity() {
     companion object {
         private val MODEL_OPTIONS = arrayOf("deepseek-v4-flash（快速）", "deepseek-v4-pro（高质量）")
         private val MODEL_VALUES = arrayOf("deepseek-v4-flash", "deepseek-v4-pro")
-        private val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
-        private val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
+        private val INTERVAL_OPTIONS = AppConfig.INTERVAL_OPTIONS
+        private val INTERVAL_MS = AppConfig.INTERVAL_MS
     }
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
@@ -779,6 +779,9 @@ class SettingsDetailActivity : AppCompatActivity() {
             prefs.edit().putString("enabled_world_books", names.joinToString(",")).apply()
         } catch (e: Exception) {
             Log.e("SettingsDetail", "saveEnabledWorldBooks 失败: ${e.message}", e)
+            runOnUiThread {
+                Toast.makeText(this@SettingsDetailActivity, "保存世界书状态失败", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -799,7 +802,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 setPadding(48, 16, 48, 0)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    dip(400)
+                    dialogHeight()  // 动态计算：屏幕高度 55%
                 )
             }
             val layout = LinearLayout(this).apply {
@@ -898,7 +901,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             setPadding(48, 16, 48, 0)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dip(420)
+                dialogHeight()  // 动态计算：屏幕高度 55%
             )
         }
         val layout = LinearLayout(this).apply {
@@ -1098,7 +1101,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 setPadding(48, 16, 48, 0)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    dip(400)
+                    dialogHeight()  // 动态计算：屏幕高度 55%
                 )
             }
             val layout = LinearLayout(this).apply {
@@ -1187,6 +1190,9 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
 
     private fun dip(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
+
+    /** 对话框高度动态计算：屏幕高度的 55%，适配不同设备 */
+    private fun dialogHeight(): Int = (resources.displayMetrics.heightPixels * 0.55).toInt()
 
     private fun getSelectableItemBackground(): Int {
         val outValue = android.util.TypedValue()
