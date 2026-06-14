@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 往世乐土主题 — 暗色模式 ===== -->
+    <!-- ===== 往世乐土主题 — 深色模式 ===== -->
     <style name="Theme.AICompanion" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primaryVariant</item>

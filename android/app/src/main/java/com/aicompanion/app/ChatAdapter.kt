@@ -90,6 +90,16 @@ class ChatAdapter(
         notifyItemInserted(messages.size - 1)
     }
 
+    /** 获取当前所有消息的副本（用于持久化）。 */
+    fun getMessages(): List<Message> = messages.toList()
+
+    /** 批量替换所有消息（用于恢复对话）。 */
+    fun replaceAll(newMessages: List<Message>) {
+        messages.clear()
+        messages.addAll(newMessages)
+        notifyDataSetChanged()
+    }
+
     /**
      * 移除指定位置的打字指示器消息。
      * @return 被移除的 Message，如果该位置不是 typing 消息则返回 null。

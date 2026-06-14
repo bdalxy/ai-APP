@@ -180,16 +180,17 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | T4.1 验证通过 |
 | **描述** | 封装已有 proactive 引擎为 chat_bridge 可调用接口 |
+| **完成日期** | 2026-06-13 |
 
 **具体任务**:
-- [ ] `generate_proactive_message()` → 调用 decision_engine + topic_generator → 返回消息文本
-- [ ] 遵守 UserSettings 中的 proactive_enabled/wake_time/sleep_time
-- [ ] 调用前检查是否在活跃时间段内
+- [x] `generate_proactive_message()` → 调用 decision_engine + topic_generator → 返回消息文本
+- [x] 遵守 UserSettings 中的 proactive_enabled/wake_time/sleep_time
+- [x] 调用前检查是否在活跃时间段内
 
 **验收标准**: 调用返回符合角色人设的主动消息文本
 
@@ -199,16 +200,17 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 1天 |
 | **前置依赖** | T5.1 完成 |
 | **描述** | Android 端通知和后台保活 |
+| **完成日期** | 2026-06-13 |
 
 **具体任务**:
-- [ ] 新建 `NotificationHelper.kt` (NotificationChannel 创建)
-- [ ] 新建 `ProactiveService.kt` (前台服务，调用Python生成消息)
-- [ ] AndroidManifest.xml 注册 Service + 权限
+- [x] 新建 `NotificationHelper.kt` (NotificationChannel 创建)
+- [x] 新建 `ProactiveService.kt` (前台服务，调用Python生成消息)
+- [x] AndroidManifest.xml 注册 Service + 权限（2026-06-14 修复遗漏）
 - [ ] 通知点击 → 启动 MainActivity
 - [ ] notification icon 资源 (ic_notification.xml)
 
@@ -220,17 +222,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | T5.2 完成 |
 | **描述** | 用WorkManager实现可靠定时触发 |
+| **完成日期** | 2026-06-13 |
 
 **具体任务**:
-- [ ] 新建 `ProactiveWorker.kt` (CoroutineWorker)
-- [ ] PeriodicWorkRequest (最小间隔15分钟)
-- [ ] 约束: NetworkType.CONNECTED
-- [ ] 在 MainActivity.initPython() 成功后 enqueue
+- [x] 新建 `ProactiveWorker.kt` (CoroutineWorker)
+- [x] PeriodicWorkRequest (最小间隔15分钟)
+- [x] 约束: NetworkType.CONNECTED
+- [x] 在 MainActivity.initPython() 成功后 enqueue
 
 **验收标准**: 定时触发 → Python proactive引擎 → 通知弹出
 
@@ -300,15 +303,16 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 1天 |
 | **前置依赖** | P4-P5 稳定 |
-| **描述** | 已有Python实现，增加Android UI |
+| **描述** | 设置面板中世界书选择与启用 |
+| **完成日期** | 2026-06-13 |
 
 **具体任务**:
-- [ ] chat_bridge 新增 `load_world_book(name)` / `list_world_books()`
-- [ ] Android 设置面板增加世界背景选择
+- [x] chat_bridge 已有 `load_world_book(name)` / `list_world_books()`
+- [x] Android 设置面板中世界书列表展示 + 勾选启用
 
 ---
 
@@ -335,11 +339,36 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | 无 |
 | **描述** | Material3 暗色主题适配 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] 新建 `res/values-night/themes.xml`（深色主题）
+- [x] 新建 `res/values-night/colors.xml`（深紫黑背景配色）
+- [x] 全部颜色资源覆盖（背景/气泡/文字/毛玻璃/辅助色）
+
+---
+
+### T6.7 -- 对话持久化 [P3]
+
+| 属性 | 值 |
+|------|------|
+| **状态** | 已完成 |
+| **负责人** | @frontend-dev |
+| **预估工时** | 0.25天 |
+| **前置依赖** | 无 |
+| **描述** | 对话历史本地持久化，重启App后恢复 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] ChatAdapter 新增 `getMessages()` / `replaceAll()` 方法
+- [x] MainActivity `saveConversation()`: JSON 序列化写入 filesDir
+- [x] MainActivity `loadConversation()`: 启动时恢复对话
+- [x] 每次 AI 回复完成时自动保存
 
 ---
 

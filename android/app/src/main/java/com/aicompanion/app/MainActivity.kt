@@ -23,6 +23,7 @@ import com.aicompanion.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import kotlin.concurrent.thread
@@ -180,6 +181,9 @@ class MainActivity : AppCompatActivity() {
                     // 初始化主动消息通知渠道并调度 Worker
                     NotificationHelper.createChannel(this@MainActivity)
                     ProactiveService.schedule(this@MainActivity)
+
+                    // 恢复上次对话历史
+                    loadConversation()
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
@@ -311,10 +315,59 @@ class MainActivity : AppCompatActivity() {
         binding.etInput.requestFocus()
     }
 
-    /** 保存当前对话历史（后续可接入持久化存储） */
+    /** 持久化文件名 */
+    private val conversationFile: File by lazy {
+        File(filesDir, "conversation.json")
+    }
+
+    /** 保存当前对话历史到本地 JSON 文件 */
     private fun saveConversation() {
-        // TODO: 将消息列表持久化到本地存储或后端
-        Log.d("MainActivity", "对话历史已就绪，共 ${adapter.itemCount} 条消息")
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val messages = adapter.getMessages()
+                val jsonArray = JSONArray()
+                for (msg in messages) {
+                    val obj = JSONObject()
+                    obj.put("content", msg.content)
+                    obj.put("isUser", msg.isUser)
+                    obj.put("timestamp", msg.timestamp)
+                    jsonArray.put(obj)
+                }
+                conversationFile.writeText(jsonArray.toString(), Charsets.UTF_8)
+                Log.d("MainActivity", "对话已保存，共 ${messages.size} 条消息")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "保存对话失败: ${e.message}")
+            }
+        }
+    }
+
+    /** 从本地 JSON 文件恢复对话历史 */
+    private fun loadConversation() {
+        if (!conversationFile.exists()) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val json = conversationFile.readText(Charsets.UTF_8)
+                val jsonArray = JSONArray(json)
+                val messages = mutableListOf<Message>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    messages.add(Message(
+                        content = obj.getString("content"),
+                        isUser = obj.getBoolean("isUser"),
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis())
+                    ))
+                }
+                withContext(Dispatchers.Main) {
+                    adapter.replaceAll(messages)
+                    if (messages.isNotEmpty()) {
+                        binding.rvMessages.scrollToPosition(messages.size - 1)
+                    }
+                    Log.d("MainActivity", "对话已恢复，共 ${messages.size} 条消息")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "恢复对话失败: ${e.message}")
+            }
+        }
     }
 
     // ======================== 消息气泡辅助方法 ========================
