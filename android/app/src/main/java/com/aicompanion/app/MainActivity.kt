@@ -3,6 +3,7 @@ package com.aicompanion.app
 import android.app.ActivityOptions
 import android.content.Intent
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -10,7 +11,10 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -20,8 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 import kotlin.concurrent.thread
-import kotlin.random.Random
 
 /**
  * AI 角色扮演聊天主界面 (P3)
@@ -63,6 +67,11 @@ class MainActivity : AppCompatActivity() {
         binding.btnSend.setOnClickListener { sendMessage() }
         binding.btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        // 长按设置按钮 → 导出对话
+        binding.btnSettings.setOnLongClickListener {
+            showExportDialog()
+            true
         }
 
         // 点击聊天消息区域空白处收起键盘
@@ -355,5 +364,90 @@ class MainActivity : AppCompatActivity() {
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.hideSoftInputFromWindow(binding.etInput.windowToken, 0)
+    }
+
+    // ======================== 对话导出 ========================
+
+    /** 显示导出格式选择对话框。 */
+    private fun showExportDialog() {
+        val formats = arrayOf("JSON (结构化)", "TXT (纯文本)")
+        AlertDialog.Builder(this)
+            .setTitle("导出对话历史")
+            .setItems(formats) { _, which ->
+                val format = if (which == 0) "json" else "txt"
+                exportConversation(format)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 导出对话历史到文件并分享。 */
+    private fun exportConversation(format: String) {
+        if (!::pythonModule.isInitialized) {
+            Toast.makeText(this, "引擎未初始化，无法导出", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val result = pythonModule.callAttr("export_history", format).toString()
+                val json = JSONObject(result)
+
+                if (json.optString("status") != "ok") {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "导出失败: ${json.optString("message", "未知错误")}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val content = json.getString("content")
+                val filename = json.optString("filename", "对话记录.txt")
+
+                // 保存到 Downloads 目录
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS
+                )
+                val file = File(downloadsDir, filename)
+                file.writeText(content, Charsets.UTF_8)
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "已导出到: ${file.absolutePath}",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    // 分享文件
+                    try {
+                        val uri = FileProvider.getUriForFile(
+                            this@MainActivity,
+                            "${packageName}.fileprovider",
+                            file
+                        )
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = if (format == "json") "application/json" else "text/plain"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "分享对话记录"))
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "分享失败: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "导出失败", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "导出失败: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 }

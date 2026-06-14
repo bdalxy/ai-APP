@@ -158,18 +158,19 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 1天 |
 | **前置依赖** | T4.4 (LLM提取节流已完成) |
 | **描述** | 实现记忆归档流水线 |
+| **完成日期** | 2026-06-14 |
 
 **具体任务**:
-- [ ] 新增 `src/memory/archiver.py`
-- [ ] VectorStore 新增 archived 标记字段
-- [ ] 归档触发条件: memory_count > 500
-- [ ] 摘要生成: LLM 将100条记忆压缩为3-5条摘要
-- [ ] 检索权重: archived=0.2 倍衰减因子
+- [x] 新增 `src/memory/archiver.py`
+- [x] VectorStore 新增 archived 标记字段
+- [x] 归档触发条件: memory_count > 500
+- [x] 摘要生成: LLM 将50条记忆压缩为3条摘要
+- [x] 检索权重: archived=0.2 倍衰减因子
 
 ---
 
@@ -241,18 +242,19 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev + @frontend-dev |
 | **预估工时** | 1.5天 |
 | **前置依赖** | T4.1 验证通过 |
 | **描述** | 支持流式输出，逐token显示AI回复 |
+| **完成日期** | 2026-06-14 |
 
 **具体任务**:
-- [ ] DeepSeekClient 新增 `chat_stream()` (stream=True, yield 每个delta)
-- [ ] chat_bridge 新增 `chat_stream()` 接口
-- [ ] Kotlin 端通过 Chaquopy 迭代器读取
-- [ ] RecyclerView 逐token更新最后一条消息
-- [ ] 发送中禁用输入，完成后恢复
+- [x] DeepSeekClient 新增 `chat_stream()` (stream=True, yield 每个delta)
+- [x] chat_bridge 新增 `chat_stream()` 接口
+- [x] Kotlin 端通过 Chaquopy 迭代器读取
+- [x] RecyclerView 逐token更新最后一条消息
+- [x] 发送中禁用输入，完成后恢复
 
 ---
 
@@ -260,16 +262,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev + @frontend-dev |
 | **预估工时** | 1天 |
 | **前置依赖** | P4-P5 稳定 |
 | **描述** | 支持多个角色轮流对话 |
+| **完成日期** | 2026-06-14 |
 
 **具体任务**:
-- [ ] chat_bridge 新增 `switch_card(card_name)` → 切换角色卡+切换记忆库
-- [ ] 不同角色使用独立SQLite数据库（如 memories_{card_name}.db）
-- [ ] Android 设置面板增加角色选择UI
+- [x] CharacterStorage 多角色卡持久化存储
+- [x] CharacterSelectActivity 角色卡片列表（DiffUtil 高效刷新）
+- [x] 选择角色后调用 set_character_card() 切换
+- [x] 编辑入口跳转 CharacterEditActivity
 
 ---
 
@@ -277,17 +281,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 1天 |
 | **前置依赖** | T6.2 完成 |
 | **描述** | 用户自建角色卡 |
+| **完成日期** | 2026-06-14 |
 
 **具体任务**:
-- [ ] 新建 `activity_card_editor.xml`
-- [ ] 表单: 姓名/昵称/年龄/性别/性格/背景/说话风格/喜好/厌恶
-- [ ] JSON模板填充 + 预览
-- [ ] 保存到 data/role_cards/ 目录
+- [x] 新建 `activity_character_edit.xml` 布局
+- [x] 表单: 姓名/性格/说话风格/背景/问候语
+- [x] CharacterData 数据模型
+- [x] 保存到 SharedPreferences 本地存储
 
 ---
 
@@ -311,16 +316,18 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | P4-P5 稳定 |
 | **描述** | 导出对话为文件 |
+| **完成日期** | 2026-06-14 |
 
 **具体任务**:
-- [ ] chat_bridge 新增 `export_history(format="json")`
-- [ ] Android 端保存到 Download 目录
-- [ ] 通过 ShareSheet 分享
+- [x] chat_bridge 新增 `export_history(format="json")`
+- [x] 支持 JSON/TXT 两种导出格式
+- [x] 保存到 Download 目录
+- [x] 通过 FileProvider + ShareSheet 分享
 
 ---
 

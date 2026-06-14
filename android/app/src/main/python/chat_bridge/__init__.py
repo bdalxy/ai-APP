@@ -31,6 +31,7 @@ from ._core import (
     list_presets,
     apply_params,
     get_current_params,
+    export_history,
 )
 
 # ---- 记忆系统 ----
@@ -86,6 +87,7 @@ __all__ = [
     "list_presets",
     "apply_params",
     "get_current_params",
+    "export_history",
     "init_memory",
     "get_memory_stats",
     "reset_memories",

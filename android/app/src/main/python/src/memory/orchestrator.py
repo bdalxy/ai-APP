@@ -57,6 +57,7 @@ class MemoryOrchestrator:
         self.retriever = MemoryRetriever(vector_store, deepseek_client)
         self._turn_count = 0          # 用于 LLM 提取节流
         self._extract_interval = 5    # 每 N 轮启用一次 LLM 提取（P4 仅规则模式）
+        self._archiver = None          # 懒加载的记忆归档器
         self._log = get_logger()
         self._log.info("MemoryOrchestrator 初始化完成")
 
@@ -195,7 +196,31 @@ class MemoryOrchestrator:
             f"[记忆存储] 完成: 提取={len(entries)}, 成功存储={stored_count} "
             f"(turn={turn_id})"
         )
+
+        # 归档检查：记忆数超过阈值时自动触发归档
+        self._check_archive()
+
         return stored_count
+
+    # =========================================================================
+    # 归档集成
+    # =========================================================================
+
+    def _check_archive(self) -> None:
+        """检查并触发记忆归档（懒加载 archiver）。"""
+        try:
+            if self._archiver is None:
+                from src.memory.archiver import MemoryArchiver
+                self._archiver = MemoryArchiver(self.vector_store, self.client)
+            if self._archiver.should_archive():
+                archived = self._archiver.archive()
+                if archived > 0:
+                    self._log.info(
+                        f"[归档] 已归档 {archived} 条记忆, "
+                        f"当前活跃记忆数: {self.vector_store.count_active()}"
+                    )
+        except Exception as e:
+            self._log.warning(f"[归档] 检查失败（不影响对话）: {e}")
 
     # =========================================================================
     # 记忆检索

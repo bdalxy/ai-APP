@@ -336,3 +336,58 @@ def get_current_params() -> dict:
     with _state._lock:
         params_copy = dict(_current_params)
     return json.dumps({"status": "ok", "params": params_copy})
+
+
+def export_history(format: str = "json") -> dict:
+    """导出当前对话历史。
+
+    将当前对话上下文导出为 JSON 或 TXT 格式。
+
+    Args:
+        format: 导出格式，"json" 或 "txt"。
+
+    Returns:
+        JSON 字符串，包含状态和导出的对话历史。
+    """
+    player = _ctx.player
+    if player is None:
+        return json.dumps({"status": "error", "message": "引擎未初始化，没有对话历史"})
+
+    try:
+        context = player.get_context()
+        if not context:
+            return json.dumps({"status": "error", "message": "对话历史为空"})
+
+        card_info = player.get_card_info()
+        card_name = card_info.get("name", "未知角色")
+
+        if format == "txt":
+            lines = [f"AI 角色扮演对话记录", f"角色: {card_name}", f"导出时间: {__import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso()}", "=" * 40, ""]
+            for msg in context:
+                role_name = "用户" if msg["role"] == "user" else card_name
+                lines.append(f"[{role_name}]")
+                lines.append(msg["content"])
+                lines.append("")
+            content = "\n".join(lines)
+            return json.dumps({
+                "status": "ok",
+                "format": "txt",
+                "content": content,
+                "filename": f"对话记录_{card_name}_{__import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso()[:10]}.txt",
+            })
+        else:
+            # JSON 格式
+            data = {
+                "card": card_name,
+                "exported_at": __import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso(),
+                "messages": context,
+            }
+            content = json.dumps(data, ensure_ascii=False, indent=2)
+            return json.dumps({
+                "status": "ok",
+                "format": "json",
+                "content": content,
+                "filename": f"对话记录_{card_name}_{__import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso()[:10]}.json",
+            })
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})

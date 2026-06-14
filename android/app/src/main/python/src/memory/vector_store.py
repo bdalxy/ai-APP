@@ -241,6 +241,7 @@ class MemoryEntry:
     access_count: int = 0
     decay_factor: float = 1.0
     source_turn_id: str = ""
+    archived: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -249,6 +250,7 @@ class MemoryEntry:
             "importance": self.importance, "created_at": self.created_at,
             "last_accessed": self.last_accessed, "access_count": self.access_count,
             "decay_factor": self.decay_factor, "source_turn_id": self.source_turn_id,
+            "archived": self.archived,
         }
 
     @classmethod
@@ -260,6 +262,7 @@ class MemoryEntry:
             created_at=data.get("created_at", ""), last_accessed=data.get("last_accessed", ""),
             access_count=data.get("access_count", 0), decay_factor=data.get("decay_factor", 1.0),
             source_turn_id=data.get("source_turn_id", ""),
+            archived=data.get("archived", False),
         )
 
 
@@ -347,7 +350,8 @@ class VectorStore:
         last_accessed TEXT NOT NULL DEFAULT '',
         access_count INTEGER NOT NULL DEFAULT 0,
         decay_factor REAL NOT NULL DEFAULT 1.0,
-        source_turn_id TEXT NOT NULL DEFAULT ''
+        source_turn_id TEXT NOT NULL DEFAULT '',
+        archived INTEGER DEFAULT 0
     )
     """
 
@@ -376,9 +380,23 @@ class VectorStore:
         try:
             self._conn.execute(self._CREATE_TABLE_SQL)
             self._conn.commit()
+            # 迁移：为旧数据库添加 archived 字段
+            self._migrate_add_archived()
             self._log.debug("数据库表已就绪")
         except sqlite3.Error as e:
             raise MemoryStorageError(f"创建数据库表失败: {e}", detail=self.db_path) from e
+
+    def _migrate_add_archived(self) -> None:
+        """为旧数据库添加 archived 字段（兼容无该字段的旧数据库）。"""
+        try:
+            self._conn.execute(
+                f"ALTER TABLE {self._TABLE_NAME} ADD COLUMN archived INTEGER DEFAULT 0"
+            )
+            self._conn.commit()
+            self._log.info("[迁移] 已添加 archived 字段")
+        except sqlite3.OperationalError:
+            # 字段已存在，忽略
+            pass
 
     def _create_indexes(self) -> None:
         """创建性能索引，加速按类型/重要性/创建时间的查询。
@@ -429,8 +447,8 @@ class VectorStore:
             entry.last_accessed = entry.created_at
         # T-FIX-04: 加密 content 后再存储
         encrypted_content = _encrypt(entry.content)
-        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id)
+        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id, archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id, int(entry.archived))
         try:
             with self._lock:
                 self._conn.execute(sql, params)
@@ -539,6 +557,13 @@ class VectorStore:
             else:
                 sim = 0.0
             scored.append((entry, sim))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        # 归档记忆权重衰减：archived 的记忆相似度乘以 0.2
+        scored = [
+            (entry, sim * 0.2 if entry.archived else sim)
+            for entry, sim in scored
+        ]
+        # 重新排序
         scored.sort(key=lambda x: x[1], reverse=True)
         # 如果所有分数都是 0（无 embedding 且无关键词匹配），按最近访问时间排序
         if scored and all(s == 0.0 for _, s in scored):
@@ -706,6 +731,78 @@ class VectorStore:
         except sqlite3.Error as e:
             self._log.error(f"计数失败: {e}")
             raise MemoryStorageError(f"计数失败: {e}") from e
+
+    def count_active(self) -> int:
+        """统计未归档的记忆数量。
+
+        Returns:
+            未归档的记忆总数。
+        """
+        self._check_closed()
+        try:
+            with self._lock:
+                cursor = self._conn.execute(
+                    f"SELECT COUNT(*) FROM {self._TABLE_NAME} WHERE archived = 0"
+                )
+                return cursor.fetchone()[0]
+        except sqlite3.Error as e:
+            self._log.error(f"计数失败: {e}")
+            raise MemoryStorageError(f"计数失败: {e}") from e
+
+    def get_oldest_unarchived(self, limit: int = 50) -> list[MemoryEntry]:
+        """获取最旧的未归档记忆。
+
+        按创建时间升序（最旧的优先），返回指定数量的未归档记忆。
+
+        Args:
+            limit: 返回的最大记忆数。
+
+        Returns:
+            MemoryEntry 列表，按创建时间升序排列。
+        """
+        self._check_closed()
+        sql = (
+            f"SELECT * FROM {self._TABLE_NAME} "
+            "WHERE archived = 0 "
+            "ORDER BY created_at ASC LIMIT ?"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (limit,))
+                rows = cursor.fetchall()
+        except sqlite3.Error as e:
+            self._log.error(f"获取最旧未归档记忆失败: {e}")
+            raise MemoryStorageError(f"获取最旧未归档记忆失败: {e}") from e
+        return [self._row_to_entry(row) for row in rows]
+
+    def mark_archived(self, mem_ids: list[str]) -> int:
+        """批量标记记忆为已归档。
+
+        Args:
+            mem_ids: 要标记的记忆 ID 列表。
+
+        Returns:
+            成功标记的记忆条数。
+        """
+        if not mem_ids:
+            return 0
+        self._check_closed()
+        placeholders = ",".join("?" for _ in mem_ids)
+        sql = (
+            f"UPDATE {self._TABLE_NAME} SET archived = 1 "
+            f"WHERE id IN ({placeholders})"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, mem_ids)
+                self._conn.commit()
+                self._log.info(
+                    f"[归档标记] 已标记 {cursor.rowcount} 条记忆为已归档"
+                )
+                return cursor.rowcount
+        except sqlite3.Error as e:
+            self._log.error(f"标记归档失败: {e}")
+            raise MemoryStorageError(f"标记归档失败: {e}") from e
 
     def clear(self) -> None:
         self._check_closed()
@@ -987,11 +1084,13 @@ class VectorStore:
             embedding = []
         # T-FIX-04: 解密 content 字段
         decrypted_content = _decrypt(row[2])
+        # 读取 archived 字段（兼容旧数据库可能没有该字段）
+        archived = bool(row[11]) if len(row) > 11 else False
         return MemoryEntry(
             id=row[0], memory_type=row[1], content=decrypted_content, keywords=keywords,
             embedding=embedding, importance=float(row[5]), created_at=row[6],
             last_accessed=row[7], access_count=int(row[8]), decay_factor=float(row[9]),
-            source_turn_id=row[10],
+            source_turn_id=row[10], archived=archived,
         )
 
     def close(self) -> None:
