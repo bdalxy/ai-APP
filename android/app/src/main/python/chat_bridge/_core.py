@@ -3,6 +3,9 @@
 """
 import json
 import os
+import queue
+import threading
+import uuid
 
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
@@ -13,6 +16,10 @@ from . import _state
 from ._state import _ctx, _CARD_PATH, _executor, _current_params
 
 _log = get_logger()
+
+# 流式对话会话管理（队列+轮询方案，解决 Chaquopy 无法迭代 Python 生成器的问题）
+_streams: dict[str, dict] = {}
+_streams_lock = threading.Lock()
 
 
 def _build_custom_preset(
@@ -167,66 +174,165 @@ def chat(user_input: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
+def chat_stream_start(user_input: str) -> str:
+    """启动流式对话，返回 stream_id。
+
+    在后台线程中执行 AI 生成，通过 chat_stream_poll(stream_id) 获取 token。
+    这是队列+轮询方案的核心入口，解决 Chaquopy 17.0.0 无法正确迭代
+    Python 生成器的问题（PyObject 无法转为 Java String）。
+
+    Args:
+        user_input: 用户输入的消息文本。
+
+    Returns:
+        stream_id 字符串（UUID），用于后续 chat_stream_poll() 调用。
+    """
+    player = _ctx.player
+    orchestrator = _ctx.orchestrator
+
+    if player is None:
+        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+
+    if not user_input or not user_input.strip():
+        return json.dumps({"status": "error", "message": "消息不能为空"})
+
+    user_input = user_input.strip()
+
+    # 注入记忆和世界书上下文
+    _inject_context(player, user_input, orchestrator)
+
+    stream_id = str(uuid.uuid4())
+    token_queue = queue.Queue()
+
+    with _streams_lock:
+        _streams[stream_id] = {
+            "queue": token_queue,
+            "done": False,
+            "error": None,
+            "full_reply": "",
+        }
+
+    def _run():
+        stream = _streams.get(stream_id)
+        if not stream:
+            return
+        try:
+            gen = player.chat_stream(user_input)
+            full_reply = ""
+            for token in gen:
+                if token.startswith("__DONE__:"):
+                    full_reply = token[len("__DONE__:"):]
+                elif token.startswith("__ERROR__:"):
+                    error_msg = token[len("__ERROR__:"):]
+                    _log.error(f"[流式对话] 角色扮演器返回错误: {error_msg}")
+                    stream["error"] = error_msg
+                    token_queue.put(json.dumps({"status": "error", "message": error_msg}))
+                    return
+                else:
+                    token_queue.put(json.dumps({"status": "streaming", "token": token}))
+
+            # 记忆存储：使用线程池异步执行，不阻塞对话回复
+            if orchestrator is not None and full_reply:
+                _executor.submit(_auto_remember, user_input, full_reply)
+
+            stream["full_reply"] = full_reply
+            token_queue.put(json.dumps({"status": "done", "reply": full_reply}))
+        except RolePlayerError as e:
+            stream["error"] = str(e)
+            token_queue.put(json.dumps({"status": "error", "message": str(e)}))
+        except Exception as e:
+            _log.error(f"[流式对话] 后台线程未知错误: {e}")
+            stream["error"] = str(e)
+            token_queue.put(json.dumps({"status": "error", "message": f"内部错误: {e}"}))
+        finally:
+            stream["done"] = True
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    return stream_id
+
+
+def chat_stream_poll(stream_id: str) -> str:
+    """获取流式对话的可用 token（批量返回）。
+
+    一次性返回队列中所有已生成的 token，减少 Chaquopy 跨语言调用次数。
+    当队列为空且流未结束时返回 {"status": "waiting"}。
+
+    Args:
+        stream_id: chat_stream_start() 返回的会话 ID。
+
+    Returns:
+        JSON 字符串，格式如下：
+            {"status": "batch", "events": [{"status": "streaming", "token": "..."}, ...]}
+            {"status": "done", "reply": "完整回复"}
+            {"status": "error", "message": "错误信息"}
+            {"status": "waiting"}  — 暂无新 token，流未结束
+            {"status": "error", "message": "无效的 stream_id"}
+    """
+    stream = _streams.get(stream_id)
+    if not stream:
+        return json.dumps({"status": "error", "message": "无效的 stream_id"})
+
+    # 批量取出所有可用 token
+    events = []
+    while True:
+        try:
+            events.append(stream["queue"].get_nowait())
+        except queue.Empty:
+            break
+
+    if events:
+        return json.dumps({"status": "batch", "events": events})
+
+    if stream["done"]:
+        # 清理已结束的流会话
+        with _streams_lock:
+            _streams.pop(stream_id, None)
+        if stream["error"]:
+            return json.dumps({"status": "error", "message": stream["error"]})
+        return json.dumps({"status": "done", "reply": stream["full_reply"]})
+
+    return json.dumps({"status": "waiting"})
+
+
 def chat_stream(user_input: str):
-    """流式对话，返回事件列表（每个事件是 JSON 字符串）。
+    """流式对话（向后兼容接口）。
 
-    与 chat() 相同的记忆注入和世界书注入流程，
-    但使用 Player.chat_stream() 实现逐 token 输出。
+    内部使用 chat_stream_start() + chat_stream_poll() 实现，
+    但收集所有 token 后返回列表（与旧接口行为一致）。
 
-    注意：Chaquopy 17.0.0 迭代 Python 生成器时 PyObject 无法转为 Java String/Map，
-    因此改为返回 list[dict] 而非生成器。Kotlin 端迭代列表时元素会自动转为 Java String。
+    新代码请使用 chat_stream_start() + chat_stream_poll() 实现真正的流式输出。
 
     每个事件是一个 JSON 字符串：
         {"status": "streaming", "token": "..."}
         {"status": "done", "reply": "完整回复"}
         {"status": "error", "message": "错误信息"}
     """
-    player = _ctx.player
-    orchestrator = _ctx.orchestrator
     results = []
 
-    if player is None:
-        results.append(json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"}))
+    stream_id = chat_stream_start(user_input)
+
+    # 检查是否返回了错误（stream_id 可能是 JSON 字符串）
+    if stream_id.startswith("{"):
+        results.append(stream_id)
         return results
 
-    if not user_input or not user_input.strip():
-        results.append(json.dumps({"status": "error", "message": "消息不能为空"}))
-        return results
+    import time
+    while True:
+        poll_result = chat_stream_poll(stream_id)
+        poll_json = json.loads(poll_result)
+        status = poll_json.get("status")
 
-    try:
-        user_input = user_input.strip()
+        if status == "batch":
+            for event_str in poll_json.get("events", []):
+                results.append(event_str)
+        elif status in ("done", "error"):
+            results.append(poll_result)
+            break
+        elif status == "waiting":
+            time.sleep(0.01)  # 10ms 轮询间隔
 
-        # 注入记忆和世界书上下文
-        _inject_context(player, user_input, orchestrator)
-
-        # 流式对话
-        gen = player.chat_stream(user_input)
-        full_reply = ""
-        for token in gen:
-            if token.startswith("__DONE__:"):
-                full_reply = token[len("__DONE__:"):]
-            elif token.startswith("__ERROR__:"):
-                error_msg = token[len("__ERROR__:"):]
-                _log.error(f"[流式对话] 角色扮演器返回错误: {error_msg}")
-                results.append(json.dumps({"status": "error", "message": error_msg}))
-                return results
-            else:
-                results.append(json.dumps({"status": "streaming", "token": token}))
-
-        # 记忆存储：使用线程池异步执行，不阻塞对话回复
-        if orchestrator is not None and full_reply:
-            _executor.submit(_auto_remember, user_input, full_reply)
-
-        results.append(json.dumps({"status": "done", "reply": full_reply}))
-        return results
-
-    except RolePlayerError as e:
-        results.append(json.dumps({"status": "error", "message": str(e)}))
-        return results
-    except Exception as e:
-        _log.error(f"[流式对话] 异常: {e}")
-        results.append(json.dumps({"status": "error", "message": str(e)}))
-        return results
+    return results
 
 
 def _auto_remember(user_input: str, ai_reply: str) -> None:

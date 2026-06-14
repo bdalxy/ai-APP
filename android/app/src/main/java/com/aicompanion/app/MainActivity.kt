@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.aicompanion.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -206,8 +207,11 @@ private var lastScrollTime = 0L
     // ======================== 流式消息发送 ========================
 
     /**
-     * 流式发送消息。
-     * 调用 Python chat_bridge.chat_stream()，逐 token 实时更新 UI。
+     * 流式发送消息（队列+轮询方案）。
+     *
+     * 使用 chat_stream_start() 启动后台生成线程，
+     * 然后通过 chat_stream_poll() 轮询获取 token 并实时更新 UI。
+     * 解决了 Chaquopy 17.0.0 无法迭代 Python 生成器的问题。
      */
     private fun sendMessageStream(userInput: String) {
         isStreaming = true
@@ -222,22 +226,45 @@ private var lastScrollTime = 0L
         adapter.addMessage(aiMsg)
         binding.rvMessages.smoothScrollToPosition(aiMsgIndex)
 
-        // 在后台线程调用 Python 流式接口（使用协程，受 Lifecycle 管理）
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val generator = pythonModule.callAttr("chat_stream", userInput)
+                // 启动流式对话
+                val streamId = pythonModule.callAttr("chat_stream_start", userInput).toString()
 
-                if (generator != null) {
-                    val fullReply = StringBuilder()
-                    for (item in generator) {
-                        val json = JSONObject(item.toString())
-                        val status = json.optString("status", "error")
+                // 检查是否返回了错误（chat_stream_start 在失败时返回 JSON 错误字符串）
+                if (streamId.startsWith("{")) {
+                    val errorJson = JSONObject(streamId)
+                    runOnUiThread {
+                        adapter.updateMessage(
+                            aiMsgIndex,
+                            aiMsg.copy(content = "[错误] ${errorJson.optString("message", "未知错误")}")
+                        )
+                        enableInput()
+                    }
+                    return@launch
+                }
 
-                        when (status) {
-                            "streaming" -> {
-                                val token = json.optString("token", "")
-                                fullReply.append(token)
-                                // 在 UI 线程逐 token 更新
+                val fullReply = StringBuilder()
+                var isDone = false
+
+                while (!isDone && isStreaming) {
+                    val pollResult = pythonModule.callAttr("chat_stream_poll", streamId).toString()
+                    val pollJson = JSONObject(pollResult)
+                    val status = pollJson.optString("status", "error")
+
+                    when (status) {
+                        "batch" -> {
+                            val events = pollJson.optJSONArray("events")
+                            if (events != null) {
+                                for (i in 0 until events.length()) {
+                                    val eventStr = events.getString(i)
+                                    val eventJson = JSONObject(eventStr)
+                                    val eventStatus = eventJson.optString("status", "")
+                                    if (eventStatus == "streaming") {
+                                        val token = eventJson.optString("token", "")
+                                        fullReply.append(token)
+                                    }
+                                }
                                 runOnUiThread {
                                     adapter.updateMessage(
                                         aiMsgIndex,
@@ -251,39 +278,35 @@ private var lastScrollTime = 0L
                                     }
                                 }
                             }
-                            "done" -> {
-                                val reply = json.optString("reply", fullReply.toString())
-                                runOnUiThread {
-                                    val finalContent = reply.ifEmpty { fullReply.toString() }
-                                    adapter.updateMessage(
-                                        aiMsgIndex,
-                                        aiMsg.copy(content = finalContent)
-                                    )
-                                    saveConversation()
-                                }
-                            }
-                            "error" -> {
-                                val errorMsg = json.optString("message", "未知错误")
-                                runOnUiThread {
-                                    adapter.updateMessage(
-                                        aiMsgIndex,
-                                        aiMsg.copy(content = "[错误] $errorMsg")
-                                    )
-                                    android.widget.Toast.makeText(
-                                        this@MainActivity,
-                                        "对话失败: $errorMsg",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
                         }
-                    }
-                } else {
-                    runOnUiThread {
-                        adapter.updateMessage(
-                            aiMsgIndex,
-                            aiMsg.copy(content = "[错误] Python 返回为空")
-                        )
+                        "done" -> {
+                            val reply = pollJson.optString("reply", fullReply.toString())
+                            runOnUiThread {
+                                val finalContent = reply.ifEmpty { fullReply.toString() }
+                                adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
+                                saveConversation()
+                            }
+                            isDone = true
+                        }
+                        "error" -> {
+                            val errorMsg = pollJson.optString("message", "未知错误")
+                            runOnUiThread {
+                                adapter.updateMessage(
+                                    aiMsgIndex,
+                                    aiMsg.copy(content = "[错误] $errorMsg")
+                                )
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "对话失败: $errorMsg",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            isDone = true
+                        }
+                        "waiting" -> {
+                            // 暂无新 token，短暂等待后继续轮询（30ms 间隔）
+                            delay(30)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -301,7 +324,7 @@ private var lastScrollTime = 0L
                 }
             } finally {
                 isStreaming = false
-                withContext(Dispatchers.Main) { enableInput() }
+                runOnUiThread { enableInput() }
             }
         }
     }

@@ -56,7 +56,7 @@ class CharacterEditActivity : AppCompatActivity() {
 
         // 编辑模式下保留原始创建时间
         val existingChar = if (editingId != null) {
-            CharacterStorage.loadById(this, editingId!!)
+            CharacterStorage.loadAll(this).find { it.id == editingId }
         } else null
 
         val char = CharacterData(
