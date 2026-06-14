@@ -37,6 +37,8 @@ data/world_books/*
 # 用户设置（运行时生成）
 data/user_settings.json
 data/proactive_state.json
+android/app/src/main/python/data/user_settings.json
+android/app/src/main/python/data/proactive_state.json
 
 # 测试
 .coverage
