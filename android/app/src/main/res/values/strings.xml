@@ -19,6 +19,8 @@
     <!-- ===== 通用 Content Description ===== -->
     <string name="cd_back">返回</string>
     <string name="cd_settings">设置</string>
+    <string name="cd_search">搜索</string>
+    <string name="cd_clear_search">清除搜索</string>
     <string name="cd_avatar">角色头像</string>
     <string name="cd_new_character">新建角色</string>
     <string name="cd_save_character">保存角色</string>
@@ -27,6 +29,8 @@
 
     <!-- ===== 聊天主页 (activity_main) ===== -->
     <string name="hint_input_message">说点什么...</string>
+    <string name="hint_search_conversation">搜索对话内容...</string>
+    <string name="search_result_count">找到 %d 条匹配</string>
     <string name="status_online">在线</string>
     <string name="tv_default_character_name">小美</string>
 

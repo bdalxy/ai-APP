@@ -63,6 +63,18 @@
                     android:textColor="@color/accent_green" />
             </LinearLayout>
 
+            <!-- 搜索按钮 -->
+            <ImageView
+                android:id="@+id/btnSearch"
+                android:layout_width="@dimen/icon_size_small"
+                android:layout_height="@dimen/icon_size_small"
+                android:src="@drawable/ic_search"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_search"
+                android:tint="@color/text_primary" />
+
             <!-- 设置按钮 -->
             <TextView
                 android:id="@+id/btnSettings"
@@ -77,6 +89,56 @@
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/cd_settings" />
         </LinearLayout>
+
+        <!-- 搜索栏（默认隐藏） -->
+        <LinearLayout
+            android:id="@+id/layoutSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="@dimen/search_padding_horizontal"
+            android:paddingVertical="@dimen/search_padding_vertical"
+            android:background="@color/bg_mid"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/etSearch"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:hint="@string/hint_search_conversation"
+                android:textColorHint="@color/text_tertiary"
+                android:textColor="@color/text_primary"
+                android:background="@drawable/bg_input_field"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:maxLines="1"
+                android:inputType="text"
+                android:imeOptions="actionSearch" />
+
+            <ImageButton
+                android:id="@+id/btnClearSearch"
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small"
+                android:layout_marginStart="@dimen/spacing_md"
+                android:src="@drawable/ic_close"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_clear_search"
+                android:tint="@color/text_secondary" />
+        </LinearLayout>
+
+        <!-- 搜索结果计数 -->
+        <TextView
+            android:id="@+id/tvSearchResultCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="@dimen/spacing_page"
+            android:paddingVertical="@dimen/spacing_sm"
+            android:textSize="@dimen/text_small"
+            android:textColor="@color/text_secondary"
+            android:gravity="center"
+            android:visibility="gone" />
 
         <!-- 消息列表 -->
         <androidx.recyclerview.widget.RecyclerView

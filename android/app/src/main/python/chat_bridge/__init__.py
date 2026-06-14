@@ -34,6 +34,7 @@ from ._core import (
     apply_params,
     get_current_params,
     export_history,
+    search_conversation,
 )
 
 # ---- 记忆系统 ----
@@ -96,6 +97,7 @@ __all__ = [
     "apply_params",
     "get_current_params",
     "export_history",
+    "search_conversation",
     "init_memory",
     "get_memory_stats",
     "reset_memories",

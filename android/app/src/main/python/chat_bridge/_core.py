@@ -433,6 +433,46 @@ def get_current_params() -> dict:
     return json.dumps({"status": "ok", "params": params_copy})
 
 
+def search_conversation(keyword: str, conversation_json: str) -> str:
+    """搜索对话历史，返回匹配的消息及上下文。
+
+    Args:
+        keyword: 搜索关键词（不区分大小写）
+        conversation_json: 对话历史的 JSON 字符串
+            格式: [{"content":"...","isUser":true/false,"timestamp":...},...]
+
+    Returns:
+        JSON 字符串，包含 status 和匹配的消息列表（含上下文）。
+    """
+    try:
+        messages = json.loads(conversation_json)
+    except Exception:
+        return json.dumps({"status": "error", "message": "无效的对话数据格式"})
+
+    if not keyword or not keyword.strip():
+        return json.dumps({"status": "ok", "matches": [], "total": 0})
+
+    keyword_lower = keyword.strip().lower()
+    matches = []
+
+    for i, msg in enumerate(messages):
+        content = msg.get("content", "")
+        if keyword_lower in content.lower():
+            # 获取上下文（前后各1条消息）
+            context_before = messages[i - 1]["content"] if i > 0 else ""
+            context_after = messages[i + 1]["content"] if i < len(messages) - 1 else ""
+            matches.append({
+                "index": i,
+                "content": content,
+                "isUser": msg.get("isUser", False),
+                "timestamp": msg.get("timestamp", 0),
+                "context_before": context_before,
+                "context_after": context_after,
+            })
+
+    return json.dumps({"status": "ok", "matches": matches, "total": len(matches)})
+
+
 def export_history(format: str = "json") -> dict:
     """导出当前对话历史。
 

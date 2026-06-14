@@ -6,9 +6,12 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
@@ -53,6 +56,12 @@ private var isStreaming = false
 /** 流式输出滚动节流时间戳 */
 private var lastScrollTime = 0L
 
+// ======================== 搜索相关 ========================
+/** 是否处于搜索模式 */
+private var isSearchMode = false
+/** 进入搜索模式前的原始消息列表（用于退出搜索后恢复） */
+private var originalMessages = listOf<Message>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -76,6 +85,31 @@ private var lastScrollTime = 0L
         binding.btnSettings.setOnLongClickListener {
             showExportDialog()
             true
+        }
+
+        // 搜索按钮：切换搜索模式
+        binding.btnSearch?.setOnClickListener {
+            toggleSearchMode()
+        }
+
+        // 搜索输入监听（防抖300ms）
+        val searchHandler = Handler(Looper.getMainLooper())
+        var searchRunnable: Runnable? = null
+        binding.etSearch?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                searchRunnable = Runnable {
+                    performSearch(s?.toString() ?: "")
+                }
+                searchHandler.postDelayed(searchRunnable!!, 300)
+            }
+        })
+
+        // 搜索清除按钮
+        binding.btnClearSearch?.setOnClickListener {
+            binding.etSearch?.setText("")
         }
 
         // 点击聊天消息区域空白处收起键盘
@@ -447,9 +481,117 @@ private var lastScrollTime = 0L
         return super.dispatchTouchEvent(ev)
     }
 
+    // ======================== 对话搜索 ========================
+
+    /** 切换搜索模式（显示/隐藏搜索栏） */
+    private fun toggleSearchMode() {
+        if (isSearchMode) {
+            // 退出搜索模式：隐藏搜索栏，恢复原始消息列表
+            isSearchMode = false
+            binding.layoutSearch?.visibility = View.GONE
+            binding.tvSearchResultCount?.visibility = View.GONE
+            binding.etSearch?.setText("")
+            adapter.replaceAll(originalMessages.toList())
+            hideKeyboard()
+            // 滚动到最新消息
+            if (adapter.itemCount > 0) {
+                binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
+            }
+        } else {
+            // 进入搜索模式：显示搜索栏，保存当前消息列表
+            isSearchMode = true
+            originalMessages = adapter.getMessages().toList()
+            binding.layoutSearch?.visibility = View.VISIBLE
+            binding.etSearch?.requestFocus()
+            showKeyboard(binding.etSearch!!)
+        }
+    }
+
+    /** 显示软键盘 */
+    private fun showKeyboard(view: View) {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /** 执行搜索（在协程中调用 Python search_conversation） */
+    private fun performSearch(keyword: String) {
+        if (!::pythonModule.isInitialized) return
+
+        if (keyword.isBlank()) {
+            // 空搜索：恢复原始消息列表
+            adapter.replaceAll(originalMessages.toList())
+            binding.tvSearchResultCount?.visibility = View.GONE
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 构建对话 JSON
+                val jsonArray = JSONArray()
+                for (msg in originalMessages) {
+                    val obj = JSONObject()
+                    obj.put("content", msg.content)
+                    obj.put("isUser", msg.isUser)
+                    obj.put("timestamp", msg.timestamp)
+                    jsonArray.put(obj)
+                }
+
+                val result = pythonModule.callAttr(
+                    "search_conversation", keyword, jsonArray.toString()
+                ).toString()
+                val resultJson = JSONObject(result)
+
+                if (resultJson.optString("status") == "ok") {
+                    val matches = resultJson.optJSONArray("matches") ?: JSONArray()
+                    val total = resultJson.optInt("total", 0)
+
+                    val matchedMessages = mutableListOf<Message>()
+                    for (i in 0 until matches.length()) {
+                        val match = matches.getJSONObject(i)
+                        val content = match.optString("content", "")
+                        val isUser = match.optBoolean("isUser", false)
+                        val timestamp = match.optLong("timestamp", System.currentTimeMillis())
+                        matchedMessages.add(
+                            Message(content = content, isUser = isUser, timestamp = timestamp)
+                        )
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        adapter.replaceAll(matchedMessages)
+                        binding.tvSearchResultCount?.text =
+                            getString(R.string.search_result_count, total)
+                        binding.tvSearchResultCount?.visibility =
+                            if (total > 0) View.VISIBLE else View.GONE
+                        if (matchedMessages.isNotEmpty()) {
+                            binding.rvMessages.scrollToPosition(0)
+                        }
+                    }
+                } else {
+                    val errorMsg = resultJson.optString("message", "未知错误")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "搜索失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "搜索对话失败", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity, "搜索失败: ${e.message}", Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.hideSoftInputFromWindow(binding.etInput.windowToken, 0)
+        // 从当前焦点 View 收起键盘（兼容聊天输入和搜索输入）
+        val focusedView = currentFocus
+        if (focusedView != null) {
+            imm?.hideSoftInputFromWindow(focusedView.windowToken, 0)
+        } else {
+            imm?.hideSoftInputFromWindow(binding.etInput.windowToken, 0)
+        }
     }
 
     // ======================== 对话导出 ========================
