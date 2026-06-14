@@ -153,28 +153,30 @@ def chat(user_input: str) -> dict:
 
 
 def chat_stream(user_input: str):
-    """流式对话，逐 token yield JSON 状态更新。
+    """流式对话，返回事件列表（每个事件是 JSON 字符串）。
 
     与 chat() 相同的记忆注入和世界书注入流程，
     但使用 Player.chat_stream() 实现逐 token 输出。
 
-    每收到一个 token 就 yield 一个 JSON 字符串：
+    注意：Chaquopy 17.0.0 迭代 Python 生成器时 PyObject 无法转为 Java String/Map，
+    因此改为返回 list[dict] 而非生成器。Kotlin 端迭代列表时元素会自动转为 Java String。
+
+    每个事件是一个 JSON 字符串：
         {"status": "streaming", "token": "..."}
-    完成时 yield：
         {"status": "done", "reply": "完整回复"}
-    错误时 yield：
         {"status": "error", "message": "错误信息"}
     """
     player = _ctx.player
     orchestrator = _ctx.orchestrator
+    results = []
 
     if player is None:
-        yield json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
-        return
+        results.append(json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"}))
+        return results
 
     if not user_input or not user_input.strip():
-        yield json.dumps({"status": "error", "message": "消息不能为空"})
-        return
+        results.append(json.dumps({"status": "error", "message": "消息不能为空"}))
+        return results
 
     try:
         user_input = user_input.strip()
@@ -222,22 +224,25 @@ def chat_stream(user_input: str):
             elif token.startswith("__ERROR__:"):
                 error_msg = token[len("__ERROR__:"):]
                 _log.error(f"[流式对话] 角色扮演器返回错误: {error_msg}")
-                yield json.dumps({"status": "error", "message": error_msg})
-                return
+                results.append(json.dumps({"status": "error", "message": error_msg}))
+                return results
             else:
-                yield json.dumps({"status": "streaming", "token": token})
+                results.append(json.dumps({"status": "streaming", "token": token}))
 
         # 记忆存储：使用线程池异步执行，不阻塞对话回复
         if orchestrator is not None and full_reply:
             _executor.submit(_auto_remember, user_input, full_reply)
 
-        yield json.dumps({"status": "done", "reply": full_reply})
+        results.append(json.dumps({"status": "done", "reply": full_reply}))
+        return results
 
     except RolePlayerError as e:
-        yield json.dumps({"status": "error", "message": str(e)})
+        results.append(json.dumps({"status": "error", "message": str(e)}))
+        return results
     except Exception as e:
         _log.error(f"[流式对话] 异常: {e}")
-        yield json.dumps({"status": "error", "message": str(e)})
+        results.append(json.dumps({"status": "error", "message": str(e)}))
+        return results
 
 
 def _auto_remember(user_input: str, ai_reply: str) -> None:

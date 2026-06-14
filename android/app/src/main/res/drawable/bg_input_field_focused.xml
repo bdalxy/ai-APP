@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 输入框聚焦态：primary 色描边，微光感 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/input_field_bg" />
+    <stroke
+        android:width="1.5dp"
+        android:color="#3D9B59B6" />
+    <corners android:radius="24dp" />
+</shape>

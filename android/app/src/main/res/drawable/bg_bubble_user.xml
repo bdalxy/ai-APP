@@ -7,5 +7,5 @@
         android:startColor="@color/bubble_user_start"
         android:endColor="@color/bubble_user_end"
         android:type="linear" />
-    <corners android:radius="16dp" />
+    <corners android:radius="18dp" />
 </shape>

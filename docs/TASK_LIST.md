@@ -211,8 +211,8 @@
 - [x] 新建 `NotificationHelper.kt` (NotificationChannel 创建)
 - [x] 新建 `ProactiveService.kt` (前台服务，调用Python生成消息)
 - [x] AndroidManifest.xml 注册 Service + 权限（2026-06-14 修复遗漏）
-- [ ] 通知点击 → 启动 MainActivity
-- [ ] notification icon 资源 (ic_notification.xml)
+- [x] 通知点击 → 启动 MainActivity（PendingIntent 已实现）
+- [x] notification icon 资源 (ic_notification.xml)（2026-06-14 完成）
 
 **验收标准**: 见 REQUIREMENTS.md P5.2
 
@@ -372,7 +372,7 @@
 
 ---
 
-## 四、P6 世界书模块 (当前阶段)
+## 四、P6 世界书模块 (已完成)
 
 > 详细任务计划见 [TASK_WORLD_BOOK.md](file:///f:/Trae AI/ai-APP/docs/TASK_WORLD_BOOK.md)
 
@@ -380,51 +380,137 @@
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | 无 |
 | **描述** | 新建 _world_book.py，封装 WorldBookEngine 为 Chaquopy 可调用接口 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] `list_world_books()` / `enable_world_book()` / `disable_world_book()` / `get_enabled_world_books()`
+- [x] `create_world_book()` / `delete_world_book()` / `get_world_book()` / `update_world_book()`
+- [x] `_match_and_inject_for_all()` / `_reset_round_for_all()` 内部函数
+- [x] `__init__.py` 导出所有世界书接口
 
 ### WB-T2 -- 世界书注入对话流程 [P0]
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @backend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | WB-T1 |
 | **描述** | 在 _core.py 的 chat() 中自动注入世界书上下文 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] _core.py 的 chat() / chat_stream() 中调用 _match_and_inject_for_all()
+- [x] 世界书上下文通过 player.world_book_entries 注入 System Prompt
+- [x] reset() 中调用 _reset_round_for_all() 重置轮次计数
+- [x] role_player.py 已有 world_book_entries 属性和 PromptBuilder 集成
 
 ### WB-T3 -- 打包世界书数据文件 [P1]
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @mcp-devops |
 | **预估工时** | 0.25天 |
 | **前置依赖** | 无 |
 | **描述** | 确保 data/world_books/ 中的 JSON 随 APK 打包 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] cat_cafe_world.json 和 reality_world.json 已在 python/data/world_books/ 目录
+- [x] _world_book.py 使用 Path(_PYTHON_ROOT) / "data" / "world_books" 路径加载
 
 ### WB-T4 -- 设置页面世界书选择 UI [P0]
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 已完成 |
 | **负责人** | @frontend-dev |
 | **预估工时** | 0.5天 |
 | **前置依赖** | WB-T1, WB-T3 |
-| **描述** | 在 SettingsActivity 增加世界书选择卡片 |
+| **描述** | 在 SettingsActivity 增加世界书选择卡片，SettingsDetailActivity 增加完整管理UI |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] activity_settings.xml 世界书卡片（cardWorldBook + tvWorldBookSummary）
+- [x] strings.xml 世界书相关字符串资源
+- [x] SettingsActivity 世界书摘要显示（已启用N本 / 未启用）
+- [x] SettingsDetailActivity 完整世界书管理：列表/开关/创建/编辑/删除
 
 ### WB-T5 -- 端到端测试 [P1]
 
 | 属性 | 值 |
 |------|------|
-| **状态** | 待开始 |
+| **状态** | 待人工验证 |
 | **负责人** | 人工 |
 | **预估工时** | 0.25天 |
 | **前置依赖** | WB-T1, WB-T2, WB-T3, WB-T4 |
 | **描述** | 手机端验证完整世界书链路 |
+
+**具体任务**:
+- [ ] 构建 APK 安装到手机
+- [ ] 设置 → 世界书 → 启用"猫咖世界观"
+- [ ] 对话中提及日常话题，验证 AI 回复体现现实世界观设定
+- [ ] 切换回"不使用"，验证世界书不再注入
+- [ ] 验证所有操作无崩溃
+
+### WB-T6 -- 世界书持久化恢复 [P2]
+
+| 属性 | 值 |
+|------|------|
+| **状态** | 已完成 |
+| **负责人** | @frontend-dev |
+| **预估工时** | 0.25天 |
+| **前置依赖** | WB-T4 |
+| **描述** | 世界书选择持久化到 SharedPreferences，启动时自动恢复 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] SettingsDetailActivity.saveEnabledWorldBooks() 保存到 SharedPreferences
+- [x] MainActivity.initPython() 启动时恢复已启用的世界书
+- [x] 启用/禁用/删除操作后自动保存
+
+### WB-T7 -- 条目填充 CRUD [P1]
+
+| 属性 | 值 |
+|------|------|
+| **状态** | 已完成 |
+| **负责人** | @backend-dev + @frontend-dev |
+| **预估工时** | 0.5天 |
+| **前置依赖** | WB-T1, WB-T4 |
+| **描述** | 世界书条目增删改：Python 端接口 + Android 端 UI |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] `add_world_book_entry(name, entry_json)` — 添加单条条目
+- [x] `update_world_book_entry(name, entry_id, entry_json)` — 更新条目
+- [x] `delete_world_book_entry(name, entry_id)` — 删除条目
+- [x] `_save_book_to_file(book)` — 条目变更后持久化到 JSON 文件
+- [x] Android 条目列表对话框（showEntryListDialog）
+- [x] Android 条目编辑对话框（showEntryEditDialog）— 含 ID/内容/关键词/概率/优先级
+- [x] 条目删除确认对话框（confirmDeleteEntry）
+
+### WB-T8 -- 交叉审核 [P1]
+
+| 属性 | 值 |
+|------|------|
+| **状态** | 已完成 |
+| **负责人** | @backend-dev + @frontend-dev |
+| **预估工时** | 0.5天 |
+| **前置依赖** | WB-T1, WB-T7 |
+| **描述** | 世界书质量交叉审核：Schema + 语义 + 匹配能力三维度评分 |
+| **完成日期** | 2026-06-14 |
+
+**具体任务**:
+- [x] `validate_world_book(name)` — 三维度审核（Schema/语义/匹配）+ 综合评分
+- [x] 审核报告包含 issues 和 suggestions 两个维度
+- [x] Android 审核按钮（编辑世界书对话框中的"交叉审核"按钮）
+- [x] Android 审核报告展示（showAuditReportDialog）— 总分卡片 + 各维度详情
 
 ---
 
@@ -432,20 +518,21 @@
 
 ```
 已完成的 P4-P5:
-  T4.1~T4.6 (记忆系统收尾) ── 全部完成
-  P5.1~P5.3 (主动推送)     ── 待后续启动
+  T4.1~T4.7 (记忆系统收尾) ── 全部完成
+  P5.1~P5.3 (主动推送)     ── 全部完成
 
-当前 P6 世界书:
-  WB-T1 (Python桥接) ──► WB-T2 (注入对话流程)
-      │                       │
-      └───────┬───────────────┘
-              ▼
-           WB-T4 (Android UI) ──► WB-T5 (端到端测试)
-
-  WB-T3 (数据打包) ── 独立并行
+已完成的 P6 世界书:
+  WB-T1 (Python桥接)  ── 全部完成
+  WB-T2 (注入对话流程) ── 全部完成
+  WB-T3 (数据打包)     ── 全部完成
+  WB-T4 (Android UI)   ── 全部完成
+  WB-T6 (持久化恢复)   ── 全部完成
+  WB-T7 (条目填充CRUD) ── 全部完成
+  WB-T8 (交叉审核)     ── 全部完成
+  WB-T5 (端到端测试)   ── 待人工验证
 
 后续 P6 其他:
-  (世界书完成后按优先级: 消息搜索 > 对话导出 > 自动化测试 > 国际化 > 插件系统)
+  (世界书完成后按优先级: 消息搜索 > 自动化测试 > 国际化 > 插件系统)
 ```
 
 ---
@@ -454,5 +541,7 @@
 
 | 日期 | 版本 | 变更内容 |
 |------|------|------|
+| 2026-06-14 | V1.4 | 新增 WB-T7 条目填充 CRUD + WB-T8 交叉审核（三维度评分），世界书模块完整收官 |
+| 2026-06-14 | V1.3 | 世界书模块 (WB-T1~T4) 全部完成，T5.2 通知图标收尾，更新依赖图和变更记录 |
 | 2026-06-14 | V1.2 | 新增 P6 世界书模块任务 (WB-T1~T5)，详细计划见 TASK_WORLD_BOOK.md |
 | 2026-06-10 | V1.0 | 初始版本，涵盖 P4收尾 + P5主动推送 + P6扩展 |

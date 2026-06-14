@@ -303,7 +303,7 @@ class MainActivity : AppCompatActivity() {
     private fun disableInput() {
         binding.etInput.isEnabled = false
         binding.btnSend.isEnabled = false
-        binding.btnSend.alpha = 0.5f
+        binding.btnSend.setBackgroundResource(R.drawable.bg_send_inactive_v2)
     }
 
     /** 流式输出完成后恢复输入框和发送按钮 */
@@ -311,7 +311,7 @@ class MainActivity : AppCompatActivity() {
         binding.etInput.isEnabled = true
         binding.etInput.text.clear()
         binding.btnSend.isEnabled = true
-        binding.btnSend.alpha = 1.0f
+        binding.btnSend.setBackgroundResource(R.drawable.bg_send_active)
         binding.etInput.requestFocus()
     }
 

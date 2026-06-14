@@ -108,7 +108,7 @@
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_body"
-                android:background="@drawable/bg_input_field"
+                android:background="@drawable/bg_input_field_selector"
                 android:inputType="textMultiLine"
                 android:imeOptions="actionSend" />
 

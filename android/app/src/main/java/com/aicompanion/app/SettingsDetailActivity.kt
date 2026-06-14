@@ -70,7 +70,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val topBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, resources.getDimensionPixelSize(R.dimen.spacing_3xl))
+            setPadding(0, dip(12), 0, resources.getDimensionPixelSize(R.dimen.spacing_3xl))
         }
         topBar.addView(TextView(this).apply {
             text = "← 返回"; textSize = 16f
@@ -653,11 +653,18 @@ class SettingsDetailActivity : AppCompatActivity() {
                 setTextColor(ContextCompat.getColor(context, R.color.primary))
                 setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
                 setPadding(0, 12, 0, 12)
-                setOnClickListener {
-                    Toast.makeText(this@SettingsDetailActivity, "条目管理功能将在后续版本中完善", Toast.LENGTH_SHORT).show()
-                }
+                setOnClickListener { showEntryListDialog(name) }
             }
             layout.addView(editEntriesBtn)
+            layout.addView(createDividerView())
+            val auditBtn = Button(this).apply {
+                text = "交叉审核"; textSize = 14f
+                setTextColor(ContextCompat.getColor(context, R.color.secondary))
+                setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
+                setPadding(0, 12, 0, 12)
+                setOnClickListener { showAuditReportDialog(name) }
+            }
+            layout.addView(auditBtn)
             layout.addView(createDividerView())
             val deleteBtn = Button(this).apply {
                 text = "删除世界书"; textSize = 14f
@@ -756,7 +763,411 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
     }
 
-    // ======================== 辅助方法 ========================
+    // ======================== 条目管理 ========================
+
+    private fun showEntryListDialog(bookName: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("get_world_book", bookName)?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") != "ok") {
+                Toast.makeText(this, "加载失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show(); return
+            }
+            val book = json.optJSONObject("book") ?: return
+            val entries = book.optJSONArray("entries") ?: JSONArray()
+
+            val scrollView = ScrollView(this).apply {
+                setPadding(48, 16, 48, 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dip(400)
+                )
+            }
+            val layout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+
+            if (entries.length() == 0) {
+                layout.addView(TextView(this).apply {
+                    text = "暂无条目，点击下方按钮添加"; textSize = 14f
+                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                    setPadding(0, 16, 0, 16); gravity = android.view.Gravity.CENTER
+                })
+            } else {
+                for (i in 0 until entries.length()) {
+                    val entry = entries.getJSONObject(i)
+                    val id = entry.optString("id", "")
+                    val content = entry.optString("content", "").take(40)
+                    val keys = entry.optJSONArray("keys")
+                    val keysStr = if (keys != null && keys.length() > 0) {
+                        (0 until minOf(keys.length(), 3)).map { keys.optString(it) }.joinToString(", ")
+                    } else "无关键词"
+                    val constant = if (entry.optBoolean("constant", false)) " [常量]" else ""
+
+                    val row = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        setPadding(0, 10, 0, 10)
+                        isClickable = true; isFocusable = true
+                        setBackgroundResource(getSelectableItemBackground())
+                        setOnClickListener { showEntryEditDialog(bookName, entry, false) }
+                    }
+                    val textLayout = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+                    textLayout.addView(TextView(this).apply {
+                        text = "$id$constant"; textSize = 14f
+                        setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+                    })
+                    textLayout.addView(TextView(this).apply {
+                        text = "$content · $keysStr"; textSize = 12f
+                        setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                        maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+                    row.addView(textLayout)
+                    // 删除按钮
+                    val delBtn = Button(this).apply {
+                        text = "✕"; textSize = 14f
+                        setTextColor(ContextCompat.getColor(context, R.color.accent_red))
+                        setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
+                        setPadding(16, 4, 0, 4)
+                        setOnClickListener {
+                            confirmDeleteEntry(bookName, id)
+                        }
+                    }
+                    row.addView(delBtn)
+                    layout.addView(row)
+                    if (i < entries.length() - 1) layout.addView(createDividerView())
+                }
+            }
+
+            layout.addView(createDividerView())
+            val addBtn = Button(this).apply {
+                text = "＋ 添加条目"; textSize = 14f
+                setTextColor(ContextCompat.getColor(context, R.color.primary))
+                setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
+                setPadding(0, 12, 0, 12)
+                setOnClickListener { showEntryEditDialog(bookName, null, true) }
+            }
+            layout.addView(addBtn)
+
+            scrollView.addView(layout)
+            MaterialAlertDialogBuilder(this)
+                .setTitle("管理条目 — ${bookName}")
+                .setView(scrollView)
+                .setPositiveButton("关闭", null).show()
+        } catch (e: Exception) {
+            Log.e("SettingsDetail", "entryList 失败: ${e.message}", e)
+            Toast.makeText(this, "加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showEntryEditDialog(bookName: String, existingEntry: JSONObject?, isNew: Boolean) {
+        val entryId = if (isNew) "" else existingEntry?.optString("id", "") ?: ""
+        val entryContent = if (isNew) "" else existingEntry?.optString("content", "") ?: ""
+        val entryKeys = if (isNew) "" else {
+            val keys = existingEntry?.optJSONArray("keys")
+            if (keys != null) (0 until keys.length()).map { keys.optString(it) }.joinToString(", ") else ""
+        }
+        val entryComment = if (isNew) "" else existingEntry?.optString("comment", "") ?: ""
+        val entryConstant = if (isNew) false else existingEntry?.optBoolean("constant", false) ?: false
+        val entryProb = if (isNew) 100 else existingEntry?.optInt("probability", 100) ?: 100
+        val entryPriority = if (isNew) 0 else existingEntry?.optInt("priority", 0) ?: 0
+
+        val scrollView = ScrollView(this).apply {
+            setPadding(48, 16, 48, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dip(420)
+            )
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // ID
+        val etId = addEditField(layout, "条目ID *", entryId, "如 entry_001")
+        if (!isNew) etId.isEnabled = false
+
+        // 内容
+        val etContent = addEditField(layout, "触发内容 *", entryContent, "触发时注入的上下文文本（至少20字）")
+        etContent.minLines = 3
+
+        // 关键词
+        val etKeys = addEditField(layout, "关键词（逗号分隔）", entryKeys, "如: 猫, 宠物, 喵")
+
+        // 备注
+        val etComment = addEditField(layout, "备注", entryComment, "开发者的备注说明")
+
+        // 常量开关
+        val switchConstant = SwitchCompat(this).apply {
+            isChecked = entryConstant
+            text = "始终注入（constant）"
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            setPadding(0, 8, 0, 8)
+        }
+        layout.addView(switchConstant)
+
+        // 概率
+        val probLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 8, 0, 8)
+        }
+        probLayout.addView(TextView(this).apply {
+            text = "触发概率: "; textSize = 14f
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+        })
+        val tvProb = TextView(this).apply {
+            text = "${entryProb}%"; textSize = 14f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            layoutParams = LinearLayout.LayoutParams(48, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        probLayout.addView(tvProb)
+        val seekProb = SeekBar(this).apply {
+            max = 100; progress = entryProb
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) { tvProb.text = "${p}%" }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }
+        probLayout.addView(seekProb)
+        layout.addView(probLayout)
+
+        // 优先级
+        val priLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 8, 0, 8)
+        }
+        priLayout.addView(TextView(this).apply {
+            text = "优先级: "; textSize = 14f
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+        })
+        val tvPriority = TextView(this).apply {
+            text = "${entryPriority}"; textSize = 14f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+        }
+        priLayout.addView(tvPriority)
+        val seekPriority = SeekBar(this).apply {
+            max = 20; progress = entryPriority
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) { tvPriority.text = "$p" }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        }
+        priLayout.addView(seekPriority)
+        layout.addView(priLayout)
+
+        scrollView.addView(layout)
+
+        val title = if (isNew) "添加条目" else "编辑条目 — $entryId"
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setView(scrollView)
+            .setPositiveButton("保存") { _, _ ->
+                saveEntry(bookName, entryId, isNew, etId, etContent, etKeys, etComment,
+                    switchConstant.isChecked, seekProb.progress, seekPriority.progress)
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun addEditField(parent: LinearLayout, label: String, value: String, hint: String): EditText {
+        parent.addView(TextView(this).apply {
+            text = label; textSize = 13f
+            setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
+            setPadding(0, 4, 0, 4)
+        })
+        val et = EditText(this).apply {
+            setText(value); textSize = 14f; setHint(hint)
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            setHintTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
+            setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
+            setPadding(0, 8, 0, 8)
+        }
+        parent.addView(et)
+        parent.addView(createDividerView())
+        return et
+    }
+
+    private fun saveEntry(bookName: String, entryId: String, isNew: Boolean,
+                          etId: EditText, etContent: EditText, etKeys: EditText, etComment: EditText,
+                          constant: Boolean, probability: Int, priority: Int) {
+        val newId = etId.text.toString().trim()
+        val content = etContent.text.toString().trim()
+        if (newId.isEmpty()) { Toast.makeText(this, "条目ID不能为空", Toast.LENGTH_SHORT).show(); return }
+        if (content.isEmpty()) { Toast.makeText(this, "触发内容不能为空", Toast.LENGTH_SHORT).show(); return }
+
+        val keysStr = etKeys.text.toString().trim()
+        val keys = if (keysStr.isNotEmpty()) {
+            JSONArray(keysStr.split(",").map { it.trim() }.filter { it.isNotEmpty() })
+        } else JSONArray()
+
+        val entryJson = JSONObject().apply {
+            put("id", newId)
+            put("content", content)
+            put("keys", keys)
+            put("comment", etComment.text.toString().trim())
+            put("constant", constant)
+            put("probability", probability)
+            put("priority", priority)
+        }
+
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = if (isNew) {
+                module?.callAttr("add_world_book_entry", bookName, entryJson.toString())?.toString() ?: "{}"
+            } else {
+                module?.callAttr("update_world_book_entry", bookName, entryId, entryJson.toString())?.toString() ?: "{}"
+            }
+            val json = JSONObject(result)
+            if (json.optString("status") == "ok") {
+                Toast.makeText(this, if (isNew) "条目已添加" else "条目已更新", Toast.LENGTH_SHORT).show()
+                recreate()
+            } else {
+                Toast.makeText(this, "保存失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun confirmDeleteEntry(bookName: String, entryId: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("删除条目")
+            .setMessage("确认删除条目「${entryId}」吗？此操作不可撤销。")
+            .setPositiveButton("确认删除") { _, _ ->
+                try {
+                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    val result = module?.callAttr("delete_world_book_entry", bookName, entryId)?.toString() ?: "{}"
+                    val json = JSONObject(result)
+                    if (json.optString("status") == "ok") {
+                        Toast.makeText(this, "条目已删除", Toast.LENGTH_SHORT).show()
+                        recreate()
+                    } else {
+                        Toast.makeText(this, "删除失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    // ======================== 交叉审核 ========================
+
+    private fun showAuditReportDialog(bookName: String) {
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("validate_world_book", bookName)?.toString() ?: "{}"
+            val json = JSONObject(result)
+            if (json.optString("status") != "ok") {
+                Toast.makeText(this, "审核失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show(); return
+            }
+            val report = json.optJSONObject("report") ?: return
+            val totalScore = report.optInt("score", 0)
+            val passed = report.optBoolean("passed", false)
+            val summary = report.optJSONObject("summary") ?: JSONObject()
+            val dimensions = report.optJSONArray("dimensions") ?: JSONArray()
+
+            val scrollView = ScrollView(this).apply {
+                setPadding(48, 16, 48, 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dip(400)
+                )
+            }
+            val layout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+
+            // 总分卡片
+            val scoreColor = if (passed) R.color.primary else R.color.accent_red
+            val scoreEmoji = if (passed) "通过" else "未通过"
+            layout.addView(TextView(this).apply {
+                text = "综合评分: ${totalScore} 分 [$scoreEmoji]"; textSize = 18f
+                setTextColor(ContextCompat.getColor(context, scoreColor))
+                setPadding(0, 8, 0, 4); gravity = android.view.Gravity.CENTER
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            })
+            layout.addView(TextView(this).apply {
+                text = "条目: ${summary.optInt("total_entries")} · 常量: ${summary.optInt("constant_entries")} · 关键词: ${summary.optInt("total_keywords")} · 平均长度: ${summary.optInt("avg_content_length")}字"
+                textSize = 12f; setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                setPadding(0, 0, 0, 12); gravity = android.view.Gravity.CENTER
+            })
+            layout.addView(createDividerView())
+
+            // 各维度
+            for (d in 0 until dimensions.length()) {
+                val dim = dimensions.getJSONObject(d)
+                val dimName = dim.optString("name", "")
+                val dimScore = dim.optInt("score", 0)
+                val issues = dim.optJSONArray("issues") ?: JSONArray()
+                val suggestions = dim.optJSONArray("suggestions") ?: JSONArray()
+
+                layout.addView(TextView(this).apply {
+                    text = "$dimName: ${dimScore}分"; textSize = 15f
+                    setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+                    setPadding(0, 12, 0, 4)
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                })
+
+                if (issues.length() == 0 && suggestions.length() == 0) {
+                    layout.addView(TextView(this).apply {
+                        text = "无问题"; textSize = 13f
+                        setTextColor(ContextCompat.getColor(context, R.color.primary))
+                        setPadding(16, 0, 0, 4)
+                    })
+                }
+
+                for (i in 0 until issues.length()) {
+                    val issue = issues.getJSONObject(i)
+                    val level = issue.optString("level", "info")
+                    val msg = issue.optString("message", "")
+                    val color = when (level) {
+                        "error" -> R.color.accent_red
+                        "warning" -> R.color.secondary
+                        else -> R.color.text_secondary
+                    }
+                    val icon = when (level) {
+                        "error" -> "✗ "
+                        "warning" -> "⚠ "
+                        else -> "ℹ "
+                    }
+                    layout.addView(TextView(this).apply {
+                        text = "$icon$msg"; textSize = 12f
+                        setTextColor(ContextCompat.getColor(context, color))
+                        setPadding(16, 2, 0, 2)
+                    })
+                }
+
+                for (i in 0 until suggestions.length()) {
+                    val sug = suggestions.optString(i, "")
+                    layout.addView(TextView(this).apply {
+                        text = "→ $sug"; textSize = 12f
+                        setTextColor(ContextCompat.getColor(context, R.color.primary))
+                        setPadding(24, 2, 0, 2)
+                    })
+                }
+            }
+
+            scrollView.addView(layout)
+            MaterialAlertDialogBuilder(this)
+                .setTitle("交叉审核报告 — ${bookName}")
+                .setView(scrollView)
+                .setPositiveButton("关闭", null).show()
+        } catch (e: Exception) {
+            Log.e("SettingsDetail", "audit 失败: ${e.message}", e)
+            Toast.makeText(this, "审核失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun dip(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun getSelectableItemBackground(): Int {
         val outValue = android.util.TypedValue()
