@@ -1,0 +1,17 @@
+{
+  "wake_time": "08:00",
+  "sleep_time": "23:00",
+  "proactive_enabled": false,
+  "proactive_interval_minutes": 120,
+  "short_term_memory_count": 20,
+  "long_term_memory_count": 500,
+  "memory_extraction_mode": "auto",
+  "daily_budget_limit": 0,
+  "economy_mode": false,
+  "web_search_enabled": false,
+  "selected_card": "",
+  "selected_world_book": "reality_world",
+  "auto_export_enabled": false,
+  "export_format": "JSON",
+  "device_tier": "auto"
+}

@@ -163,7 +163,7 @@ private var originalMessages = listOf<Message>()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
-                    binding.tvStatus.text = "正在初始化..."
+                    binding.tvStatus.text = this@MainActivity.getString(R.string.status_initializing)
                 }
 
                 val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
@@ -172,7 +172,7 @@ private var originalMessages = listOf<Message>()
                 val apiKey = AppConfig.getApiKey(this@MainActivity)
                 if (apiKey.isNullOrBlank()) {
                     withContext(Dispatchers.Main) {
-                        binding.tvStatus.text = "初始化失败：API Key 未配置"
+                        binding.tvStatus.text = this@MainActivity.getString(R.string.error_init_api_key)
                     }
                     return@launch
                 }
@@ -225,7 +225,7 @@ private var originalMessages = listOf<Message>()
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
                 withContext(Dispatchers.Main) {
-                    binding.tvStatus.text = "初始化失败：${e.message}"
+                    binding.tvStatus.text = this@MainActivity.getString(R.string.error_init_failed, e.message)
                 }
             }
         }
@@ -331,7 +331,7 @@ private var originalMessages = listOf<Message>()
                                 )
                                 android.widget.Toast.makeText(
                                     this@MainActivity,
-                                    "对话失败: $errorMsg",
+                                    this@MainActivity.getString(R.string.toast_conversation_failed, errorMsg),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -352,7 +352,7 @@ private var originalMessages = listOf<Message>()
                     )
                     android.widget.Toast.makeText(
                         this@MainActivity,
-                        "对话失败: ${e.message}",
+                        this@MainActivity.getString(R.string.toast_conversation_failed, e.message),
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -402,7 +402,7 @@ private var originalMessages = listOf<Message>()
             } catch (e: Exception) {
                 Log.e("MainActivity", "保存对话失败: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "对话保存失败", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, this@MainActivity.getString(R.string.toast_save_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -569,14 +569,14 @@ private var originalMessages = listOf<Message>()
                 } else {
                     val errorMsg = resultJson.optString("message", "未知错误")
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, "搜索失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, this@MainActivity.getString(R.string.toast_search_failed, errorMsg), Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "搜索对话失败", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
-                        this@MainActivity, "搜索失败: ${e.message}", Toast.LENGTH_SHORT
+                        this@MainActivity, this@MainActivity.getString(R.string.toast_search_failed, e.message), Toast.LENGTH_SHORT
                     ).show()
                 }
             }
@@ -598,21 +598,21 @@ private var originalMessages = listOf<Message>()
 
     /** 显示导出格式选择对话框。 */
     private fun showExportDialog() {
-        val formats = arrayOf("JSON (结构化)", "TXT (纯文本)")
+        val formats = arrayOf(getString(R.string.export_format_json), getString(R.string.export_format_txt))
         AlertDialog.Builder(this)
-            .setTitle("导出对话历史")
+            .setTitle(getString(R.string.title_export_dialog))
             .setItems(formats) { _, which ->
                 val format = if (which == 0) "json" else "txt"
                 exportConversation(format)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     /** 导出对话历史到文件并分享。 */
     private fun exportConversation(format: String) {
         if (!::pythonModule.isInitialized) {
-            Toast.makeText(this, "引擎未初始化，无法导出", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_engine_not_init_export), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -625,7 +625,7 @@ private var originalMessages = listOf<Message>()
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             this@MainActivity,
-                            "导出失败: ${json.optString("message", "未知错误")}",
+                            this@MainActivity.getString(R.string.toast_export_failed, json.optString("message", "未知错误")),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -645,7 +645,7 @@ private var originalMessages = listOf<Message>()
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@MainActivity,
-                        "已导出到: ${file.absolutePath}",
+                        this@MainActivity.getString(R.string.toast_exported_to, file.absolutePath),
                         Toast.LENGTH_LONG
                     ).show()
 
@@ -661,7 +661,7 @@ private var originalMessages = listOf<Message>()
                             putExtra(Intent.EXTRA_STREAM, uri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                        startActivity(Intent.createChooser(shareIntent, "分享对话记录"))
+                        startActivity(Intent.createChooser(shareIntent, getString(R.string.chooser_share_conversation)))
                     } catch (e: Exception) {
                         Log.w("MainActivity", "分享失败: ${e.message}")
                     }
@@ -671,7 +671,7 @@ private var originalMessages = listOf<Message>()
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@MainActivity,
-                        "导出失败: ${e.message}",
+                        this@MainActivity.getString(R.string.toast_export_failed, e.message),
                         Toast.LENGTH_SHORT
                     ).show()
                 }

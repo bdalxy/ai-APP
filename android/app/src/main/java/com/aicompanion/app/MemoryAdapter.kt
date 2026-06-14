@@ -32,12 +32,22 @@ class MemoryAdapter(
             "semantic" to R.color.memory_semantic,   // 绿色
             "user_fact" to R.color.memory_user_fact, // 橙色
         )
-        private val TYPE_LABELS = mapOf(
-            "episodic" to "情景记忆",
-            "semantic" to "语义记忆",
-            "user_fact" to "用户事实"
-        )
         private val DEFAULT_COLOR_RES = R.color.memory_default  // 灰色
+    }
+
+    /** 根据类型获取本地化标签 */
+    private val typeLabelMap: Map<String, Int> by lazy {
+        mapOf(
+            "episodic" to R.string.label_memory_type_episodic,
+            "semantic" to R.string.label_memory_type_semantic,
+            "user_fact" to R.string.label_memory_type_user_fact
+        )
+    }
+
+    /** 获取类型的本地化标签文本 */
+    private fun getTypeLabel(type: String): String {
+        val resId = typeLabelMap[type]
+        return if (resId != null) context.getString(resId) else type
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -56,7 +66,7 @@ class MemoryAdapter(
         val item = items[position]
 
         // 类型标签 — 用不同颜色区分（支持深色模式）
-        val typeLabel = TYPE_LABELS[item.type] ?: item.type
+        val typeLabel = getTypeLabel(item.type)
         val typeColorRes = TYPE_COLOR_RES[item.type] ?: DEFAULT_COLOR_RES
         holder.tvType.text = typeLabel
         holder.tvType.setBackgroundColor(ContextCompat.getColor(context, typeColorRes))

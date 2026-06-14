@@ -207,9 +207,9 @@ class MemoryManageActivity : AppCompatActivity() {
                     } else ""
 
                     binding.tvStats.text = if (typeStr.isNotEmpty()) {
-                        "总记忆：${total} 条    $typeStr"
+                        getString(R.string.label_total_memories_format, total) + "    $typeStr"
                     } else {
-                        "总记忆：${total} 条"
+                        getString(R.string.label_total_memories_format, total)
                     }
                     binding.layoutStats.visibility = View.VISIBLE
                 } catch (e: Exception) {
@@ -417,10 +417,10 @@ class MemoryManageActivity : AppCompatActivity() {
         }
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("删除记忆")
-            .setMessage("确定要删除这条${typeLabel}吗？\n\n\"$preview\"")
-            .setPositiveButton("删除") { _, _ -> deleteMemory(item) }
-            .setNegativeButton("取消", null)
+            .setTitle(getString(R.string.title_delete_memory))
+            .setMessage(getString(R.string.msg_delete_memory_confirm, typeLabel, preview))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ -> deleteMemory(item) }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -428,18 +428,18 @@ class MemoryManageActivity : AppCompatActivity() {
     private fun showClearAllConfirmDialog() {
         if (totalCount <= 0) {
             MaterialAlertDialogBuilder(this)
-                .setTitle("提示")
-                .setMessage("当前没有记忆可以清空。")
-                .setPositiveButton("知道了", null)
+                .setTitle(getString(R.string.title_hint))
+                .setMessage(getString(R.string.msg_no_memory_to_clear))
+                .setPositiveButton(getString(R.string.btn_got_it), null)
                 .show()
             return
         }
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("清空全部记忆")
-            .setMessage("确定要删除全部 ${totalCount} 条记忆吗？\n\n此操作不可撤销！")
-            .setPositiveButton("确认清空") { _, _ -> clearAllMemories() }
-            .setNegativeButton("取消", null)
+            .setTitle(getString(R.string.title_clear_all_memories))
+            .setMessage(getString(R.string.msg_clear_all_confirm, totalCount))
+            .setPositiveButton(getString(R.string.btn_confirm_clear)) { _, _ -> clearAllMemories() }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -453,7 +453,7 @@ class MemoryManageActivity : AppCompatActivity() {
 
     /** 更新统计栏显示 */
     private fun updateStatsDisplay() {
-        binding.tvStats.text = "总记忆：${totalCount} 条"
+        binding.tvStats.text = getString(R.string.label_total_memories_format, totalCount)
         if (totalCount <= 0) {
             binding.layoutStats.visibility = View.GONE
         } else {
@@ -463,9 +463,9 @@ class MemoryManageActivity : AppCompatActivity() {
 
     /** 类型中文标签 */
     private fun typeLabel(type: String): String = when (type) {
-        "episodic" -> "情景记忆"
-        "semantic" -> "语义记忆"
-        "user_fact" -> "用户事实"
+        "episodic" -> getString(R.string.label_memory_type_episodic)
+        "semantic" -> getString(R.string.label_memory_type_semantic)
+        "user_fact" -> getString(R.string.label_memory_type_user_fact)
         else -> type
     }
 }

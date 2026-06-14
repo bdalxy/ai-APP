@@ -123,4 +123,47 @@
     <string name="character_option_2">小美 — 活泼妹妹</string>
     <string name="character_option_3">小美 — 知性姐姐</string>
     <string name="btn_custom_character_coming">创建自定义角色卡（即将推出）</string>
+
+    <!-- ===== 设置页卡片 contentDescription（无障碍） ===== -->
+    <string name="cd_account_settings">账户设置</string>
+    <string name="cd_chat_settings">对话设置</string>
+    <string name="cd_proactive_messages">主动消息</string>
+    <string name="cd_memory_manage">记忆管理</string>
+    <string name="cd_world_book">世界书</string>
+
+    <!-- ===== 通用对话框/按钮文本 ===== -->
+    <string name="btn_cancel">取消</string>
+    <string name="btn_delete">删除</string>
+    <string name="btn_confirm_clear">确认清空</string>
+    <string name="btn_got_it">知道了</string>
+    <string name="title_hint">提示</string>
+    <string name="label_error_prefix">[错误]</string>
+
+    <!-- ===== 主页面 (MainActivity) 运行时文本 ===== -->
+    <string name="status_initializing">正在初始化...</string>
+    <string name="error_init_api_key">初始化失败：API Key 未配置</string>
+    <string name="error_init_failed">初始化失败：%s</string>
+    <string name="toast_conversation_failed">对话失败: %s</string>
+    <string name="toast_save_failed">对话保存失败</string>
+    <string name="toast_search_failed">搜索失败: %s</string>
+    <string name="toast_export_failed">导出失败: %s</string>
+    <string name="toast_engine_not_init_export">引擎未初始化，无法导出</string>
+    <string name="toast_exported_to">已导出到: %s</string>
+    <string name="title_export_dialog">导出对话历史</string>
+    <string name="export_format_json">JSON (结构化)</string>
+    <string name="export_format_txt">TXT (纯文本)</string>
+    <string name="chooser_share_conversation">分享对话记录</string>
+
+    <!-- ===== 记忆管理页面 (MemoryManageActivity) 运行时文本 ===== -->
+    <string name="label_total_memories_format">总记忆：%d 条</string>
+    <string name="title_delete_memory">删除记忆</string>
+    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n\"%2$s\"</string>
+    <string name="msg_no_memory_to_clear">当前没有记忆可以清空。</string>
+    <string name="title_clear_all_memories">清空全部记忆</string>
+    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？\n\n此操作不可撤销！</string>
+
+    <!-- ===== 记忆类型标签 ===== -->
+    <string name="label_memory_type_episodic">情景记忆</string>
+    <string name="label_memory_type_semantic">语义记忆</string>
+    <string name="label_memory_type_user_fact">用户事实</string>
 </resources>

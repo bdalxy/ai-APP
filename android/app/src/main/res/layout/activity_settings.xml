@@ -75,7 +75,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_settings_account"
                     android:layout_marginEnd="12dp"
-                    android:contentDescription="账户设置" />
+                    android:contentDescription="@string/cd_account_settings" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -134,7 +134,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_settings_chat"
                     android:layout_marginEnd="12dp"
-                    android:contentDescription="对话设置" />
+                    android:contentDescription="@string/cd_chat_settings" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -193,7 +193,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_settings_notification"
                     android:layout_marginEnd="12dp"
-                    android:contentDescription="主动消息" />
+                    android:contentDescription="@string/cd_proactive_messages" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -252,7 +252,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_settings_memory"
                     android:layout_marginEnd="12dp"
-                    android:contentDescription="记忆管理" />
+                    android:contentDescription="@string/cd_memory_manage" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -311,7 +311,7 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_settings_world"
                     android:layout_marginEnd="12dp"
-                    android:contentDescription="世界书" />
+                    android:contentDescription="@string/cd_world_book" />
 
                 <LinearLayout
                     android:layout_width="0dp"
