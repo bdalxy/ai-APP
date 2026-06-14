@@ -326,13 +326,8 @@ class RolePlayer:
 
             # 5. 将 AI 回复添加到上下文
             self.context.add_message("assistant", ai_reply)
-        except Exception:
-            # 异常时也清空 memories，防止残留，然后重新抛出
-            self.memories = []
-            raise
-        else:
-            # 仅在成功时清空本轮注入的记忆，防止残留到下一轮
-            # 下一轮由 chat_bridge.inject_memories() 重新注入
+        finally:
+            # 无论成功失败都清空本轮注入的记忆，防止残留
             self.memories = []
 
         self._log.debug(

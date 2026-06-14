@@ -50,7 +50,7 @@ class ProactiveEngine:
 
     def decide_and_generate(
         self,
-        card: "RolePlayer",
+        role_player: "RolePlayer",
         retriever: "MemoryRetriever | None",
         api_client: "DeepSeekClient",
         last_sent_time: datetime | None = None,

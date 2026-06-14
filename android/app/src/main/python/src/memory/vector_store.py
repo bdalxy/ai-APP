@@ -457,9 +457,11 @@ class VectorStore:
                     self.inverted_index.add(entry.id, entry.keywords)
         except sqlite3.Error as e:
             raise MemoryStorageError(f"添加记忆失败: {e}", detail=f"id={entry.id}") from e
-        self._add_count += 1
+        with self._lock:
+            self._add_count += 1
+            should_checkpoint = (self._add_count % 100 == 0)
         # 每 100 次写入触发一次 WAL checkpoint，防止 wal 文件无限增长
-        if self._add_count % 100 == 0:
+        if should_checkpoint:
             self._checkpoint()
         self._log.debug(f"记忆已添加: id={entry.id}, type={entry.memory_type}, content={entry.content[:50]}...")
         return entry.id
@@ -695,7 +697,7 @@ class VectorStore:
                 self._conn.execute(sql, (entry.last_accessed, entry.access_count, entry.id))
                 self._conn.commit()
         except sqlite3.Error as e:
-            self._log.debug(f"记录访问信息失败: {e}")
+            self._log.warning(f"记录访问信息失败: {e}")
 
     def _batch_record_access(self, entries: list[MemoryEntry]) -> None:
         """T-FIX-06: 批量更新记忆访问信息，使用 executemany + 单次 COMMIT。

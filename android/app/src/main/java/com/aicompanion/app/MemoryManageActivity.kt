@@ -86,7 +86,7 @@ class MemoryManageActivity : AppCompatActivity() {
     // ── RecyclerView 设置 ──
 
     private fun setupRecyclerView() {
-        adapter = MemoryAdapter(memoryItems) { item -> showDeleteConfirmDialog(item) }
+        adapter = MemoryAdapter(this, memoryItems) { item -> showDeleteConfirmDialog(item) }
         binding.rvMemories.adapter = adapter
         binding.rvMemories.layoutManager = LinearLayoutManager(this)
 
@@ -132,7 +132,7 @@ class MemoryManageActivity : AppCompatActivity() {
 
                 // 防抖搜索
                 searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                searchRunnable = Runnable {
+                val runnable = Runnable {
                     currentKeyword = keyword
                     currentPage = 1
                     hasMore = true
@@ -141,7 +141,8 @@ class MemoryManageActivity : AppCompatActivity() {
                     showEmpty(false)
                     loadMemories(page = 1, keyword = keyword)
                 }
-                searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_MS)
+                searchRunnable = runnable
+                searchHandler.postDelayed(runnable, SEARCH_DEBOUNCE_MS)
             }
         })
 

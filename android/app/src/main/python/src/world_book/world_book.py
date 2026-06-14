@@ -29,13 +29,15 @@ JSON Schema (Tavo 兼容扩展):
 """
 
 import json
+import random
 import re
-import logging
 from typing import Dict, Any, Optional, List, Set
 from pathlib import Path
 from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
+from src.utils.logger import get_logger
+
+logger = get_logger()
 
 
 # ============================================================
@@ -202,7 +204,6 @@ class WorldBook:
         if entry.probability <= 0:
             return False
 
-        import random
         return random.randint(1, 100) <= entry.probability
 
     def build_context(self, text: str, current_round: int = 0) -> str:

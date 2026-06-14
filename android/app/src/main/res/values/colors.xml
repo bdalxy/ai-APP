@@ -67,4 +67,10 @@
     <color name="avatar_border_inner">#1A1028</color>
     <color name="avatar_border_stroke">#FFB7C5</color>
     <color name="send_inactive_bg">#251838</color>
+
+    <!-- ===== 记忆类型标签色（亮色模式）===== -->
+    <color name="memory_episodic">#6C5CE7</color>
+    <color name="memory_semantic">#4CAF50</color>
+    <color name="memory_user_fact">#FF9800</color>
+    <color name="memory_default">#9E9E9E</color>
 </resources>

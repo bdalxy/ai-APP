@@ -109,11 +109,15 @@ def get_type_multiplier(memory_type: str) -> float:
 
 
 def _parse_iso_datetime(iso_str: str) -> datetime:
-    """解析 ISO 8601 时间字符串，兼容3种常见格式。"""
+    """解析 ISO 8601 时间字符串，兼容3种常见格式。
+    
+    所有格式都失败时回退到当前时间，保证衰减计算不中断。
+    """
     for fmt in [
         "%Y-%m-%dT%H:%M:%S.%f%z",  # 含微秒+时区
         "%Y-%m-%dT%H:%M:%S%z",     # 含时区
         "%Y-%m-%dT%H:%M:%S.%f",    # 含微秒，无时区
+        "%Y-%m-%dT%H:%M:%S",       # 无时区，无微秒
     ]:
         try:
             dt = datetime.strptime(iso_str, fmt)
@@ -122,7 +126,8 @@ def _parse_iso_datetime(iso_str: str) -> datetime:
             return dt
         except ValueError:
             continue
-    raise ValueError(f"无法解析时间字符串: {iso_str}")
+    # 所有格式都失败时回退到当前时间
+    return datetime.now(TZ_CST)
 
 
 def get_decay_stats(entries: list[MemoryEntry], current_time: datetime | None = None) -> dict:

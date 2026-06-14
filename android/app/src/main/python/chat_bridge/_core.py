@@ -7,6 +7,7 @@ import os
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
 from src.utils.logger import get_logger
+from src.utils.time_utils import format_timestamp_iso
 
 from . import _state
 from ._state import _ctx, _CARD_PATH, _executor, _current_params
@@ -367,7 +368,7 @@ def export_history(format: str = "json") -> dict:
             # JSON 格式
             data = {
                 "card": card_name,
-                "exported_at": __import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso(),
+                "exported_at": format_timestamp_iso(),
                 "messages": context,
             }
             content = json.dumps(data, ensure_ascii=False, indent=2)
@@ -375,7 +376,7 @@ def export_history(format: str = "json") -> dict:
                 "status": "ok",
                 "format": "json",
                 "content": content,
-                "filename": f"对话记录_{card_name}_{__import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso()[:10]}.json",
+                "filename": f"对话记录_{card_name}_{format_timestamp_iso()[:10]}.json",
             })
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})

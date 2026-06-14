@@ -515,7 +515,7 @@ class VectorStore:
                 self._conn.execute(sql, (entry.last_accessed, entry.access_count, entry.id))
                 self._conn.commit()
         except sqlite3.Error as e:
-            self._log.debug(f"记录访问信息失败: {e}")
+            self._log.warning(f"记录访问信息失败: {e}")
 
     def _batch_record_access(self, entries: list[MemoryEntry]) -> None:
         """T-FIX-06: 批量更新记忆访问信息，使用 executemany + 单次 COMMIT。

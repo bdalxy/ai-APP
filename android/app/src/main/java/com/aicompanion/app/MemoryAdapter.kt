@@ -1,10 +1,11 @@
 package com.aicompanion.app
 
-import android.graphics.Color
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 
@@ -19,23 +20,24 @@ import androidx.recyclerview.widget.RecyclerView
  * 支持长按删除回调。
  */
 class MemoryAdapter(
+    private val context: Context,
     private val items: MutableList<MemoryItem>,
     private val onDeleteClick: (MemoryItem) -> Unit
 ) : RecyclerView.Adapter<MemoryAdapter.ViewHolder>() {
 
-    /** 类型对应的标签颜色 */
+    /** 类型对应的标签颜色（使用资源引用，支持深色模式） */
     companion object {
-        private val TYPE_COLORS = mapOf(
-            "episodic" to Color.parseColor("#2196F3"),    // 蓝色
-            "semantic" to Color.parseColor("#4CAF50"),    // 绿色
-            "user_fact" to Color.parseColor("#FF9800")    // 橙色
+        private val TYPE_COLOR_RES = mapOf(
+            "episodic" to R.color.memory_episodic,   // 蓝色
+            "semantic" to R.color.memory_semantic,   // 绿色
+            "user_fact" to R.color.memory_user_fact, // 橙色
         )
         private val TYPE_LABELS = mapOf(
             "episodic" to "情景记忆",
             "semantic" to "语义记忆",
             "user_fact" to "用户事实"
         )
-        private const val DEFAULT_COLOR = 0xFF9E9E9E.toInt() // 灰色
+        private val DEFAULT_COLOR_RES = R.color.memory_default  // 灰色
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -53,11 +55,11 @@ class MemoryAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
 
-        // 类型标签 — 用不同颜色区分
+        // 类型标签 — 用不同颜色区分（支持深色模式）
         val typeLabel = TYPE_LABELS[item.type] ?: item.type
-        val typeColor = TYPE_COLORS[item.type] ?: DEFAULT_COLOR
+        val typeColorRes = TYPE_COLOR_RES[item.type] ?: DEFAULT_COLOR_RES
         holder.tvType.text = typeLabel
-        holder.tvType.setBackgroundColor(typeColor)
+        holder.tvType.setBackgroundColor(ContextCompat.getColor(context, typeColorRes))
 
         // 内容预览
         holder.tvContent.text = item.content

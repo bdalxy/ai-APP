@@ -44,9 +44,13 @@ def export_chat_history(messages: list[dict[str, str]], output_path: str | Path)
         log.info(f"[导出] 对话历史导出完成: {output_path}")
     except OSError as e:
         log.error(f"[导出] 对话历史导出失败: {e}")
-        if temp_path.exists():
-            temp_path.unlink()
         raise
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
     return output_path
 
 

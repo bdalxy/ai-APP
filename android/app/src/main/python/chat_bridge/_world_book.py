@@ -9,13 +9,9 @@
 import json
 import os
 import re
-import sys
 from pathlib import Path
 
-# 路径修复（与 _state.py 一致）
-_PYTHON_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _PYTHON_ROOT not in sys.path:
-    sys.path.insert(0, _PYTHON_ROOT)
+from ._state import _PYTHON_ROOT  # 复用 _state.py 的路径设置（避免重复）
 
 from src.world_book.world_book import WorldBookEngine
 from src.utils.logger import get_logger
