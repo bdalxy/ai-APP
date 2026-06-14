@@ -299,7 +299,7 @@ class RolePlayer:
             self._log.warning("用户输入为空，跳过")
             return ""
 
-        self._log.debug(f"[对话] 收到用户输入: {user_input[:50]}...")
+        self._log.debug(f"[对话] 收到用户输入: 长度={len(user_input)}")
 
         # 1. 添加用户输入到上下文
         self.context.add_message("user", user_input)
@@ -336,7 +336,7 @@ class RolePlayer:
             self.memories = []
 
         self._log.debug(
-            f"[对话] AI 回复: {ai_reply[:50]}... "
+            f"[对话] AI 回复: 长度={len(ai_reply)} "
             f"(tokens={response.usage['total_tokens']})"
         )
 

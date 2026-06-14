@@ -57,6 +57,12 @@ class MemoryManageActivity : AppCompatActivity() {
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // 清理 Handler 回调，防止内存泄漏
+        searchHandler.removeCallbacksAndMessages(null)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMemoryManageBinding.inflate(layoutInflater)

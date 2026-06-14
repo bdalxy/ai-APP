@@ -218,6 +218,13 @@ class AppContext:
         self._turn_counter = 0
         self._log.info("AppContext 已关闭所有资源")
 
+        # 关闭 chat_bridge 的全局线程池，防止线程泄漏
+        try:
+            from chat_bridge._state import shutdown_executor
+            shutdown_executor()
+        except Exception:
+            pass  # 非 Chaquopy 环境可能无法导入
+
     def reset_turn_counter(self) -> None:
         """重置对话轮次计数器。"""
         self._turn_counter = 0

@@ -10,7 +10,13 @@
     stats = cache.stats()            # 查看命中率统计
 """
 
+import hashlib
 from collections import OrderedDict
+
+
+def _make_key(text: str) -> str:
+    """使用 SHA256 生成稳定的缓存 key，避免 Python hash() 碰撞和随机化问题。"""
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
 class LRUCache:
@@ -35,7 +41,7 @@ class LRUCache:
         """
         if capacity <= 0:
             raise ValueError(f"缓存容量必须大于 0，当前值: {capacity}")
-        self._cache: OrderedDict[int, list[float]] = OrderedDict()
+        self._cache: OrderedDict[str, list[float]] = OrderedDict()
         self._capacity: int = capacity
         self._hits: int = 0
         self._misses: int = 0
@@ -56,7 +62,7 @@ class LRUCache:
         Returns:
             命中时返回向量列表，未命中时返回 None。
         """
-        key = hash(text)
+        key = _make_key(text)
         if key in self._cache:
             self._cache.move_to_end(key)
             self._hits += 1
@@ -74,7 +80,7 @@ class LRUCache:
             text: 原始文本（用于生成缓存 key）。
             embedding: 文本对应的向量。
         """
-        key = hash(text)
+        key = _make_key(text)
         if key in self._cache:
             self._cache.move_to_end(key)
         else:
@@ -129,4 +135,4 @@ class LRUCache:
 
     def __contains__(self, text: str) -> bool:
         """检查文本是否在缓存中（不改变 LRU 顺序、不更新计数器）。"""
-        return hash(text) in self._cache
+        return _make_key(text) in self._cache

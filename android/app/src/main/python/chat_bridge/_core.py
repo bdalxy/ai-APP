@@ -87,6 +87,51 @@ def init(
         return json.dumps({"status": "error", "message": str(e)})
 
 
+def _inject_context(player, user_input: str, orchestrator) -> None:
+    """注入记忆和世界书上下文到 Player 实例。
+
+    提取 chat() 和 chat_stream() 共用的注入逻辑，避免重复代码。
+
+    Args:
+        player: RolePlayer 实例
+        user_input: 用户输入文本
+        orchestrator: MemoryOrchestrator 实例（可为 None）
+    """
+    # 自动记忆注入：每 N 轮检索一次相关记忆
+    with _state._lock:
+        _state._turn_since_last_inject += 1
+        need_inject = (
+            orchestrator is not None
+            and _state._turn_since_last_inject >= _state._memory_inject_interval
+        )
+    if need_inject:
+        try:
+            new_memories = orchestrator.recall(user_input)
+            with _state._lock:
+                _state._cached_memories = new_memories
+                _state._turn_since_last_inject = 0
+            _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
+        except Exception as e:
+            _log.warning(f"[记忆注入] 检索失败: {e}")
+
+    with _state._lock:
+        memories = list(_state._cached_memories)
+    if memories:
+        player.inject_memories(memories)
+
+    # 世界书注入：对所有已启用的世界书执行关键词匹配
+    try:
+        from ._world_book import _match_and_inject_for_all
+        world_book_context = _match_and_inject_for_all(user_input)
+        if world_book_context:
+            player.world_book_entries = [world_book_context]
+            _log.debug(f"[世界书] 注入 {len(world_book_context)} 字符")
+        else:
+            player.world_book_entries = []
+    except Exception as e:
+        _log.warning(f"[世界书] 注入失败: {e}")
+
+
 def chat(user_input: str) -> dict:
     """发送一条消息，获取 AI 角色回复。
 
@@ -105,39 +150,8 @@ def chat(user_input: str) -> dict:
     try:
         user_input = user_input.strip()
 
-        # 自动记忆注入：每 N 轮检索一次相关记忆
-        with _state._lock:
-            _state._turn_since_last_inject += 1
-            need_inject = (
-                orchestrator is not None
-                and _state._turn_since_last_inject >= _state._memory_inject_interval
-            )
-        if need_inject:
-            try:
-                new_memories = orchestrator.recall(user_input)
-                with _state._lock:
-                    _state._cached_memories = new_memories
-                    _state._turn_since_last_inject = 0
-                _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
-            except Exception as e:
-                _log.warning(f"[记忆注入] 检索失败: {e}")
-
-        with _state._lock:
-            memories = list(_state._cached_memories)
-        if memories:
-            player.inject_memories(memories)
-
-        # 世界书注入：对所有已启用的世界书执行关键词匹配
-        try:
-            from ._world_book import _match_and_inject_for_all
-            world_book_context = _match_and_inject_for_all(user_input)
-            if world_book_context:
-                player.world_book_entries = [world_book_context]
-                _log.debug(f"[世界书] 注入 {len(world_book_context)} 字符")
-            else:
-                player.world_book_entries = []
-        except Exception as e:
-            _log.warning(f"[世界书] 注入失败: {e}")
+        # 注入记忆和世界书上下文
+        _inject_context(player, user_input, orchestrator)
 
         reply = player.chat(user_input)
 
@@ -181,39 +195,8 @@ def chat_stream(user_input: str):
     try:
         user_input = user_input.strip()
 
-        # 自动记忆注入：每 N 轮检索一次相关记忆
-        with _state._lock:
-            _state._turn_since_last_inject += 1
-            need_inject = (
-                orchestrator is not None
-                and _state._turn_since_last_inject >= _state._memory_inject_interval
-            )
-        if need_inject:
-            try:
-                new_memories = orchestrator.recall(user_input)
-                with _state._lock:
-                    _state._cached_memories = new_memories
-                    _state._turn_since_last_inject = 0
-                _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
-            except Exception as e:
-                _log.warning(f"[记忆注入] 检索失败: {e}")
-
-        with _state._lock:
-            memories = list(_state._cached_memories)
-        if memories:
-            player.inject_memories(memories)
-
-        # 世界书注入：对所有已启用的世界书执行关键词匹配
-        try:
-            from ._world_book import _match_and_inject_for_all
-            world_book_context = _match_and_inject_for_all(user_input)
-            if world_book_context:
-                player.world_book_entries = [world_book_context]
-                _log.debug(f"[世界书] 注入 {len(world_book_context)} 字符")
-            else:
-                player.world_book_entries = []
-        except Exception as e:
-            _log.warning(f"[世界书] 注入失败: {e}")
+        # 注入记忆和世界书上下文
+        _inject_context(player, user_input, orchestrator)
 
         # 流式对话
         gen = player.chat_stream(user_input)

@@ -151,10 +151,8 @@ class ChatAdapter(
         override fun getOldListSize() = oldList.size
         override fun getNewListSize() = newList.size
         override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
-            // 消息无唯一 ID，用位置 + 内容做粗略判断
-            return oldPos == newPos &&
-                oldList[oldPos].isUser == newList[newPos].isUser &&
-                oldList[oldPos].isTyping == newList[newPos].isTyping
+            // 使用唯一 ID 精确比较，避免位置变化导致 DiffUtil 异常
+            return oldList[oldPos].id == newList[newPos].id
         }
         override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
             return oldList[oldPos].content == newList[newPos].content

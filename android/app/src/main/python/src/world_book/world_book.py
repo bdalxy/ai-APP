@@ -152,6 +152,13 @@ class WorldBook:
         if entry.regex_keys:
             for pattern in entry.regex_keys:
                 try:
+                    # ReDoS 防护：检查正则长度和复杂度
+                    if len(pattern) > _MAX_REGEX_LENGTH:
+                        logger.warning(f"[世界书] 正则过长 ({len(pattern)}字符), 已跳过: {pattern[:50]}...")
+                        continue
+                    if re.search(r'\+\+|\(\?:.*\)\*\+', pattern):
+                        logger.warning(f"[世界书] 正则可能引起 ReDoS, 已跳过: {pattern[:50]}")
+                        continue
                     flags = 0 if entry.case_sensitive else re.IGNORECASE
                     if re.search(pattern, text, flags):
                         return self._check_probability(entry)
@@ -232,6 +239,11 @@ class WorldBook:
 # ============================================================
 # 世界书匹配引擎
 # ============================================================
+
+# 正则表达式安全限制
+_MAX_REGEX_LENGTH = 200  # 正则表达式最大长度
+_MAX_REGEX_REPETITION = 10  # 最大重复次数限制
+
 
 class WorldBookEngine:
     """

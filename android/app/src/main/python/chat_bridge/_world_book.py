@@ -8,6 +8,7 @@
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -19,21 +20,52 @@ if _PYTHON_ROOT not in sys.path:
 from src.world_book.world_book import WorldBookEngine
 from src.utils.logger import get_logger
 
+# 世界书名称安全校验正则：仅允许中文、字母、数字、中划线、下划线、空格，1-64字符
+_WB_NAME_PATTERN = re.compile(r'^[\w\u4e00-\u9fff\- ]{1,64}$')
+
+
+def _sanitize_world_book_name(name: str) -> str:
+    """校验世界书名称是否安全，防止路径遍历攻击。
+
+    Args:
+        name: 世界书名称
+
+    Returns:
+        校验通过的原始名称
+
+    Raises:
+        ValueError: 名称包含非法字符或超出长度限制
+    """
+    if not _WB_NAME_PATTERN.match(name):
+        raise ValueError(f"非法的世界书名称（仅允许中英文/数字/中划线/下划线/空格，1-64字符）: {name}")
+
+    # 二次验证：确保拼接后的路径在 data/world_books/ 目录内
+    target = (Path(_PYTHON_ROOT) / "data" / "world_books" / f"{name}.json").resolve()
+    allowed_dir = (Path(_PYTHON_ROOT) / "data" / "world_books").resolve()
+    if not str(target).startswith(str(allowed_dir)):
+        raise ValueError(f"路径遍历攻击被阻止: {name}")
+
+    return name
+
 _log = get_logger()
 
 # 惰性初始化的引擎单例
 _wb_engine: WorldBookEngine | None = None
-# 已启用的世界书名称集合
+# 已启用的世界书名称集合（受 _wb_lock 保护）
 _enabled_books: set[str] = set()
+# 线程锁，保护 _wb_engine 初始化和 _enabled_books 读写
+_wb_lock = threading.Lock()
 
 
 def _get_engine() -> WorldBookEngine:
     """获取或初始化 WorldBookEngine 单例。"""
     global _wb_engine
     if _wb_engine is None:
-        world_books_dir = str(Path(_PYTHON_ROOT) / "data" / "world_books")
-        _log.info(f"[世界书] 初始化引擎, 数据目录: {world_books_dir}")
-        _wb_engine = WorldBookEngine(books_dir=world_books_dir)
+        with _wb_lock:
+            if _wb_engine is None:  # 双重检查锁定
+                world_books_dir = str(Path(_PYTHON_ROOT) / "data" / "world_books")
+                _log.info(f"[世界书] 初始化引擎, 数据目录: {world_books_dir}")
+                _wb_engine = WorldBookEngine(books_dir=world_books_dir)
     return _wb_engine
 
 
@@ -73,12 +105,14 @@ def enable_world_book(name: str) -> str:
                 "available": available,
             }, ensure_ascii=False)
 
-        _enabled_books.add(name)
-        _log.info(f"[世界书] 已启用: {name} (当前启用: {len(_enabled_books)} 本)")
+        with _wb_lock:
+            _enabled_books.add(name)
+            count = len(_enabled_books)
+        _log.info(f"[世界书] 已启用: {name} (当前启用: {count} 本)")
         return json.dumps({
             "status": "ok",
             "name": name,
-            "enabled_count": len(_enabled_books),
+            "enabled_count": count,
         }, ensure_ascii=False)
     except Exception as e:
         _log.error(f"[世界书] enable_world_book({name}) 失败: {e}")
@@ -95,12 +129,14 @@ def disable_world_book(name: str) -> str:
         JSON: {"status": "ok", "name": "...", "enabled_count": N}
     """
     try:
-        _enabled_books.discard(name)
-        _log.info(f"[世界书] 已禁用: {name} (当前启用: {len(_enabled_books)} 本)")
+        with _wb_lock:
+            _enabled_books.discard(name)
+            count = len(_enabled_books)
+        _log.info(f"[世界书] 已禁用: {name} (当前启用: {count} 本)")
         return json.dumps({
             "status": "ok",
             "name": name,
-            "enabled_count": len(_enabled_books),
+            "enabled_count": count,
         }, ensure_ascii=False)
     except Exception as e:
         _log.error(f"[世界书] disable_world_book({name}) 失败: {e}")
@@ -115,7 +151,7 @@ def get_enabled_world_books() -> str:
     """
     return json.dumps({
         "status": "ok",
-        "enabled": list(_enabled_books),
+        "enabled": list(_enabled_books),  # 只读快照，读取时无需锁
     }, ensure_ascii=False)
 
 
@@ -131,6 +167,8 @@ def create_world_book(name: str, description: str = "", entries_json: str = "[]"
         JSON: {"status": "ok", "name": "..."}
     """
     try:
+        name = _sanitize_world_book_name(name)
+
         engine = _get_engine()
 
         # 检查是否已存在
@@ -176,8 +214,10 @@ def delete_world_book(name: str) -> str:
         JSON: {"status": "ok", "name": "..."}
     """
     try:
-        # 从启用集合中移除
-        _enabled_books.discard(name)
+        name = _sanitize_world_book_name(name)
+        # 从启用集合中移除（线程安全）
+        with _wb_lock:
+            _enabled_books.discard(name)
 
         # 删除文件
         file_path = _PYTHON_ROOT + "/data/world_books/" + name + ".json"
@@ -298,7 +338,9 @@ def _match_and_inject_for_all(user_input: str) -> str:
     current_round = engine._current_round
     results = []
 
-    for name in sorted(_enabled_books):
+    with _wb_lock:
+        enabled_snapshot = sorted(_enabled_books)
+    for name in enabled_snapshot:
         try:
             if name in engine._books:
                 book = engine._books[name]

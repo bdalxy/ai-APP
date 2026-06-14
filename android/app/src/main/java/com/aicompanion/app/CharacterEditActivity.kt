@@ -54,6 +54,11 @@ class CharacterEditActivity : AppCompatActivity() {
             return
         }
 
+        // 编辑模式下保留原始创建时间
+        val existingChar = if (editingId != null) {
+            CharacterStorage.loadById(this, editingId!!)
+        } else null
+
         val char = CharacterData(
             id = editingId ?: java.util.UUID.randomUUID().toString(),
             name = name,
@@ -62,7 +67,7 @@ class CharacterEditActivity : AppCompatActivity() {
             backstory = binding.etBackstory.text.toString().trim(),
             greeting = binding.etGreeting.text.toString().trim(),
             isDefault = false,
-            createdAt = System.currentTimeMillis()
+            createdAt = existingChar?.createdAt ?: System.currentTimeMillis()
         )
 
         CharacterStorage.save(this, char)

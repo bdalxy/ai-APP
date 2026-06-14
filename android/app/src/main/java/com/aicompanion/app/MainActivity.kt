@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import kotlin.concurrent.thread
 
 /**
  * AI 角色扮演聊天主界面 (P3)
@@ -47,8 +46,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gestureDetector: GestureDetector
 
     /** 是否正在流式输出中（防止重复发送） */
+@Volatile
+private var isStreaming = false
 
-    private var isStreaming = false
+/** 流式输出滚动节流时间戳 */
+private var lastScrollTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -220,8 +222,8 @@ class MainActivity : AppCompatActivity() {
         adapter.addMessage(aiMsg)
         binding.rvMessages.smoothScrollToPosition(aiMsgIndex)
 
-        // 在后台线程调用 Python 流式接口
-        thread {
+        // 在后台线程调用 Python 流式接口（使用协程，受 Lifecycle 管理）
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val generator = pythonModule.callAttr("chat_stream", userInput)
 
@@ -241,7 +243,12 @@ class MainActivity : AppCompatActivity() {
                                         aiMsgIndex,
                                         aiMsg.copy(content = fullReply.toString())
                                     )
-                                    binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                    // 滚动节流：每 200ms 最多滚动一次，减少 CPU 消耗
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastScrollTime > 200) {
+                                        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                        lastScrollTime = now
+                                    }
                                 }
                             }
                             "done" -> {
@@ -294,7 +301,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } finally {
                 isStreaming = false
-                runOnUiThread { enableInput() }
+                withContext(Dispatchers.Main) { enableInput() }
             }
         }
     }

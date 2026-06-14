@@ -195,8 +195,13 @@ class CardParser:
 
         try:
             data = json.loads(raw_text)
-        except ValueError as e:
-            raise CardParseError(f"JSON 解析失败: {e}", str(path))
+        except ValueError:
+            # JSON 解析失败时尝试 JSON5（支持尾逗号、注释等）
+            try:
+                import json5 as json5_lib
+                data = json5_lib.loads(raw_text)
+            except (ImportError, ValueError) as e2:
+                raise CardParseError(f"JSON/JSON5 解析失败: {e2}", str(path))
 
         if not isinstance(data, dict):
             raise CardParseError("角色卡根元素必须是一个 JSON 对象", str(path))
