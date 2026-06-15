@@ -108,4 +108,37 @@
         <item name="android:paddingVertical">2dp</item>
         <item name="android:background">@drawable/bg_type_label</item>
     </style>
+
+    <!-- ===== AppText 文本样式 ===== -->
+    <!-- 基础文本样式 -->
+    <style name="AppText" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+    </style>
+
+    <!-- 页面标题 -->
+    <style name="AppText.PageTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_heading</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 卡片标题 -->
+    <style name="AppText.CardTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 卡片副标题 -->
+    <style name="AppText.CardSubtitle">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- 说明/标签文字 -->
+    <style name="AppText.Caption">
+        <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:textSize">@dimen/text_caption</item>
+    </style>
 </resources>

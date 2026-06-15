@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -42,7 +43,7 @@ class PluginAdapter(
         private val categoryLabel: TextView = itemView.findViewById(R.id.tvCategoryLabel)
         private val statusLabel: TextView = itemView.findViewById(R.id.tvStatusLabel)
         private val callCountTv: TextView = itemView.findViewById(R.id.tvCallCount)
-        private val switchView: View = itemView.findViewById(R.id.switchPlugin)
+        private val switchView: SwitchCompat = itemView.findViewById(R.id.switchPlugin)
 
         @SuppressLint("SetTextI18n")
         fun bind(plugin: PluginItem) {
@@ -58,7 +59,8 @@ class PluginAdapter(
             // 调用次数
             callCountTv.text = "调用 ${plugin.callCount} 次"
 
-            // 开关点击
+            // 开关状态 + 点击
+            switchView.isChecked = plugin.enabled
             switchView.setOnClickListener {
                 onToggle(plugin, !plugin.enabled)
             }

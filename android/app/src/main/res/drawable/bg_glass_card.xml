@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 玻璃态卡片背景：半透明 + 圆角 + 描边 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/glass_bg" />
+    <stroke
+        android:width="0.5dp"
+        android:color="@color/glass_border" />
+    <corners android:radius="10dp" />
+</shape>

@@ -54,9 +54,9 @@
         android:background="@android:color/transparent"
         app:tabMode="scrollable"
         app:tabIndicatorHeight="3dp"
-        app:tabIndicatorColor="@color/elysian_purple"
+        app:tabIndicatorColor="@color/elysian_pink"
         app:tabTextColor="@color/text_secondary"
-        app:tabSelectedTextColor="@color/elysian_pink"
+        app:tabSelectedTextColor="@color/elysian_purple"
         app:tabRippleColor="@color/glass_border" />
 
     <!-- ===== 摘要行 ===== -->
