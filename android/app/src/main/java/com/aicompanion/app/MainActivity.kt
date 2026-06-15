@@ -289,6 +289,7 @@ private var originalMessages = listOf<Message>()
                     val pollResult = pythonModule.callAttr("chat_stream_poll", streamId).toString()
                     val pollJson = JSONObject(pollResult)
                     val status = pollJson.optString("status", "error")
+                    Log.d("MainActivity", "stream_poll: status=$status")
 
                     when (status) {
                         "batch" -> {

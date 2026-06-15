@@ -5,6 +5,7 @@ import json
 import os
 import queue
 import threading
+import traceback
 import uuid
 
 from src.chat_engine.role_player import RolePlayerError
@@ -260,15 +261,19 @@ def chat_stream_start(user_input: str) -> str:
 
             stream["full_reply"] = full_reply
             token_queue.put(json.dumps({"status": "done", "reply": full_reply}))
+            _log.debug(f"[流式对话] 线程完成: reply_len={len(full_reply)}, error={stream.get('error')}")
         except RolePlayerError as e:
+            _log.error(f"[流式对话] RolePlayerError: {e}")
             stream["error"] = str(e)
             token_queue.put(json.dumps({"status": "error", "message": str(e)}))
         except Exception as e:
             _log.error(f"[流式对话] 后台线程未知错误: {e}")
+            _log.error(f"[流式对话] 异常详情: {traceback.format_exc()}")
             stream["error"] = str(e)
             token_queue.put(json.dumps({"status": "error", "message": f"内部错误: {e}"}))
         finally:
             stream["done"] = True
+            _log.debug(f"[流式对话] 流结束: done={stream['done']}, error={stream.get('error')}")
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()

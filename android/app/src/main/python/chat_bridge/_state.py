@@ -20,27 +20,24 @@ _ctx = AppContext.get_instance()
 
 # 全局线程池，用于异步记忆存储等后台任务
 # max_workers=2 足够（同时最多一个记忆存储 + 一个主动消息）
+# 注意：shutdown_executor() 关闭后立即重建，确保后续对话可用
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat_bridge")
-
-_shutdown_lock = threading.Lock()
-_shutdown_called = False
 
 
 def shutdown_executor() -> None:
-    """安全关闭全局线程池。
+    """安全关闭全局线程池并重建。
 
     应在 AppContext.shutdown() 中调用，防止线程泄漏。
+    关闭后立即重建一个全新的 executor，确保后续对话可用。
     多次调用安全（幂等）。
     """
-    global _executor, _shutdown_called
-    with _shutdown_lock:
-        if _shutdown_called:
-            return
-        _shutdown_called = True
+    global _executor
     try:
         _executor.shutdown(wait=False)
     except Exception:
         pass  # 忽略关闭异常，不影响清理流程
+    finally:
+        _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat_bridge")
 
 # 线程锁，保护共享状态（_cached_memories、_current_params、_turn_since_last_inject 等）
 _lock = threading.Lock()
