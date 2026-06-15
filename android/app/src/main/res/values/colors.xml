@@ -34,8 +34,8 @@
     <color name="darker_gray">#444444</color>
 
     <!-- 毛玻璃效果 -->
-    <color name="glass_bg">#4D9B59B6</color>
-    <color name="glass_border">#5D9B59B6</color>
+    <color name="glass_bg">#669B59B6</color>
+    <color name="glass_border">#759B59B6</color>
     <color name="glass_bg_dark">#14FFFFFF</color>
 
     <!-- 辅助色 -->

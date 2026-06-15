@@ -47,6 +47,7 @@ class CharacterSelectActivity : AppCompatActivity() {
         loadCharacters()
     }
 
+    @Suppress("DEPRECATION")
     override fun finish() {
         super.finish()
         // 返回时从右滑出

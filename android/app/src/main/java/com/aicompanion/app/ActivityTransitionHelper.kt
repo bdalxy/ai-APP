@@ -31,6 +31,7 @@ object ActivityTransitionHelper {
     }
 
     /** 页面退出动画（finish 后调用） */
+    @Suppress("DEPRECATION")
     fun finishWithSlideOut(activity: Activity) {
         activity.finish()
         activity.overridePendingTransition(
