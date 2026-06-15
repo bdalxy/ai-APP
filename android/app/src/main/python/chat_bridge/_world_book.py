@@ -9,6 +9,7 @@
 import json
 import os
 import re
+import threading
 from pathlib import Path
 
 from ._state import _PYTHON_ROOT  # 复用 _state.py 的路径设置（避免重复）

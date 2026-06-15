@@ -17,6 +17,11 @@ class GlassCard @JvmOverloads constructor(
     defStyleAttr: Int = R.style.GlassCard
 ) : MaterialCardView(context, attrs, defStyleAttr) {
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        updateColors()
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration?) {
         super.onConfigurationChanged(newConfig)
         updateColors()

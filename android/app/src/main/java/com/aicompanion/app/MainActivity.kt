@@ -107,9 +107,13 @@ private var originalMessages = listOf<Message>()
             }
         })
 
-        // 搜索清除按钮
+        // 搜索清除按钮：清空内容；若已为空则退出搜索模式
         binding.btnClearSearch?.setOnClickListener {
-            binding.etSearch?.setText("")
+            if (binding.etSearch?.text?.isNotEmpty() == true) {
+                binding.etSearch?.setText("")
+            } else {
+                toggleSearchMode()
+            }
         }
 
         // 点击聊天消息区域空白处收起键盘
