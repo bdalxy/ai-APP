@@ -15,7 +15,7 @@ from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso
 
 from . import _state
-from ._state import _ctx, _CARD_PATH, _executor, _current_params
+from ._state import _ctx, _CARD_PATH, _current_params
 
 _log = get_logger()
 
@@ -182,7 +182,7 @@ def chat(user_input: str) -> dict:
 
         # 记忆存储：使用线程池异步执行，不阻塞对话回复
         if orchestrator is not None and reply:
-            _executor.submit(_auto_remember, user_input, reply)
+            _state._executor.submit(_auto_remember, user_input, reply)
 
         return json.dumps({"status": "ok", "reply": reply})
     except RolePlayerError as e:
@@ -253,7 +253,7 @@ def chat_stream_start(user_input: str) -> str:
 
             # 记忆存储：使用线程池异步执行，不阻塞对话回复
             if orchestrator is not None and full_reply:
-                _executor.submit(_auto_remember, user_input, full_reply)
+                _state._executor.submit(_auto_remember, user_input, full_reply)
 
             # 插件管道：后处理 AI 回复（流式对话）
             full_reply = _plugin_manager.post_process(full_reply)
