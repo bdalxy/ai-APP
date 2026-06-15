@@ -66,6 +66,7 @@ object DeviceAdaptationHelper {
      * 小米 HyperOS（澎湃OS 1→2→3）的显示缩放可能默认缩小 UI。
      * 检测当前 density 并在异常时补偿。
      */
+    @Suppress("DEPRECATION")
     private fun adaptXiaomi(context: Context) {
         val metrics = context.resources.displayMetrics
         val config = context.resources.configuration

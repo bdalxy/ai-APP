@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 object ViewUtils {
 
     /** 设置 edge-to-edge 全屏显示 */
+    @Suppress("DEPRECATION")
     fun setupEdgeToEdge(activity: Activity) {
         WindowCompat.setDecorFitsSystemWindows(activity.window, false)
         activity.window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
