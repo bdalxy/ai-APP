@@ -239,6 +239,7 @@ private var originalMessages = listOf<Message>()
         val text = binding.etInput.text.toString().trim()
         if (text.isEmpty() || !::pythonModule.isInitialized || isStreaming) return
 
+        binding.etInput.text.clear()
         sendMessageStream(text)
     }
 
