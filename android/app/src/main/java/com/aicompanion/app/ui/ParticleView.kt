@@ -94,16 +94,31 @@ class ParticleView @JvmOverloads constructor(
         }
     }
 
+    private var animator: ValueAnimator? = null
+
     private fun startAnimation() {
-        val animator = ValueAnimator.ofFloat(0f, 1f)
-        animator.duration = java.lang.Long.MAX_VALUE
-        animator.interpolator = LinearInterpolator()
-        animator.repeatCount = ValueAnimator.INFINITE
-        animator.addUpdateListener {
+        val anim = ValueAnimator.ofFloat(0f, 1f)
+        anim.duration = java.lang.Long.MAX_VALUE
+        anim.interpolator = LinearInterpolator()
+        anim.repeatCount = ValueAnimator.INFINITE
+        anim.addUpdateListener {
             updateParticles()
             invalidate()
         }
-        animator.start()
+        anim.start()
+        animator = anim
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (animator == null || animator?.isRunning == false) {
+            startAnimation()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        animator?.cancel()
     }
 
     private fun updateParticles() {

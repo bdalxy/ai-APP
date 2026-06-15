@@ -64,7 +64,7 @@ class ProactiveEngine:
             return None
         if not self.should_send_message(now, last_sent_time):
             return None
-        message = self.generate_proactive_message(card, retriever, api_client, now)
+        message = self.generate_proactive_message(role_player, retriever, api_client, now)
         return message
 
     def should_send_message(self, current_time: datetime | None = None, last_sent_time: datetime | None = None) -> bool:

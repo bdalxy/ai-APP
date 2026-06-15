@@ -14,7 +14,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="插件面板"
+        android:text="@string/plugin_panel_title"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="@color/text_primary"
@@ -46,13 +46,13 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_gallery"
-                android:contentDescription="图片"
+                android:contentDescription="@string/plugin_image"
                 android:alpha="0.6" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="图片"
+                android:text="@string/plugin_image"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
@@ -60,7 +60,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="预留"
+                android:text="@string/plugin_reserved"
                 android:textSize="10sp"
                 android:textColor="@color/text_tertiary" />
         </LinearLayout>
@@ -81,13 +81,13 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_btn_speak_now"
-                android:contentDescription="语音"
+                android:contentDescription="@string/plugin_voice"
                 android:alpha="0.6" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="语音"
+                android:text="@string/plugin_voice"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
@@ -95,7 +95,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="预留"
+                android:text="@string/plugin_reserved"
                 android:textSize="10sp"
                 android:textColor="@color/text_tertiary" />
         </LinearLayout>
@@ -116,13 +116,13 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_compass"
-                android:contentDescription="小游戏"
+                android:contentDescription="@string/plugin_game"
                 android:alpha="0.6" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="小游戏"
+                android:text="@string/plugin_game"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
@@ -130,7 +130,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="预留"
+                android:text="@string/plugin_reserved"
                 android:textSize="10sp"
                 android:textColor="@color/text_tertiary" />
         </LinearLayout>
@@ -151,13 +151,13 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_search"
-                android:contentDescription="联网"
+                android:contentDescription="@string/plugin_web"
                 android:alpha="0.6" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="联网"
+                android:text="@string/plugin_web"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
@@ -165,7 +165,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="预留"
+                android:text="@string/plugin_reserved"
                 android:textSize="10sp"
                 android:textColor="@color/text_tertiary" />
         </LinearLayout>
@@ -175,7 +175,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="更多插件即将推出..."
+        android:text="@string/plugin_more_coming"
         android:textSize="12sp"
         android:textColor="@color/text_tertiary"
         android:gravity="center"

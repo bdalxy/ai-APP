@@ -143,6 +143,7 @@
     <string name="status_initializing">正在初始化...</string>
     <string name="error_init_api_key">初始化失败：API Key 未配置</string>
     <string name="error_init_failed">初始化失败：%s</string>
+    <string name="toast_message_too_long">消息过长，请限制在2000字以内</string>
     <string name="toast_conversation_failed">对话失败: %s</string>
     <string name="toast_save_failed">对话保存失败</string>
     <string name="toast_search_failed">搜索失败: %s</string>
@@ -174,4 +175,13 @@
     <string name="msg_no_plugins">暂无可用插件</string>
     <string name="section_plugin_manage">插件管理</string>
     <string name="subtitle_plugin_manage">管理已安装的功能插件</string>
+
+    <!-- ===== 插件面板 (bottom_sheet_plugins) ===== -->
+    <string name="plugin_panel_title">插件面板</string>
+    <string name="plugin_image">图片</string>
+    <string name="plugin_voice">语音</string>
+    <string name="plugin_game">小游戏</string>
+    <string name="plugin_web">联网</string>
+    <string name="plugin_reserved">预留</string>
+    <string name="plugin_more_coming">更多插件即将推出…</string>
 </resources>

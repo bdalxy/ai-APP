@@ -14,13 +14,13 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlin.concurrent.thread
 
 /**
  * 设置子页面：根据传入的 type 参数展示不同设置内容。
@@ -138,13 +138,13 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setPositiveButton("保存") { _, _ ->
                 val key = edit.text.toString().trim()
                 AppConfig.setApiKey(this, key)
-                // 在后台线程调用 Python，避免阻塞 UI
-                thread {
+                // 在后台线程调用 Python，避免阻塞 UI，且受生命周期管理
+                lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                         module?.callAttr("set_api_key", key)
                     } catch (e: Exception) {
-                        runOnUiThread {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(this@SettingsDetailActivity, "Python 同步失败: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -315,15 +315,15 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setTitle("开始新对话")
             .setMessage("将清空当前对话历史。确定继续吗？")
             .setPositiveButton("确定") { _, _ ->
-                thread {
+                lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                         module?.callAttr("reset")
-                        runOnUiThread {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(this@SettingsDetailActivity, "对话已清空", Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
-                        runOnUiThread {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(this@SettingsDetailActivity, "清空对话失败: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -337,16 +337,16 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setTitle("清空长期记忆")
             .setMessage("将删除所有长期记忆数据，无法恢复。确定吗？")
             .setPositiveButton("确认清空") { _, _ ->
-                thread {
+                lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                         module?.callAttr("clear_memories")
-                        runOnUiThread {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(this@SettingsDetailActivity, "记忆已清空", Toast.LENGTH_SHORT).show()
                             recreate()
                         }
                     } catch (e: Exception) {
-                        runOnUiThread {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(this@SettingsDetailActivity, "清空记忆失败: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }

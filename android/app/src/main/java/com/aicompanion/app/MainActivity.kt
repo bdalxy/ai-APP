@@ -55,12 +55,19 @@ private var isStreaming = false
 
 /** 流式输出滚动节流时间戳 */
 private var lastScrollTime = 0L
+/** 流式消息更新节流时间戳（50ms） */
+private var lastMessageUpdateTime = 0L
 
 // ======================== 搜索相关 ========================
 /** 是否处于搜索模式 */
 private var isSearchMode = false
 /** 进入搜索模式前的原始消息列表（用于退出搜索后恢复） */
 private var originalMessages = listOf<Message>()
+/** 搜索防抖 Handler（需要在 onDestroy 中清理） */
+private val searchHandler = Handler(Looper.getMainLooper())
+/** 当前活跃的流式对话 ID（用于 onDestroy 清理 Python 流资源） */
+@Volatile
+private var activeStreamId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,8 +99,7 @@ private var originalMessages = listOf<Message>()
             toggleSearchMode()
         }
 
-        // 搜索输入监听（防抖300ms）
-        val searchHandler = Handler(Looper.getMainLooper())
+        // 搜索输入监听（防抖300ms，searchHandler 已提升为类字段）
         var searchRunnable: Runnable? = null
         binding.etSearch?.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -239,6 +245,14 @@ private var originalMessages = listOf<Message>()
         val text = binding.etInput.text.toString().trim()
         if (text.isEmpty() || !::pythonModule.isInitialized || isStreaming) return
 
+        // 消息长度限制（2000字符，防止 API 异常）
+        if (text.length > 2000) {
+            android.widget.Toast.makeText(
+                this, R.string.toast_message_too_long, android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         binding.etInput.text.clear()
         sendMessageStream(text)
     }
@@ -269,6 +283,7 @@ private var originalMessages = listOf<Message>()
             try {
                 // 启动流式对话
                 val streamId = pythonModule.callAttr("chat_stream_start", userInput).toString()
+                activeStreamId = streamId  // 记录活跃流ID，供 onDestroy 清理
 
                 // 检查是否返回了错误（chat_stream_start 在失败时返回 JSON 错误字符串）
                 if (streamId.startsWith("{")) {
@@ -278,15 +293,15 @@ private var originalMessages = listOf<Message>()
                             aiMsgIndex,
                             aiMsg.copy(content = "[错误] ${errorJson.optString("message", "未知错误")}")
                         )
-                        enableInput()
                     }
                     return@launch
                 }
 
                 val fullReply = StringBuilder()
                 var isDone = false
+                var shouldContinueLoop = true
 
-                while (!isDone && isStreaming) {
+                while (!isDone && isStreaming && shouldContinueLoop) {
                     val pollResult = pythonModule.callAttr("chat_stream_poll", streamId).toString()
                     val pollJson = JSONObject(pollResult)
                     val status = pollJson.optString("status", "error")
@@ -296,24 +311,88 @@ private var originalMessages = listOf<Message>()
                         "batch" -> {
                             val events = pollJson.optJSONArray("events")
                             if (events != null) {
+                                var batchHasComplete = false
+                                var batchErrorMsg: String? = null
                                 for (i in 0 until events.length()) {
                                     val eventStr = events.getString(i)
                                     val eventJson = JSONObject(eventStr)
                                     val eventStatus = eventJson.optString("status", "")
-                                    if (eventStatus == "streaming") {
-                                        val token = eventJson.optString("token", "")
-                                        fullReply.append(token)
+                                    when (eventStatus) {
+                                        "streaming" -> {
+                                            val token = eventJson.optString("token", "")
+                                            fullReply.append(token)
+                                        }
+                                        "done" -> {
+                                            batchHasComplete = true
+                                            val reply = eventJson.optString("reply", fullReply.toString())
+                                            fullReply.clear()
+                                            fullReply.append(reply)
+                                        }
+                                        "error" -> {
+                                            batchHasComplete = true
+                                            batchErrorMsg = eventJson.optString("message", "未知错误")
+                                        }
                                     }
                                 }
-                                runOnUiThread {
-                                    adapter.updateMessage(
-                                        aiMsgIndex,
-                                        aiMsg.copy(content = fullReply.toString())
-                                    )
-                                    // 滚动节流：每 200ms 最多滚动一次，减少 CPU 消耗
+                                if (batchHasComplete) {
+                                    // batch 中包含 done/error 事件，直接处理最终结果
+                                    if (batchErrorMsg != null) {
+                                        runOnUiThread {
+                                            adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = "[错误] $batchErrorMsg"))
+                                            android.widget.Toast.makeText(
+                                                this@MainActivity,
+                                                this@MainActivity.getString(R.string.toast_conversation_failed, batchErrorMsg),
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        isDone = true
+                                    } else {
+                                        // done 事件：处理最终消息（含多段拆分）
+                                        val finalContent = fullReply.toString()
+                                        runOnUiThread {
+                                            val parts = finalContent
+                                                .replace("\r\n", "\n")
+                                                .split("\\n\\s*\\n".toRegex())
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() }
+                                            Log.d("MainActivity", "batchDone: parts=${parts.size}, contentLen=${finalContent.length}")
+                                            if (parts.size > 1) {
+                                                adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
+                                                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                                                parts.drop(1).forEachIndexed { idx, part ->
+                                                    handler.postDelayed({
+                                                        adapter.addMessage(Message(content = part, isUser = false))
+                                                        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                                    }, ((idx + 1) * 300).toLong())
+                                                }
+                                                handler.postDelayed({
+                                                    saveConversation()
+                                                    isDone = true
+                                                }, (parts.size * 300).toLong())
+                                                shouldContinueLoop = false  // 防止下一轮 poll 收到独立 done 重复处理
+                                            } else {
+                                                adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
+                                                saveConversation()
+                                                isDone = true
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // 仅 streaming 事件：流式更新（节流 50ms）
                                     val now = System.currentTimeMillis()
+                                    if (now - lastMessageUpdateTime > 50) {
+                                        runOnUiThread {
+                                            adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
+                                        }
+                                        lastMessageUpdateTime = now
+                                    }
+                                    // 滚动节流：仅当用户在底部时自动滚动
                                     if (now - lastScrollTime > 200) {
-                                        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                        runOnUiThread {
+                                            if (!binding.rvMessages.canScrollVertically(1)) {
+                                                binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                            }
+                                        }
                                         lastScrollTime = now
                                     }
                                 }
@@ -323,10 +402,36 @@ private var originalMessages = listOf<Message>()
                             val reply = pollJson.optString("reply", fullReply.toString())
                             runOnUiThread {
                                 val finalContent = reply.ifEmpty { fullReply.toString() }
-                                adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
-                                saveConversation()
+                                // 拆分多条消息：AI 用空行分隔的话，拆成多条依次显示
+                                // 匹配 \n\n、\r\n\r\n、\n \n 等各种空行形式
+                                val parts = finalContent
+                                    .replace("\r\n", "\n")       // 统一换行符
+                                    .split("\\n\\s*\\n".toRegex()) // 空行（可能含空白字符）
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+                                Log.d("MainActivity", "splitMultiMsg: parts=${parts.size}, contentLen=${finalContent.length}")
+                                if (parts.size > 1) {
+                                    // 多条消息：第一条替换占位，后续追加
+                                    adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
+                                    val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                                    parts.drop(1).forEachIndexed { idx, part ->
+                                        handler.postDelayed({
+                                            adapter.addMessage(Message(content = part, isUser = false))
+                                            binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                        }, ((idx + 1) * 300).toLong())
+                                    }
+                                    // 保存对话 + 标记完成（延迟到最后一条消息之后）
+                                    handler.postDelayed({
+                                        saveConversation()
+                                        isDone = true
+                                    }, (parts.size * 300).toLong())
+                                    shouldContinueLoop = false  // 防止独立 done 在 batch done 后重复处理
+                                } else {
+                                    adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
+                                    saveConversation()
+                                    isDone = true
+                                }
                             }
-                            isDone = true
                         }
                         "error" -> {
                             val errorMsg = pollJson.optString("message", "未知错误")
@@ -379,10 +484,12 @@ private var originalMessages = listOf<Message>()
     /** 流式输出完成后恢复输入框和发送按钮 */
     private fun enableInput() {
         binding.etInput.isEnabled = true
-        binding.etInput.text.clear()
         binding.btnSend.isEnabled = true
         binding.btnSend.setBackgroundResource(R.drawable.bg_send_active)
-        binding.etInput.requestFocus()
+        // 搜索模式下不抢夺焦点，避免键盘弹出打断搜索
+        if (!isSearchMode) {
+            binding.etInput.requestFocus()
+        }
     }
 
     /** 持久化文件名 */
@@ -390,7 +497,7 @@ private var originalMessages = listOf<Message>()
         File(filesDir, "conversation.json")
     }
 
-    /** 保存当前对话历史到本地 JSON 文件 */
+    /** 保存当前对话历史到本地 JSON 文件（原子写入，防止写入中断导致文件损坏） */
     private fun saveConversation() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -403,7 +510,18 @@ private var originalMessages = listOf<Message>()
                     obj.put("timestamp", msg.timestamp)
                     jsonArray.put(obj)
                 }
-                conversationFile.writeText(jsonArray.toString(), Charsets.UTF_8)
+                val jsonStr = jsonArray.toString()
+                // 原子写入：先写临时文件，验证 JSON 后再替换
+                val tmpFile = File(filesDir, "conversation.json.tmp")
+                tmpFile.writeText(jsonStr, Charsets.UTF_8)
+                // 验证写入的 JSON 可解析
+                JSONArray(tmpFile.readText(Charsets.UTF_8))
+                // 原子替换
+                if (!tmpFile.renameTo(conversationFile)) {
+                    // renameTo 失败时回退到直接写入
+                    conversationFile.writeText(jsonStr, Charsets.UTF_8)
+                    tmpFile.delete()
+                }
                 Log.d("MainActivity", "对话已保存，共 ${messages.size} 条消息")
             } catch (e: Exception) {
                 Log.e("MainActivity", "保存对话失败: ${e.message}")
@@ -431,7 +549,7 @@ private var originalMessages = listOf<Message>()
                     ))
                 }
                 withContext(Dispatchers.Main) {
-                    adapter.replaceAll(messages)
+                    adapter.replaceMessages(messages)
                     if (messages.isNotEmpty()) {
                         binding.rvMessages.scrollToPosition(messages.size - 1)
                     }
@@ -681,6 +799,30 @@ private var originalMessages = listOf<Message>()
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            }
+        }
+    }
+
+    // ======================== 生命周期清理 ========================
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 停止流式轮询
+        isStreaming = false
+        // 清理搜索防抖 Handler
+        searchHandler.removeCallbacksAndMessages(null)
+        // 清理 Python 流资源
+        val sid = activeStreamId
+        if (sid != null) {
+            try {
+                com.chaquo.python.Python.getInstance()
+                    .getModule("chat_bridge")
+                    .callAttr("chat_stream_cancel", sid)
+                Log.d("MainActivity", "onDestroy: 已取消流 $sid")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "onDestroy: 取消流失败 ${e.message}")
+            } finally {
+                activeStreamId = null
             }
         }
     }

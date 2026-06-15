@@ -51,7 +51,8 @@ class MemoryManageActivity : AppCompatActivity() {
     private val memoryItems = mutableListOf<MemoryItem>()
     private var currentPage = 1
     private var totalCount = 0
-    private var isLoading = false
+    @Volatile
+private var isLoading = false
     private var hasMore = true
     private var currentKeyword = ""
 

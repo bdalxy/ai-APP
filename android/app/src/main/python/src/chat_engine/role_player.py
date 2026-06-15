@@ -402,12 +402,10 @@ class RolePlayer:
             )
             yield f"__DONE__:{full_reply}"
         except Exception as e:
-            # 异常时清空 memories
-            self.memories = []
             self._log.error(f"[流式对话] 异常: {e}")
             yield f"__ERROR__:{e}"
-        else:
-            # 仅在成功时清空本轮注入的记忆
+        finally:
+            # 无论成功、失败还是生成器未完全消费，都清空本轮注入的记忆，防止残留
             self.memories = []
 
     # -------------------------------------------------------------------------

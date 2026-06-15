@@ -143,6 +143,7 @@
     <string name="status_initializing">Initializing...</string>
     <string name="error_init_api_key">Initialization failed: API Key not configured</string>
     <string name="error_init_failed">Initialization failed: %s</string>
+    <string name="toast_message_too_long">Message too long, please limit to 2000 characters</string>
     <string name="toast_conversation_failed">Conversation failed: %s</string>
     <string name="toast_save_failed">Save failed</string>
     <string name="toast_search_failed">Search failed: %s</string>
@@ -166,4 +167,21 @@
     <string name="label_memory_type_episodic">Episodic</string>
     <string name="label_memory_type_semantic">Semantic</string>
     <string name="label_memory_type_user_fact">User Fact</string>
+
+    <!-- ===== Plugin Management (PluginManageActivity) ===== -->
+    <string name="title_plugin_manage">Plugin Management</string>
+    <string name="cd_plugin_manage">Plugin Management</string>
+    <string name="cd_toggle_plugin">Toggle plugin</string>
+    <string name="msg_no_plugins">No plugins available</string>
+    <string name="section_plugin_manage">Plugin Management</string>
+    <string name="subtitle_plugin_manage">Manage installed plugins</string>
+
+    <!-- ===== Plugin Panel (bottom_sheet_plugins) ===== -->
+    <string name="plugin_panel_title">Plugin Panel</string>
+    <string name="plugin_image">Image</string>
+    <string name="plugin_voice">Voice</string>
+    <string name="plugin_game">Game</string>
+    <string name="plugin_web">Web</string>
+    <string name="plugin_reserved">Reserved</string>
+    <string name="plugin_more_coming">More plugins coming soon...</string>
 </resources>

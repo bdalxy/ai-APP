@@ -216,6 +216,7 @@ class DeepSeekClient:
         self._log.info(f"[Chat] 成功: model={result.model}, tokens={result.usage['total_tokens']}, finish={result.finish_reason}")
         return result
 
+    @retry(max_retries=2, base_delay=1.0, max_delay=15.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError, APIConnectionError))
     def chat_stream(
         self,
         messages: list[dict[str, str]],

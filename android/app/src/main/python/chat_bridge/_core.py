@@ -5,6 +5,7 @@ import json
 import os
 import queue
 import threading
+import time
 import traceback
 import uuid
 
@@ -230,6 +231,7 @@ def chat_stream_start(user_input: str) -> str:
             "done": False,
             "error": None,
             "full_reply": "",
+            "created_at": time.monotonic(),  # 记录创建时间，用于超时清理
         }
 
     def _run():
@@ -311,6 +313,20 @@ def chat_stream_poll(stream_id: str) -> str:
 
     if events:
         return json.dumps({"status": "batch", "events": events})
+
+    # 超时清理：超过 300 秒（5分钟）未完成的流自动清理
+    stream_age = time.monotonic() - stream.get("created_at", 0)
+    if stream_age > 300:
+        _log.warning(f"[流式对话] 超时清理 stream_id={stream_id}, 存活={stream_age:.0f}秒")
+        with _streams_lock:
+            _streams.pop(stream_id, None)
+        # 清空队列中的残留事件
+        while not stream["queue"].empty():
+            try:
+                stream["queue"].get_nowait()
+            except queue.Empty:
+                break
+        return json.dumps({"status": "error", "message": "对话超时（超过5分钟无响应），请重试"})
 
     if stream["done"]:
         # 清理已结束的流会话
@@ -525,7 +541,7 @@ def export_history(format: str = "json") -> dict:
         card_name = card_info.get("name", "未知角色")
 
         if format == "txt":
-            lines = [f"AI 角色扮演对话记录", f"角色: {card_name}", f"导出时间: {__import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso()}", "=" * 40, ""]
+            lines = [f"AI 角色扮演对话记录", f"角色: {card_name}", f"导出时间: {format_timestamp_iso()}", "=" * 40, ""]
             for msg in context:
                 role_name = "用户" if msg["role"] == "user" else card_name
                 lines.append(f"[{role_name}]")
@@ -536,7 +552,7 @@ def export_history(format: str = "json") -> dict:
                 "status": "ok",
                 "format": "txt",
                 "content": content,
-                "filename": f"对话记录_{card_name}_{__import__('src.utils.time_utils', fromlist=['format_timestamp_iso']).format_timestamp_iso()[:10]}.txt",
+                "filename": f"对话记录_{card_name}_{format_timestamp_iso()[:10]}.txt",
             })
         else:
             # JSON 格式
@@ -554,3 +570,33 @@ def export_history(format: str = "json") -> dict:
             })
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
+
+
+def chat_stream_cancel(stream_id: str) -> str:
+    """取消流式对话，清理资源。
+
+    供 Kotlin 端在 Activity 销毁或用户主动取消时调用，
+    用于释放后台线程和队列资源，防止资源泄漏。
+
+    Args:
+        stream_id: chat_stream_start() 返回的会话 ID。
+
+    Returns:
+        JSON: {"status": "ok"} 或错误信息。
+    """
+    with _streams_lock:
+        stream = _streams.pop(stream_id, None)
+    if stream:
+        stream["done"] = True
+        # 清空队列中所有残留事件
+        cleared = 0
+        while not stream["queue"].empty():
+            try:
+                stream["queue"].get_nowait()
+                cleared += 1
+            except queue.Empty:
+                break
+        _log.info(f"[流式对话] 已取消 stream_id={stream_id}, 清理了 {cleared} 个队列事件")
+        return json.dumps({"status": "ok", "cleared": cleared})
+    _log.debug(f"[流式对话] stream_id={stream_id} 不存在或已清理")
+    return json.dumps({"status": "ok", "cleared": 0})

@@ -25,6 +25,9 @@ class ChatAdapter(
         private const val VIEW_TYPE_TYPING = 0
         private const val VIEW_TYPE_USER = 1
         private const val VIEW_TYPE_AI = 2
+
+        /** 最大消息数量，超出后移除最早的消息，防止内存无限增长 */
+        private const val MAX_MESSAGES = 500
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -86,6 +89,11 @@ class ChatAdapter(
     override fun getItemCount(): Int = messages.size
 
     fun addMessage(message: Message) {
+        // 超出上限时移除最早的消息，防止内存无限增长
+        if (messages.size >= MAX_MESSAGES) {
+            messages.removeAt(0)
+            notifyItemRemoved(0)
+        }
         messages.add(message)
         notifyItemInserted(messages.size - 1)
     }
@@ -93,11 +101,9 @@ class ChatAdapter(
     /** 获取当前所有消息的副本（用于持久化）。 */
     fun getMessages(): List<Message> = messages.toList()
 
-    /** 批量替换所有消息（用于恢复对话）。 */
+    /** 批量替换所有消息（用于恢复对话），内部使用 DiffUtil 避免全量刷新闪烁。 */
     fun replaceAll(newMessages: List<Message>) {
-        messages.clear()
-        messages.addAll(newMessages)
-        notifyDataSetChanged()
+        replaceMessages(newMessages)
     }
 
     /**

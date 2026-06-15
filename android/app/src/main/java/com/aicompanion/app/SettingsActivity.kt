@@ -3,7 +3,11 @@ package com.aicompanion.app
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.aicompanion.app.databinding.ActivitySettingsBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
@@ -80,39 +84,54 @@ class SettingsActivity : AppCompatActivity() {
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "免打扰 $start-$end" else "无免打扰"
         binding.tvProactiveSummary.text = if (enabled) "已开启 · $intervalLabel · $quietLabel" else "已关闭"
 
-        // 记忆摘要
-        try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-            val result = module?.callAttr("get_memory_count")?.toString() ?: "{}"
-            val json = JSONObject(result)
-            val count = json.optInt("count", 0)
-            binding.tvMemorySummary.text = "${count}条长期记忆"
-        } catch (e: Exception) {
-            binding.tvMemorySummary.text = "加载中..."
-        }
+        // 记忆摘要、世界书摘要、插件摘要 -- 在后台线程调用 Python，避免 UI 卡顿
+        lifecycleScope.launch(Dispatchers.IO) {
+            // 记忆摘要
+            try {
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                val result = module?.callAttr("get_memory_count")?.toString() ?: "{}"
+                val json = JSONObject(result)
+                val count = json.optInt("count", 0)
+                withContext(Dispatchers.Main) {
+                    binding.tvMemorySummary.text = "${count}条长期记忆"
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    binding.tvMemorySummary.text = "加载中..."
+                }
+            }
 
-        // 世界书摘要
-        try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-            val result = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
-            val json = JSONObject(result)
-            val enabled = json.optJSONArray("enabled")
-            val count = enabled?.length() ?: 0
-            binding.tvWorldBookSummary.text = if (count > 0) "已启用${count}本" else "未启用"
-        } catch (e: Exception) {
-            binding.tvWorldBookSummary.text = "未启用"
-        }
+            // 世界书摘要
+            try {
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                val result = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
+                val json = JSONObject(result)
+                val enabled = json.optJSONArray("enabled")
+                val count = enabled?.length() ?: 0
+                withContext(Dispatchers.Main) {
+                    binding.tvWorldBookSummary.text = if (count > 0) "已启用${count}本" else "未启用"
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    binding.tvWorldBookSummary.text = "未启用"
+                }
+            }
 
-        // 插件摘要
-        try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-            val result = module?.callAttr("get_plugin_count")?.toString() ?: "{}"
-            val json = JSONObject(result)
-            val total = json.optInt("total", 0)
-            val enabled = json.optInt("enabled", 0)
-            binding.tvPluginSummary.text = if (total > 0) "已安装${total}个 · 已启用${enabled}个" else "暂无插件"
-        } catch (e: Exception) {
-            binding.tvPluginSummary.text = "暂无插件"
+            // 插件摘要
+            try {
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                val result = module?.callAttr("get_plugin_count")?.toString() ?: "{}"
+                val json = JSONObject(result)
+                val total = json.optInt("total", 0)
+                val enabled = json.optInt("enabled", 0)
+                withContext(Dispatchers.Main) {
+                    binding.tvPluginSummary.text = if (total > 0) "已安装${total}个 · 已启用${enabled}个" else "暂无插件"
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    binding.tvPluginSummary.text = "暂无插件"
+                }
+            }
         }
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"

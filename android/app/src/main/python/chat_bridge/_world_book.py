@@ -528,7 +528,14 @@ def delete_world_book_entry(name: str, entry_id: str) -> str:
 
 
 def _save_book_to_file(book) -> None:
-    """将世界书持久化到 JSON 文件。"""
+    """将世界书持久化到 JSON 文件（原子写入）。
+
+    先写入 .tmp 临时文件，再用 os.replace() 原子替换到目标路径，
+    防止写入过程中崩溃导致文件损坏。
+
+    Args:
+        book: WorldBook 实例，需包含 name/version/description/entries 属性。
+    """
     entries_data = []
     for entry in book.entries:
         entries_data.append({
@@ -556,8 +563,22 @@ def _save_book_to_file(book) -> None:
 
     file_path = _PYTHON_ROOT + "/data/world_books/" + book.name + ".json"
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # 原子写入：先写入临时文件，再用 os.replace() 原子替换
+    tmp_path = file_path + ".tmp"
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, file_path)
+        _log.debug(f"[世界书] 原子写入完成: {file_path}")
+    except Exception:
+        # 清理可能残留的临时文件
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+        raise
 
 
 # ============================================================
