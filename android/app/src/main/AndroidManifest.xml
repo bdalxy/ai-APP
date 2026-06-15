@@ -68,6 +68,12 @@
             android:label="编辑角色"
             android:theme="@style/Theme.AICompanion" />
 
+        <activity
+            android:name=".PluginManageActivity"
+            android:exported="false"
+            android:label="插件管理"
+            android:theme="@style/Theme.AICompanion" />
+
         <!-- FileProvider：用于分享导出的对话文件 -->
         <provider
             android:name="androidx.core.content.FileProvider"

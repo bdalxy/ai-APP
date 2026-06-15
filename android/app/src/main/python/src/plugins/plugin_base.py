@@ -1,7 +1,8 @@
 """插件基类 — 定义管道钩子接口"""
 
+import time
 from abc import ABC
-from typing import Optional
+from typing import Optional, List
 
 
 class BasePlugin(ABC):
@@ -17,18 +18,44 @@ class BasePlugin(ABC):
         5. on_memory_extracted(memory) → 新记忆提取回调
     """
 
-    # 插件元信息（子类必须定义）
+    # ---- 插件元信息（子类必须定义） ----
     name: str = "base"
     """插件名称（唯一标识）"""
-    
+
     version: str = "1.0.0"
     """插件版本"""
-    
+
     description: str = "基础插件"
     """插件描述"""
-    
+
     enabled: bool = True
     """是否启用"""
+
+    category: str = "script"
+    """插件分类：chat(对话增强) / appearance(外观美化) / script(脚本工具)"""
+
+    author: str = "AI Companion Team"
+    """插件作者"""
+
+    icon: str = "sparkle"
+    """插件图标标识"""
+
+    # ---- 依赖与冲突（预留） ----
+    dependencies: List[str] = []
+    """依赖的其他插件名称列表"""
+
+    conflicts: List[str] = []
+    """冲突的插件名称列表"""
+
+    # ---- 统计字段（由 PluginManager 维护） ----
+    _call_count: int = 0
+    _error_count: int = 0
+    _install_time: float = 0.0
+    _last_call_time: float = 0.0
+    _last_error: str = ""
+
+    def __init__(self):
+        self._install_time = time.time()
 
     def pre_process(self, user_input: str) -> Optional[str]:
         """预处理用户输入。

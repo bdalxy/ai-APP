@@ -45,6 +45,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.cardWorldBook.setOnClickListener {
             startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "world_book"))
         }
+        binding.cardPlugin.setOnClickListener {
+            startActivity(Intent(this, PluginManageActivity::class.java))
+        }
 
         refreshUI()
     }
@@ -98,6 +101,18 @@ class SettingsActivity : AppCompatActivity() {
             binding.tvWorldBookSummary.text = if (count > 0) "已启用${count}本" else "未启用"
         } catch (e: Exception) {
             binding.tvWorldBookSummary.text = "未启用"
+        }
+
+        // 插件摘要
+        try {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val result = module?.callAttr("get_plugin_count")?.toString() ?: "{}"
+            val json = JSONObject(result)
+            val total = json.optInt("total", 0)
+            val enabled = json.optInt("enabled", 0)
+            binding.tvPluginSummary.text = if (total > 0) "已安装${total}个 · 已启用${enabled}个" else "暂无插件"
+        } catch (e: Exception) {
+            binding.tvPluginSummary.text = "暂无插件"
         }
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"

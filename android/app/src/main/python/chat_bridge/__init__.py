@@ -84,6 +84,14 @@ from ._world_book import (
     validate_world_book,
 )
 
+# ---- 插件管理 ----
+from ._plugins import (
+    list_plugins,
+    toggle_plugin,
+    get_plugin_detail,
+    get_plugin_count,
+)
+
 # 保持向后兼容的 __all__
 __all__ = [
     "init",
@@ -129,5 +137,9 @@ __all__ = [
     "update_world_book_entry",
     "delete_world_book_entry",
     "validate_world_book",
+    "list_plugins",
+    "toggle_plugin",
+    "get_plugin_detail",
+    "get_plugin_count",
     "_plugin_manager",
 ]

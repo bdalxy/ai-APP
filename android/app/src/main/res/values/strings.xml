@@ -166,4 +166,12 @@
     <string name="label_memory_type_episodic">情景记忆</string>
     <string name="label_memory_type_semantic">语义记忆</string>
     <string name="label_memory_type_user_fact">用户事实</string>
+
+    <!-- ===== 插件管理页面 (PluginManageActivity) ===== -->
+    <string name="title_plugin_manage">插件管理</string>
+    <string name="cd_plugin_manage">插件管理</string>
+    <string name="cd_toggle_plugin">切换插件状态</string>
+    <string name="msg_no_plugins">暂无可用插件</string>
+    <string name="section_plugin_manage">插件管理</string>
+    <string name="subtitle_plugin_manage">管理已安装的功能插件</string>
 </resources>

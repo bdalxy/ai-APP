@@ -4,6 +4,7 @@ import importlib
 import logging
 import os
 import threading
+import time
 from typing import List, Optional
 
 from .plugin_base import BasePlugin
@@ -162,40 +163,34 @@ class PluginManager:
     # ===== 管道钩子方法 =====
 
     def pre_process(self, user_input: str) -> str:
-        """依次调用所有已启用插件的 pre_process 钩子。
-        
-        Args:
-            user_input: 原始用户输入
-        
-        Returns:
-            处理后的用户输入
-        """
+        """依次调用所有已启用插件的 pre_process 钩子。"""
         result = user_input
         for plugin in self.get_enabled_plugins():
             try:
                 modified = plugin.pre_process(result)
+                plugin._call_count += 1
+                plugin._last_call_time = time.time()
                 if modified is not None:
                     result = modified
             except Exception as e:
+                plugin._error_count += 1
+                plugin._last_error = str(e)
                 _logger.error(f"插件 {plugin.name}.pre_process() 异常: {e}")
         return result
 
     def post_process(self, ai_reply: str) -> str:
-        """依次调用所有已启用插件的 post_process 钩子。
-        
-        Args:
-            ai_reply: 原始 AI 回复
-        
-        Returns:
-            处理后的 AI 回复
-        """
+        """依次调用所有已启用插件的 post_process 钩子。"""
         result = ai_reply
         for plugin in self.get_enabled_plugins():
             try:
                 modified = plugin.post_process(result)
+                plugin._call_count += 1
+                plugin._last_call_time = time.time()
                 if modified is not None:
                     result = modified
             except Exception as e:
+                plugin._error_count += 1
+                plugin._last_error = str(e)
                 _logger.error(f"插件 {plugin.name}.post_process() 异常: {e}")
         return result
 
@@ -204,7 +199,11 @@ class PluginManager:
         for plugin in self.get_enabled_plugins():
             try:
                 plugin.on_turn_end(user_input, ai_reply)
+                plugin._call_count += 1
+                plugin._last_call_time = time.time()
             except Exception as e:
+                plugin._error_count += 1
+                plugin._last_error = str(e)
                 _logger.error(f"插件 {plugin.name}.on_turn_end() 异常: {e}")
 
     def on_memory_extracted(self, memory: dict) -> None:
@@ -212,7 +211,11 @@ class PluginManager:
         for plugin in self.get_enabled_plugins():
             try:
                 plugin.on_memory_extracted(memory)
+                plugin._call_count += 1
+                plugin._last_call_time = time.time()
             except Exception as e:
+                plugin._error_count += 1
+                plugin._last_error = str(e)
                 _logger.error(f"插件 {plugin.name}.on_memory_extracted() 异常: {e}")
 
     def reload(self) -> int:
