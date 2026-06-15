@@ -88,6 +88,10 @@ private var activeStreamId: String? = null
         binding.btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        // 新对话按钮
+        binding.btnNewChat?.setOnClickListener {
+            showNewChatDialog()
+        }
         // 长按设置按钮 → 导出对话
         binding.btnSettings.setOnLongClickListener {
             showExportDialog()
@@ -345,18 +349,19 @@ private var activeStreamId: String? = null
                                                 android.widget.Toast.LENGTH_SHORT
                                             ).show()
                                         }
+                                        shouldContinueLoop = false
                                         isDone = true
                                     } else {
                                         // done 事件：处理最终消息（含多段拆分）
                                         val finalContent = fullReply.toString()
-                                        runOnUiThread {
-                                            val parts = finalContent
-                                                .replace("\r\n", "\n")
-                                                .split("\\n\\s*\\n".toRegex())
-                                                .map { it.trim() }
-                                                .filter { it.isNotEmpty() }
-                                            Log.d("MainActivity", "batchDone: parts=${parts.size}, contentLen=${finalContent.length}")
-                                            if (parts.size > 1) {
+                                        val parts = finalContent
+                                            .replace("\r\n", "\n")
+                                            .split("\\n\\s*\\n".toRegex())
+                                            .map { it.trim() }
+                                            .filter { it.isNotEmpty() }
+                                        Log.d("MainActivity", "batchDone: parts=${parts.size}, contentLen=${finalContent.length}")
+                                        if (parts.size > 1) {
+                                            runOnUiThread {
                                                 adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
                                                 val handler = android.os.Handler(android.os.Looper.getMainLooper())
                                                 parts.drop(1).forEachIndexed { idx, part ->
@@ -367,15 +372,16 @@ private var activeStreamId: String? = null
                                                 }
                                                 handler.postDelayed({
                                                     saveConversation()
-                                                    isDone = true
                                                 }, (parts.size * 300).toLong())
-                                                shouldContinueLoop = false  // 防止下一轮 poll 收到独立 done 重复处理
-                                            } else {
+                                            }
+                                        } else {
+                                            runOnUiThread {
                                                 adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
                                                 saveConversation()
-                                                isDone = true
                                             }
                                         }
+                                        shouldContinueLoop = false
+                                        isDone = true
                                     }
                                 } else {
                                     // 仅 streaming 事件：流式更新（节流 50ms）
@@ -400,18 +406,16 @@ private var activeStreamId: String? = null
                         }
                         "done" -> {
                             val reply = pollJson.optString("reply", fullReply.toString())
-                            runOnUiThread {
-                                val finalContent = reply.ifEmpty { fullReply.toString() }
-                                // 拆分多条消息：AI 用空行分隔的话，拆成多条依次显示
-                                // 匹配 \n\n、\r\n\r\n、\n \n 等各种空行形式
-                                val parts = finalContent
-                                    .replace("\r\n", "\n")       // 统一换行符
-                                    .split("\\n\\s*\\n".toRegex()) // 空行（可能含空白字符）
-                                    .map { it.trim() }
-                                    .filter { it.isNotEmpty() }
-                                Log.d("MainActivity", "splitMultiMsg: parts=${parts.size}, contentLen=${finalContent.length}")
-                                if (parts.size > 1) {
-                                    // 多条消息：第一条替换占位，后续追加
+                            val finalContent = reply.ifEmpty { fullReply.toString() }
+                            // 拆分多条消息：AI 用空行分隔的话，拆成多条依次显示
+                            val parts = finalContent
+                                .replace("\r\n", "\n")
+                                .split("\\n\\s*\\n".toRegex())
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                            Log.d("MainActivity", "splitMultiMsg: parts=${parts.size}, contentLen=${finalContent.length}")
+                            if (parts.size > 1) {
+                                runOnUiThread {
                                     adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
                                     val handler = android.os.Handler(android.os.Looper.getMainLooper())
                                     parts.drop(1).forEachIndexed { idx, part ->
@@ -420,18 +424,18 @@ private var activeStreamId: String? = null
                                             binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
                                         }, ((idx + 1) * 300).toLong())
                                     }
-                                    // 保存对话 + 标记完成（延迟到最后一条消息之后）
                                     handler.postDelayed({
                                         saveConversation()
-                                        isDone = true
                                     }, (parts.size * 300).toLong())
-                                    shouldContinueLoop = false  // 防止独立 done 在 batch done 后重复处理
-                                } else {
+                                }
+                            } else {
+                                runOnUiThread {
                                     adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
                                     saveConversation()
-                                    isDone = true
                                 }
                             }
+                            shouldContinueLoop = false
+                            isDone = true
                         }
                         "error" -> {
                             val errorMsg = pollJson.optString("message", "未知错误")
@@ -446,6 +450,7 @@ private var activeStreamId: String? = null
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
+                            shouldContinueLoop = false
                             isDone = true
                         }
                         "waiting" -> {
@@ -559,6 +564,33 @@ private var activeStreamId: String? = null
                 Log.e("MainActivity", "恢复对话失败: ${e.message}")
             }
         }
+    }
+
+    /** 显示新对话确认对话框 */
+    private fun showNewChatDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("开始新对话")
+            .setMessage("将清空当前对话历史。确定继续吗？")
+            .setPositiveButton("确定") { _, _ ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                        module?.callAttr("reset")
+                        // 删除本地对话文件
+                        conversationFile.delete()
+                        withContext(Dispatchers.Main) {
+                            adapter.clear()
+                            Toast.makeText(this@MainActivity, "对话已清空", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "清空对话失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     // ======================== 消息气泡辅助方法 ========================

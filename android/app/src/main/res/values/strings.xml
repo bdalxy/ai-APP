@@ -9,6 +9,7 @@
     <string name="btn_back_arrow_label">← 返回</string>
     <string name="btn_menu">≡</string>
     <string name="btn_send">↑</string>
+    <string name="btn_new_chat">新对话</string>
     <string name="btn_save">保存</string>
     <string name="btn_clear">✕</string>
     <string name="btn_refresh">↻</string>

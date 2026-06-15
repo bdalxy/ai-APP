@@ -75,6 +75,21 @@
                 android:contentDescription="@string/cd_search"
                 android:tint="@color/text_primary" />
 
+            <!-- 新对话按钮 -->
+            <TextView
+                android:id="@+id/btnNewChat"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/avatar_size_small"
+                android:text="@string/btn_new_chat"
+                android:textSize="@dimen/text_small"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="@dimen/spacing_sm"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/btn_new_chat" />
+
             <!-- 设置按钮 -->
             <TextView
                 android:id="@+id/btnSettings"
