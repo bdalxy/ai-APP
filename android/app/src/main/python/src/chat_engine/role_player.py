@@ -403,6 +403,8 @@ class RolePlayer:
             yield f"__DONE__:{full_reply}"
         except Exception as e:
             self._log.error(f"[流式对话] 异常: {e}")
+            # 回退用户消息，防止 context 中出现不匹配的 user 消息
+            self.context.pop_last()
             yield f"__ERROR__:{e}"
         finally:
             # 无论成功、失败还是生成器未完全消费，都清空本轮注入的记忆，防止残留

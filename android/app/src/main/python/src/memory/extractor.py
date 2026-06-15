@@ -209,14 +209,20 @@ class MemoryExtractor:
         entries: list[MemoryEntry] = []
         now = format_timestamp_iso()
 
-        # 只提取用户消息
+        # 提取用户和 AI 消息
         user_messages = [
             msg["content"]
             for msg in messages
             if msg.get("role") == "user"
         ]
+        assistant_messages = [
+            msg["content"]
+            for msg in messages
+            if msg.get("role") == "assistant"
+        ]
+        all_messages = user_messages + assistant_messages
 
-        for text in user_messages:
+        for text in all_messages:
             if not text:
                 continue
 
@@ -401,7 +407,8 @@ class MemoryExtractor:
         if not self.vector_store:
             return new_entries
 
-        existing_entries = self.vector_store.get_all()
+        # 只用最近 500 条记忆做去重，避免全量加载导致性能下降
+        existing_entries = self.vector_store.get_recent_entries(500)
         if not existing_entries:
             return new_entries
 

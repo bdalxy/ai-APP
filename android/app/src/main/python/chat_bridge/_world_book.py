@@ -94,7 +94,7 @@ def enable_world_book(name: str) -> str:
         engine = _get_engine()
 
         # 检查世界书是否存在
-        if not engine.set_active(name):
+        if name not in engine._books:
             available = [b["name"] for b in engine.list_books()]
             return json.dumps({
                 "status": "error",
@@ -146,9 +146,11 @@ def get_enabled_world_books() -> str:
     Returns:
         JSON: {"status": "ok", "enabled": ["name1", "name2", ...]}
     """
+    with _wb_lock:
+        enabled = sorted(_enabled_books)
     return json.dumps({
         "status": "ok",
-        "enabled": list(_enabled_books),  # 只读快照，读取时无需锁
+        "enabled": enabled,
     }, ensure_ascii=False)
 
 

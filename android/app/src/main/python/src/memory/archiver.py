@@ -96,31 +96,33 @@ class MemoryArchiver:
             self._log.debug("[归档] 记忆数未超过阈值，跳过")
             return 0
 
+        # 1. 获取旧记忆（锁内，仅数据访问）
         with self._lock:
             try:
-                # 1. 获取最旧的未归档记忆
                 old_memories = self._store.get_oldest_unarchived(self.BATCH_SIZE)
                 if not old_memories:
                     self._log.debug("[归档] 没有可归档的旧记忆")
                     return 0
+            except Exception as e:
+                self._log.error(f"[归档] 获取旧记忆失败: {e}")
+                return 0
 
-                self._log.info(
-                    f"[归档] 开始归档 {len(old_memories)} 条旧记忆"
-                )
+        self._log.info(f"[归档] 开始归档 {len(old_memories)} 条旧记忆")
 
-                # 2. 生成摘要
-                summaries = self._generate_summaries(old_memories)
-                if not summaries:
-                    self._log.warning("[归档] 摘要生成失败，跳过本次归档")
-                    return 0
+        # 2. 生成摘要（锁外，可能调用 LLM API，避免长时间持锁）
+        summaries = self._generate_summaries(old_memories)
+        if not summaries:
+            self._log.warning("[归档] 摘要生成失败，跳过本次归档")
+            return 0
 
-                # 3. 标记原记忆为已归档
+        # 3. 标记 + 存储（锁内，数据操作）
+        with self._lock:
+            try:
                 archived_count = self._store.mark_archived(
                     [m.id for m in old_memories]
                 )
                 self._log.info(f"[归档] 已标记 {archived_count} 条记忆为已归档")
 
-                # 4. 存储摘要（高重要性，确保不会被轻易丢失）
                 from src.memory.vector_store import MemoryEntry
                 from src.utils.time_utils import format_timestamp_iso
 

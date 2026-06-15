@@ -47,15 +47,14 @@ class BasePlugin(ABC):
     conflicts: List[str] = []
     """冲突的插件名称列表"""
 
-    # ---- 统计字段（由 PluginManager 维护） ----
-    _call_count: int = 0
-    _error_count: int = 0
-    _install_time: float = 0.0
-    _last_call_time: float = 0.0
-    _last_error: str = ""
+    # ---- 统计字段（由 PluginManager 维护，实例级别避免多实例共享） ----
 
     def __init__(self):
-        self._install_time = time.time()
+        self._call_count: int = 0
+        self._error_count: int = 0
+        self._install_time: float = time.time()
+        self._last_call_time: float = 0.0
+        self._last_error: str = ""
 
     def pre_process(self, user_input: str) -> Optional[str]:
         """预处理用户输入。

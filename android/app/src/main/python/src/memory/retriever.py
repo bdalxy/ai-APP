@@ -181,6 +181,7 @@ class MemoryRetriever:
         candidates_per_page = top_k * 3  # 每页保留的候选数，放大 3 倍确保不遗漏
         all_candidates: list[tuple[MemoryEntry, float]] = []
         has_embedding = bool(query_embedding)
+        max_candidates = top_k * 10  # 全局候选上限，防止缓冲区无限增长
 
         offset = 0
         while offset < total:
@@ -218,6 +219,10 @@ class MemoryRetriever:
             )
 
             all_candidates.extend(page_top)
+            # 全局候选上限裁剪
+            if len(all_candidates) > max_candidates:
+                all_candidates.sort(key=lambda x: x[1], reverse=True)
+                all_candidates = all_candidates[:max_candidates]
 
         # 合并所有页候选，最终排序取 top_k
         all_candidates.sort(key=lambda x: x[1], reverse=True)

@@ -53,6 +53,8 @@ class EmbeddingResponse:
 class CostTracker:
     """API 调用成本追踪器。"""
 
+    # 注：价格为近似值（元/百万tokens），实际价格请参考 DeepSeek 官方定价
+    # 价格会随官方调整而变化，此处仅用于成本估算，不保证精确
     PRICING: dict[str, dict[str, float]] = {
         "deepseek-v4-flash": {"input": 1.0, "output": 2.0},
         "deepseek-v4-pro": {"input": 1.0, "output": 2.0},

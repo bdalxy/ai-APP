@@ -157,7 +157,8 @@
             android:layout_weight="1"
             android:padding="@dimen/message_list_padding"
             android:clipToPadding="false"
-            android:overScrollMode="never" />
+            android:overScrollMode="never"
+            android:animateLayoutChanges="true" />
 
         <!-- 输入栏：毛玻璃背景 -->
         <LinearLayout

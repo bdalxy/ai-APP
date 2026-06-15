@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 聊天消息气泡布局：支持文字气泡 + 打字指示器 -->
+<!-- 聊天消息气泡布局：文字气泡 + 打字指示器 + 时间戳 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingHorizontal="12dp"
-    android:paddingVertical="4dp">
+    android:paddingVertical="6dp">
 
     <LinearLayout
         android:id="@+id/layoutMessageRow"
@@ -20,12 +21,24 @@
             android:id="@+id/tvContent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="@dimen/text_body"
-            android:paddingHorizontal="@dimen/message_bubble_padding_h"
-            android:paddingVertical="@dimen/message_bubble_padding_v"
-            android:lineSpacingExtra="4dp"
-            android:elevation="2dp"
-            android:maxWidth="@dimen/message_bubble_max_width" />
+            android:textSize="15sp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:lineSpacingExtra="3dp"
+            android:elevation="3dp"
+            android:maxWidth="280dp"
+            android:textColor="@color/text_primary" />
+
+        <!-- 时间戳 -->
+        <TextView
+            android:id="@+id/tvTimestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            android:textColor="@color/text_tertiary"
+            android:layout_marginTop="2dp"
+            android:visibility="gone"
+            tools:text="12:30" />
 
         <!-- 打字指示器 -->
         <LinearLayout
@@ -33,26 +46,26 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="18dp"
             android:paddingVertical="14dp"
             android:background="@drawable/bg_bubble_typing"
             android:visibility="gone">
 
             <View
                 android:id="@+id/dot1"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:background="@drawable/bg_typing_dot" />
             <View
                 android:id="@+id/dot2"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_typing_dot" />
             <View
                 android:id="@+id/dot3"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_typing_dot" />
         </LinearLayout>

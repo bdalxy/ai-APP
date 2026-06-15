@@ -82,6 +82,18 @@ class ContextManager:
         # 自动裁剪
         self._auto_trim()
 
+    def pop_last(self) -> dict[str, str] | None:
+        """移除并返回最后一条消息（用于异常回退）。
+
+        Returns:
+            被移除的消息字典，或 None（队列为空时）。
+        """
+        if not self._history:
+            return None
+        msg = self._history.pop()
+        self._total_chars = max(0, self._total_chars - len(msg["content"]))
+        return msg
+
     def get_context(self) -> list[dict[str, str]]:
         """获取当前对话历史，返回列表副本。
 

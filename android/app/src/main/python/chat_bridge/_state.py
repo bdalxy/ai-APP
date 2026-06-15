@@ -33,7 +33,7 @@ def shutdown_executor() -> None:
     """
     global _executor
     try:
-        _executor.shutdown(wait=False)
+        _executor.shutdown(wait=True, cancel_futures=False)
     except Exception:
         pass  # 忽略关闭异常，不影响清理流程
     finally:

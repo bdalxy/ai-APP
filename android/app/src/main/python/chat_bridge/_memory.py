@@ -339,10 +339,17 @@ def export_memories(password: str = "") -> dict:
             salt = os.urandom(16)
             key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000, dklen=32)
             plaintext = json.dumps(all_memories, ensure_ascii=False).encode("utf-8")
-            ciphertext = bytes(
-                plaintext[i] ^ key[i % len(key)] for i in range(len(plaintext))
-            )
-            encrypted = base64.b64encode(salt + ciphertext).decode("ascii")
+            try:
+                from cryptography.fernet import Fernet
+                fernet_key = base64.urlsafe_b64encode(key)
+                f = Fernet(fernet_key)
+                ciphertext = f.encrypt(plaintext)
+                encrypted = base64.b64encode(salt + ciphertext).decode("ascii")
+            except ImportError:
+                ciphertext = bytes(
+                    plaintext[i] ^ key[i % len(key)] for i in range(len(plaintext))
+                )
+                encrypted = base64.b64encode(salt + ciphertext).decode("ascii")
             result["memories"] = encrypted
             result["encrypted"] = True
             _log.info("[导出] 已加密导出")

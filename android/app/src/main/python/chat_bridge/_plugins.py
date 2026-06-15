@@ -2,11 +2,11 @@
 
 import json
 import inspect
-import logging
+from src.utils.logger import get_logger
 from src.plugins.plugin_base import BasePlugin
 from src.plugins.plugin_manager import get_plugin_manager
 
-_logger = logging.getLogger("Bridge.Plugins")
+_log = get_logger()
 
 
 def _get_implemented_hooks(plugin: BasePlugin) -> list:
@@ -53,7 +53,7 @@ def list_plugins() -> str:
             })
         return json.dumps({"status": "ok", "plugins": plugins_data}, ensure_ascii=False)
     except Exception as e:
-        _logger.error(f"list_plugins 失败: {e}")
+        _log.error(f"list_plugins 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 
@@ -75,7 +75,7 @@ def toggle_plugin(name: str, enabled: bool) -> str:
         else:
             return json.dumps({"status": "error", "message": f"插件 {name} 不存在"}, ensure_ascii=False)
     except Exception as e:
-        _logger.error(f"toggle_plugin 失败: {e}")
+        _log.error(f"toggle_plugin 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 
@@ -116,7 +116,7 @@ def get_plugin_detail(name: str) -> str:
             }
         }, ensure_ascii=False)
     except Exception as e:
-        _logger.error(f"get_plugin_detail 失败: {e}")
+        _log.error(f"get_plugin_detail 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 
@@ -137,5 +137,5 @@ def get_plugin_count() -> str:
             "disabled": len(all_plugins) - len(enabled),
         }, ensure_ascii=False)
     except Exception as e:
-        _logger.error(f"get_plugin_count 失败: {e}")
+        _log.error(f"get_plugin_count 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
