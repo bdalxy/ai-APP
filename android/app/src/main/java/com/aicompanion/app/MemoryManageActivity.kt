@@ -8,6 +8,8 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -447,8 +449,16 @@ class MemoryManageActivity : AppCompatActivity() {
 
     /** 控制空状态提示的显示 */
     private fun showEmpty(show: Boolean) {
-        binding.tvEmpty.visibility = if (show) View.VISIBLE else View.GONE
+        binding.layoutEmpty.visibility = if (show) View.VISIBLE else View.GONE
         binding.rvMemories.visibility = if (show) View.GONE else View.VISIBLE
+        if (show) {
+            val emptyIcon = binding.layoutEmpty.findViewById<ImageView>(R.id.ivEmptyIcon)
+            val emptyTitle = binding.layoutEmpty.findViewById<TextView>(R.id.tvEmptyTitle)
+            val emptyDesc = binding.layoutEmpty.findViewById<TextView>(R.id.tvEmptyDesc)
+            emptyIcon.setImageResource(R.drawable.ic_settings_memory)
+            emptyTitle.setText(R.string.empty_memories)
+            emptyDesc.visibility = View.GONE
+        }
     }
 
     /** 更新统计栏显示 */

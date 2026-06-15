@@ -75,4 +75,37 @@
         <item name="android:thumb">@drawable/bg_switch_thumb</item>
         <item name="android:track">@drawable/bg_switch_track</item>
     </style>
+
+    <!-- ===== AppInput 输入框样式 ===== -->
+    <style name="AppInput" parent="Widget.AppCompat.EditText">
+        <item name="android:background">@drawable/bg_input_field</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_tertiary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <!-- 搜索输入框：继承 AppInput，圆角更大 -->
+    <style name="AppInput.Search" parent="AppInput">
+        <item name="android:layout_height">40dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- 多行输入框：继承 AppInput，多行 -->
+    <style name="AppInput.Multiline" parent="AppInput">
+        <item name="android:singleLine">false</item>
+        <item name="android:maxLines">4</item>
+        <item name="android:gravity">top</item>
+    </style>
+
+    <!-- ===== AppChip 标签样式 ===== -->
+    <style name="AppChip">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/onPrimary</item>
+        <item name="android:paddingHorizontal">8dp</item>
+        <item name="android:paddingVertical">2dp</item>
+        <item name="android:background">@drawable/bg_type_label</item>
+    </style>
 </resources>

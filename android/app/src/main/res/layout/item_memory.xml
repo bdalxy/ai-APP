@@ -20,14 +20,10 @@
         <!-- 类型标签（小圆角色块） -->
         <TextView
             android:id="@+id/tvType"
+            style="@style/AppChip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="情景记忆"
-            android:textSize="11sp"
-            android:textColor="@color/onPrimary"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="2dp"
-            android:background="@drawable/bg_type_label" />
+            android:text="情景记忆" />
 
         <!-- 弹性间距 -->
         <View

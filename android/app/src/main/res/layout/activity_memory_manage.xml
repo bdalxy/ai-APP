@@ -109,17 +109,10 @@
 
         <EditText
             android:id="@+id/etSearch"
+            style="@style/AppInput.Search"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
             android:layout_weight="1"
             android:hint="@string/hint_search_memories"
-            android:textSize="@dimen/text_body_small"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_tertiary"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="8dp"
-            android:background="@drawable/bg_input_field"
-            android:maxLines="1"
             android:inputType="text"
             android:imeOptions="actionSearch" />
 
@@ -150,17 +143,25 @@
         android:paddingBottom="@dimen/spacing_xs" />
 
     <!-- 空状态提示 -->
-    <TextView
-        android:id="@+id/tvEmpty"
+    <FrameLayout
+        android:id="@+id/layoutEmpty"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:text="@string/empty_memories"
-        android:textSize="@dimen/text_body"
-        android:textColor="@color/text_tertiary"
-        android:gravity="center"
-        android:lineSpacingExtra="@dimen/spacing_sm"
-        android:visibility="gone" />
+        android:visibility="gone">
+
+        <include layout="@layout/layout_app_empty_state" />
+    </FrameLayout>
+
+    <!-- 加载状态提示 -->
+    <FrameLayout
+        android:id="@+id/layoutLoading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <include layout="@layout/layout_app_loading_state" />
+    </FrameLayout>
 
     <!-- 加载更多提示 -->
     <TextView

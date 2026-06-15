@@ -1,37 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 空状态通用模板 -->
-<LinearLayout
+<!-- 空状态通用模板 — 用 merge 支持直接 include -->
+<merge
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp">
+    android:layout_height="match_parent">
 
-    <ImageView
-        android:id="@+id/ivEmptyIcon"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:alpha="0.4"
-        android:contentDescription="@null"
-        android:tint="@color/text_tertiary" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp">
 
-    <TextView
-        android:id="@+id/tvEmptyTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@color/text_secondary"
-        android:textSize="@dimen/text_subtitle"
-        android:textStyle="bold"
-        android:layout_marginTop="16dp"
-        android:gravity="center" />
+        <ImageView
+            android:id="@+id/ivEmptyIcon"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:alpha="0.4"
+            android:contentDescription="@null"
+            android:tint="@color/text_tertiary" />
 
-    <TextView
-        android:id="@+id/tvEmptyDesc"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@color/text_tertiary"
-        android:textSize="@dimen/text_body_small"
-        android:layout_marginTop="8dp"
-        android:gravity="center" />
-</LinearLayout>
+        <TextView
+            android:id="@+id/tvEmptyTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_subtitle"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tvEmptyDesc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_tertiary"
+            android:textSize="@dimen/text_body_small"
+            android:layout_marginTop="8dp"
+            android:gravity="center" />
+    </LinearLayout>
+</merge>
