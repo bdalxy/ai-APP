@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 角色卡片列表项：头像 + 名称简介 + 当前指示 + 编辑/删除 -->
-<com.google.android.material.card.MaterialCardView
+<com.aicompanion.app.ui.GlassCard
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -104,4 +104,4 @@
                 android:background="?attr/selectableItemBackground" />
         </LinearLayout>
     </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+</com.aicompanion.app.ui.GlassCard>

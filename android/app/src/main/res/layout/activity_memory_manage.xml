@@ -1,98 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 记忆管理页面布局 -->
-<!-- 优化：增大按钮和搜索栏可点击区域，适配 HyperOS/MagicOS 缩放 -->
+<!-- 记忆管理页面布局 — UI v0.1.0 统一改造 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/memory_manage_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="?attr/colorSurface">
+    android:background="@drawable/bg_main_gradient">
 
     <!-- 标题栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="@dimen/topbar_height_alt"
         android:gravity="center_vertical"
-        android:paddingHorizontal="@dimen/spacing_xl"
+        android:paddingHorizontal="@dimen/spacing_page"
         android:background="@drawable/bg_glass_top"
         android:elevation="@dimen/topbar_elevation">
 
-        <!-- 返回按钮 -->
-        <Button
+        <TextView
             android:id="@+id/btnBack"
-            android:layout_width="wrap_content"
+            android:layout_width="@dimen/button_medium"
             android:layout_height="@dimen/button_medium"
-            android:text="@string/btn_back_arrow_label"
-            android:textSize="@dimen/text_body_small"
-            android:minWidth="0dp"
-            android:paddingHorizontal="@dimen/spacing_xl"
-            android:backgroundTint="?attr/colorOnPrimary"
-            android:textColor="?attr/colorPrimary" />
+            android:text="@string/btn_back_arrow"
+            android:textSize="@dimen/text_large"
+            android:textColor="@color/text_primary"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/cd_back" />
 
-        <!-- 标题 -->
         <TextView
             android:id="@+id/tvPageTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/title_memory_manage"
-            android:textSize="@dimen/text_title_small"
+            android:textSize="@dimen/text_heading"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnPrimary"
+            android:textColor="@color/text_primary"
             android:gravity="center" />
 
-        <!-- 刷新按钮 -->
-        <Button
+        <TextView
             android:id="@+id/btnRefresh"
             android:layout_width="@dimen/button_medium"
             android:layout_height="@dimen/button_medium"
             android:text="@string/btn_refresh"
-            android:textSize="@dimen/text_title"
-            android:minWidth="0dp"
-            android:padding="0dp"
-            android:backgroundTint="?attr/colorOnPrimary"
-            android:textColor="?attr/colorPrimary" />
+            android:textSize="@dimen/text_large"
+            android:textColor="@color/text_primary"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/btn_refresh" />
     </LinearLayout>
 
     <!-- 统计信息栏 -->
-    <LinearLayout
+    <com.aicompanion.app.ui.GlassCard
         android:id="@+id/layoutStats"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="@dimen/spacing_page"
-        android:paddingVertical="@dimen/spacing_xl"
-        android:background="?attr/colorSurfaceVariant"
-        android:visibility="gone">
+        android:layout_marginHorizontal="@dimen/spacing_page"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        app:contentPadding="@dimen/card_padding">
 
-        <TextView
-            android:id="@+id/tvStats"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/stats_total_memories"
-            android:textSize="@dimen/text_body_small"
-            android:textColor="?attr/colorOnSurface" />
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvMemoryDesc"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/desc_memory_ai_perspective"
-            android:textSize="@dimen/text_caption"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:layout_marginTop="@dimen/spacing_xs" />
+            <TextView
+                android:id="@+id/tvStats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/text_body_small"
+                android:textColor="@color/text_primary" />
 
-        <!-- 加载中指示 -->
-        <TextView
-            android:id="@+id/tvStatsLoading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/status_loading"
-            android:textSize="@dimen/text_small"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:visibility="gone" />
-    </LinearLayout>
+            <TextView
+                android:id="@+id/tvMemoryDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/desc_memory_ai_perspective"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="@dimen/spacing_xs" />
+
+            <TextView
+                android:id="@+id/tvStatsLoading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/status_loading"
+                android:textSize="@dimen/text_small"
+                android:textColor="@color/text_tertiary"
+                android:visibility="gone" />
+        </LinearLayout>
+    </com.aicompanion.app.ui.GlassCard>
 
     <!-- 搜索栏 -->
     <LinearLayout
@@ -100,9 +104,8 @@
         android:layout_height="@dimen/topbar_height_alt"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="@dimen/spacing_xl"
-        android:paddingVertical="@dimen/spacing_md"
-        android:background="?attr/colorSurface">
+        android:paddingHorizontal="@dimen/spacing_page"
+        android:paddingVertical="@dimen/spacing_md">
 
         <EditText
             android:id="@+id/etSearch"
@@ -111,25 +114,28 @@
             android:layout_weight="1"
             android:hint="@string/hint_search_memories"
             android:textSize="@dimen/text_body_small"
-            android:paddingHorizontal="@dimen/search_padding_horizontal"
-            android:paddingVertical="@dimen/search_padding_vertical"
-            android:background="@android:drawable/edit_text"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_tertiary"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:background="@drawable/bg_input_field"
             android:maxLines="1"
             android:inputType="text"
             android:imeOptions="actionSearch" />
 
-        <!-- 清除搜索按钮 -->
-        <Button
+        <TextView
             android:id="@+id/btnClearSearch"
-            android:layout_width="@dimen/button_small"
-            android:layout_height="@dimen/button_small"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
             android:text="@string/btn_clear"
             android:textSize="@dimen/text_body_small"
-            android:minWidth="0dp"
-            android:padding="0dp"
+            android:textColor="@color/text_secondary"
+            android:gravity="center"
+            android:paddingHorizontal="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
             android:layout_marginStart="@dimen/spacing_md"
-            android:backgroundTint="?attr/colorSurfaceVariant"
-            android:textColor="?attr/colorOnSurfaceVariant"
             android:visibility="gone" />
     </LinearLayout>
 
@@ -151,7 +157,7 @@
         android:layout_weight="1"
         android:text="@string/empty_memories"
         android:textSize="@dimen/text_body"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textColor="@color/text_tertiary"
         android:gravity="center"
         android:lineSpacingExtra="@dimen/spacing_sm"
         android:visibility="gone" />
@@ -163,7 +169,7 @@
         android:layout_height="wrap_content"
         android:text="@string/action_load_more"
         android:textSize="@dimen/text_caption"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textColor="@color/text_tertiary"
         android:gravity="center"
         android:paddingVertical="@dimen/spacing_md"
         android:visibility="gone" />
@@ -174,17 +180,18 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:padding="@dimen/spacing_page"
-        android:background="?attr/colorSurfaceVariant">
+        android:paddingHorizontal="@dimen/spacing_page"
+        android:paddingVertical="@dimen/spacing_md"
+        android:background="@drawable/bg_glass_bottom">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnClearAll"
+            style="@style/AppButton.Primary"
             android:layout_width="match_parent"
             android:layout_height="@dimen/button_wide"
             android:text="@string/action_clear_all_memories"
             android:textSize="@dimen/text_body"
-            android:textColor="@color/onPrimary"
-            android:backgroundTint="@color/accent_red" />
+            app:backgroundTint="@color/accent_red" />
     </LinearLayout>
 
 </LinearLayout>

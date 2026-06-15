@@ -43,4 +43,36 @@
         <item name="cardCornerRadius">12dp</item>
         <item name="cardElevation">0dp</item>
     </style>
+
+    <!-- ===== AppButton 系列 ===== -->
+    <!-- 主按钮：粉紫渐变填充 -->
+    <style name="AppButton.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="android:textColor">@color/onPrimary</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:background">@drawable/bg_btn_primary</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minWidth">80dp</item>
+        <item name="android:minHeight">@dimen/button_default</item>
+    </style>
+
+    <!-- 次要按钮：透明底 + 主题色描边 -->
+    <style name="AppButton.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textColor">@color/primary</item>
+        <item name="strokeColor">@color/primary</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minHeight">@dimen/button_default</item>
+    </style>
+
+    <!-- 文字按钮：无背景 -->
+    <style name="AppButton.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">@color/primary</item>
+        <item name="android:textSize">@dimen/text_body_small</item>
+        <item name="android:minHeight">@dimen/button_medium</item>
+    </style>
+
+    <!-- ===== AppSwitch 开关样式 ===== -->
+    <style name="AppSwitch" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="android:thumb">@drawable/bg_switch_thumb</item>
+        <item name="android:track">@drawable/bg_switch_track</item>
+    </style>
 </resources>

@@ -174,19 +174,19 @@
                 android:inputType="textMultiLine"
                 android:imeOptions="actionSend" />
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSend"
+                style="@style/AppButton.Primary"
                 android:layout_width="@dimen/button_small"
                 android:layout_height="@dimen/button_small"
                 android:layout_marginStart="@dimen/spacing_md"
                 android:text="@string/btn_send"
                 android:textSize="@dimen/text_title"
-                android:textColor="@color/text_on_pink"
-                android:gravity="center"
-                android:clickable="true"
-                android:focusable="true"
                 android:enabled="false"
-                android:background="@drawable/bg_send_inactive" />
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:stateListAnimator="@null"
+                android:contentDescription="@string/btn_send" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

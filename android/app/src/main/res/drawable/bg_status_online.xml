@@ -2,5 +2,5 @@
 <!-- 在线状态小圆点：椭圆形状，绿色实底 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#7DE2A0" />
+    <solid android:color="@color/status_online" />
 </shape>

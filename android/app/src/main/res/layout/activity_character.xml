@@ -95,7 +95,7 @@
             android:layout_marginBottom="@dimen/spacing_3xl" />
 
         <!-- ===== 性格特征卡片 ===== -->
-        <com.google.android.material.card.MaterialCardView
+        <com.aicompanion.app.ui.GlassCard
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -122,10 +122,10 @@
                     android:textColor="@color/text_primary"
                     android:lineSpacingExtra="@dimen/spacing_xs" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </com.aicompanion.app.ui.GlassCard>
 
         <!-- ===== 说话风格卡片 ===== -->
-        <com.google.android.material.card.MaterialCardView
+        <com.aicompanion.app.ui.GlassCard
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -152,10 +152,10 @@
                     android:textColor="@color/text_primary"
                     android:lineSpacingExtra="@dimen/spacing_xs" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </com.aicompanion.app.ui.GlassCard>
 
         <!-- ===== 角色切换列表 ===== -->
-        <com.google.android.material.card.MaterialCardView
+        <com.aicompanion.app.ui.GlassCard
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -208,7 +208,7 @@
                         android:buttonTint="@color/elysian_purple" />
                 </RadioGroup>
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </com.aicompanion.app.ui.GlassCard>
 
         <!-- ===== 自定义角色卡入口 ===== -->
         <TextView
