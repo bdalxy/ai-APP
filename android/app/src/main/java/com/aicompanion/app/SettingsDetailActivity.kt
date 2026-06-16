@@ -405,7 +405,13 @@ class SettingsDetailActivity : AppCompatActivity() {
     private fun buildProactivePage() {
         val enabled = prefs.getBoolean("proactive_enabled", false)
         val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
-        val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
+        val intervalIdx = INTERVAL_MS.indexOf(intervalMs)
+        val intervalLabel = if (intervalIdx >= 0) {
+            INTERVAL_OPTIONS[intervalIdx]
+        } else {
+            val hours = intervalMs / 3600000.0
+            if (hours == hours.toLong().toDouble()) "每${hours.toLong()}小时" else "每${"%.1f".format(hours)}小时"
+        }
         val start = prefs.getString("quiet_start", "") ?: ""
         val end = prefs.getString("quiet_end", "") ?: ""
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
@@ -438,38 +444,142 @@ class SettingsDetailActivity : AppCompatActivity() {
         addDivider()
 
         addClickRow("发送频率", intervalLabel, iconRes = R.drawable.ic_frequency) {
-            val idx = INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
+            val optionsWithCustom = INTERVAL_OPTIONS.toMutableList().apply { add("自定义") }
+            val idx = if (INTERVAL_MS.contains(intervalMs)) {
+                INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
+            } else {
+                optionsWithCustom.size - 1 // 自定义值 → 选中"自定义"
+            }
             MaterialAlertDialogBuilder(this)
                 .setTitle("发送频率")
-                .setSingleChoiceItems(INTERVAL_OPTIONS, idx) { dialog, which ->
-                    prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
-                    ProactiveService.reschedule(this@SettingsDetailActivity)
-                    dialog.dismiss()
-                    recreate()
+                .setSingleChoiceItems(optionsWithCustom.toTypedArray(), idx) { dialog, which ->
+                    if (which == optionsWithCustom.size - 1) {
+                        // 自定义间隔
+                        dialog.dismiss()
+                        showCustomIntervalDialog()
+                    } else {
+                        prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
+                        ProactiveService.reschedule(this@SettingsDetailActivity)
+                        dialog.dismiss()
+                        recreate()
+                    }
                 }
                 .setNegativeButton("取消", null).show()
         }
         addDivider()
 
         addClickRow("免打扰时段", quietLabel, iconRes = R.drawable.ic_quiet) {
-            val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00")
-            val idx = options.indexOfFirst {
-                it == quietLabel || (quietLabel != "不设置" && it != "不设置" && it.take(5) == start.take(5))
-            }.coerceAtLeast(0)
+            val options = arrayOf("不设置", "22:00 - 08:00", "23:00 - 07:00", "00:00 - 06:00", "自定义")
+            val idx = if (quietLabel == "不设置") 0
+                else if (quietLabel == "22:00 - 08:00") 1
+                else if (quietLabel == "23:00 - 07:00") 2
+                else if (quietLabel == "00:00 - 06:00") 3
+                else options.size - 1 // 自定义值
             MaterialAlertDialogBuilder(this)
                 .setTitle("静默时段")
                 .setSingleChoiceItems(options, idx) { dialog, which ->
-                    if (options[which] == "不设置") {
-                        prefs.edit().remove("quiet_start").remove("quiet_end").apply()
-                    } else {
-                        val parts = options[which].split(" - ")
-                        prefs.edit().putString("quiet_start", parts[0].trim()).putString("quiet_end", parts[1].trim()).apply()
+                    when (which) {
+                        0 -> {
+                            prefs.edit().remove("quiet_start").remove("quiet_end").apply()
+                            dialog.dismiss()
+                            recreate()
+                        }
+                        1, 2, 3 -> {
+                            val parts = options[which].split(" - ")
+                            prefs.edit().putString("quiet_start", parts[0].trim()).putString("quiet_end", parts[1].trim()).apply()
+                            dialog.dismiss()
+                            recreate()
+                        }
+                        4 -> {
+                            dialog.dismiss()
+                            showCustomQuietDialog()
+                        }
                     }
-                    dialog.dismiss()
-                    recreate()
                 }
                 .setNegativeButton("取消", null).show()
         }
+    }
+
+    /**
+     * 显示自定义间隔对话框。
+     * 用户输入小时数，最低 0.5 小时（30 分钟）。
+     */
+    private fun showCustomIntervalDialog() {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            hint = "输入小时数（最低 0.5 小时）"
+            setText("1")
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("自定义发送间隔")
+            .setMessage("最低间隔 30 分钟（0.5 小时）")
+            .setView(input)
+            .setPositiveButton("确定") { _, _ ->
+                val hours = input.text.toString().toDoubleOrNull()
+                if (hours == null || hours <= 0) {
+                    Toast.makeText(this, "请输入有效的正数", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val intervalMs = (hours * 3600000L).toLong()
+                if (intervalMs < AppConfig.MIN_INTERVAL_MS) {
+                    Toast.makeText(this, "最低间隔为 30 分钟（0.5 小时）", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                prefs.edit().putLong("proactive_interval", intervalMs).apply()
+                ProactiveService.reschedule(this@SettingsDetailActivity)
+                recreate()
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    /**
+     * 显示自定义静默时段对话框。
+     * 用户输入开始和结束时间（HH:mm 格式）。
+     */
+    private fun showCustomQuietDialog() {
+        val currentStart = prefs.getString("quiet_start", "") ?: ""
+        val currentEnd = prefs.getString("quiet_end", "") ?: ""
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 16)
+        }
+        val startInput = EditText(this).apply {
+            hint = "开始时间（如 22:00）"
+            setText(currentStart)
+            inputType = InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME
+        }
+        val endInput = EditText(this).apply {
+            hint = "结束时间（如 08:00）"
+            setText(currentEnd)
+            inputType = InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME
+        }
+        layout.addView(TextView(this).apply {
+            text = "开始时间"
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+        })
+        layout.addView(startInput)
+        layout.addView(TextView(this).apply {
+            text = "结束时间"
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            setPadding(0, 16, 0, 0)
+        })
+        layout.addView(endInput)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("自定义静默时段")
+            .setView(layout)
+            .setPositiveButton("确定") { _, _ ->
+                val s = startInput.text.toString().trim()
+                val e = endInput.text.toString().trim()
+                if (s.isNotEmpty() && e.isNotEmpty() && s.matches(Regex("\\d{1,2}:\\d{2}")) && e.matches(Regex("\\d{1,2}:\\d{2}"))) {
+                    prefs.edit().putString("quiet_start", s).putString("quiet_end", e).apply()
+                    recreate()
+                } else {
+                    Toast.makeText(this, "请输入有效的时间格式（HH:mm）", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null).show()
     }
 
     // ======================== 世界书 ========================

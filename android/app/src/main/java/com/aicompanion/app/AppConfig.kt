@@ -32,6 +32,7 @@ object AppConfig {
     val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
     val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
     val DEFAULT_INTERVAL_MS = 10800000L  // 默认 3 小时
+    val MIN_INTERVAL_MS = 1800000L  // 最低间隔 30 分钟
 
     /** 缓存的加密 SharedPreferences 实例（避免重复创建 MasterKey） */
     @Volatile

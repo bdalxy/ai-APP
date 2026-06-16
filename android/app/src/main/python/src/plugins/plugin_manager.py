@@ -1,6 +1,7 @@
 """插件管理器 — 发现、加载、管理插件"""
 
 import importlib
+import json
 import logging
 import os
 import threading
@@ -26,6 +27,12 @@ class PluginManager:
         self._plugins: List[BasePlugin] = []
         self._lock = threading.Lock()
         self._plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        # 状态持久化
+        self._state_dir = os.path.join(self._plugin_dir, "data")
+        os.makedirs(self._state_dir, exist_ok=True)
+        self._state_file = os.path.join(self._state_dir, "plugin_state.json")
+        self._loaded_state: dict = {}
+        self._dirty = False
 
     @property
     def plugins(self) -> List[BasePlugin]:
@@ -82,6 +89,9 @@ class PluginManager:
                     _logger.info(f"插件 {plugin.name} 已加载，跳过")
                     return existing
                 self._plugins.append(plugin)
+
+            # 恢复持久化状态
+            self._restore_plugin_state(plugin)
             
             _logger.info(f"插件已加载: {plugin.name} v{plugin.version}")
             return plugin
@@ -90,16 +100,20 @@ class PluginManager:
             return None
 
     def load_all(self) -> int:
-        """发现并加载所有可用插件。
-        
+        """发现并加载所有可用插件，并恢复持久化状态。
+
         Returns:
             成功加载的插件数量
         """
+        # 先读取持久化状态，以便 load_plugin() 中恢复
+        self._loaded_state = self._load_state()
         modules = self.discover()
         count = 0
         for mod_name in modules:
             if self.load_plugin(mod_name):
                 count += 1
+        # 加载完成后保存一次状态（确保新增插件被记录）
+        self._save_state()
         return count
 
     def unload_plugin(self, name: str) -> bool:
@@ -136,12 +150,84 @@ class PluginManager:
 
     def get_enabled_plugins(self) -> List[BasePlugin]:
         """获取所有已启用的插件。
-        
+
         Returns:
             已启用的插件列表
         """
         with self._lock:
             return [p for p in self._plugins if p.enabled]
+
+    # ===== 状态持久化 =====
+
+    def _save_state(self) -> None:
+        """将所有插件状态保存到 data/plugin_state.json。
+
+        线程安全：使用 _lock 保护 _plugins 的遍历。
+        """
+        with self._lock:
+            state = {"plugins": {}}
+            for p in self._plugins:
+                state["plugins"][p.name] = {
+                    "enabled": p.enabled,
+                    "call_count": p._call_count,
+                    "error_count": p._error_count,
+                    "install_time": p._install_time,
+                    "last_call_time": p._last_call_time,
+                    "last_error": p._last_error,
+                }
+        try:
+            with open(self._state_file, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+            self._dirty = False
+            _logger.debug("插件状态已保存到 %s", self._state_file)
+        except Exception as e:
+            _logger.error("保存插件状态失败: %s", e)
+
+    def _load_state(self) -> dict:
+        """从 data/plugin_state.json 读取插件状态。
+
+        Returns:
+            {"plugin_name": {"enabled": ..., ...}, ...}
+            文件不存在或解析失败时返回空字典。
+        """
+        if not os.path.exists(self._state_file):
+            _logger.debug("插件状态文件不存在，使用默认状态")
+            return {}
+        try:
+            with open(self._state_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            plugins_state = data.get("plugins", {})
+            _logger.info("已加载 %d 个插件的持久化状态", len(plugins_state))
+            return plugins_state
+        except json.JSONDecodeError as e:
+            _logger.warning("插件状态 JSON 解析失败: %s，使用默认状态", e)
+            return {}
+        except IOError as e:
+            _logger.warning("读取插件状态文件失败: %s，使用默认状态", e)
+            return {}
+
+    def _restore_plugin_state(self, plugin: BasePlugin) -> None:
+        """从已加载的状态数据中恢复单个插件的状态。
+
+        Args:
+            plugin: 要恢复状态的插件实例
+        """
+        state = self._loaded_state.get(plugin.name)
+        if not state:
+            return
+        try:
+            plugin.enabled = state.get("enabled", plugin.enabled)
+            plugin._call_count = state.get("call_count", 0)
+            plugin._error_count = state.get("error_count", 0)
+            plugin._install_time = state.get("install_time", plugin._install_time)
+            plugin._last_call_time = state.get("last_call_time", 0.0)
+            plugin._last_error = state.get("last_error", "")
+            _logger.debug("插件 %s 状态已恢复: enabled=%s, call_count=%d",
+                          plugin.name, plugin.enabled, plugin._call_count)
+        except Exception as e:
+            _logger.warning("恢复插件 %s 状态失败: %s", plugin.name, e)
+
+    # ===== 启用/禁用 =====
 
     def set_enabled(self, name: str, enabled: bool) -> bool:
         """设置插件启用/禁用状态。
@@ -156,6 +242,7 @@ class PluginManager:
         plugin = self.get_plugin(name)
         if plugin:
             plugin.enabled = enabled
+            self._save_state()
             _logger.info(f"插件 {name} {'启用' if enabled else '禁用'}")
             return True
         return False
@@ -170,11 +257,13 @@ class PluginManager:
                 modified = plugin.pre_process(result)
                 plugin._call_count += 1
                 plugin._last_call_time = time.time()
+                self._dirty = True
                 if modified is not None:
                     result = modified
             except Exception as e:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
+                self._dirty = True
                 _logger.error(f"插件 {plugin.name}.pre_process() 异常: {e}")
         return result
 
@@ -186,11 +275,13 @@ class PluginManager:
                 modified = plugin.post_process(result)
                 plugin._call_count += 1
                 plugin._last_call_time = time.time()
+                self._dirty = True
                 if modified is not None:
                     result = modified
             except Exception as e:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
+                self._dirty = True
                 _logger.error(f"插件 {plugin.name}.post_process() 异常: {e}")
         return result
 
@@ -201,9 +292,11 @@ class PluginManager:
                 plugin.on_turn_end(user_input, ai_reply)
                 plugin._call_count += 1
                 plugin._last_call_time = time.time()
+                self._dirty = True
             except Exception as e:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
+                self._dirty = True
                 _logger.error(f"插件 {plugin.name}.on_turn_end() 异常: {e}")
 
     def on_memory_extracted(self, memory: dict) -> None:
@@ -213,9 +306,11 @@ class PluginManager:
                 plugin.on_memory_extracted(memory)
                 plugin._call_count += 1
                 plugin._last_call_time = time.time()
+                self._dirty = True
             except Exception as e:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
+                self._dirty = True
                 _logger.error(f"插件 {plugin.name}.on_memory_extracted() 异常: {e}")
 
     def reload(self) -> int:
