@@ -65,6 +65,7 @@ def reset_memories() -> dict:
     try:
         count = orchestrator.vector_store.count()
         orchestrator.vector_store.clear()
+        _state._cached_memories = []  # 清除缓存，防止已删除记忆继续注入
         _ctx.reset_turn_counter()
         return json.dumps({"status": "ok", "deleted": count})
     except Exception as e:
@@ -266,6 +267,7 @@ def clear_memories() -> dict:
     try:
         count = orchestrator.vector_store.count()
         orchestrator.vector_store.clear()
+        _state._cached_memories = []  # 清除缓存，防止已删除记忆继续注入
         _log.info(f"[清空记忆] 已清空 {count} 条记忆，未重置 turn_counter")
         return json.dumps({"status": "ok", "deleted": count})
     except Exception as e:

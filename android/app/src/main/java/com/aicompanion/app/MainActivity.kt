@@ -369,96 +369,25 @@ private val characterSelectLauncher = registerForActivityResult(
                     Log.d("MainActivity", "stream_poll: status=$status")
 
                     when (status) {
-                        "batch" -> {
-                            val events = pollJson.optJSONArray("events")
-                            if (events != null) {
-                                var batchHasComplete = false
-                                var batchErrorMsg: String? = null
-                                for (i in 0 until events.length()) {
-                                    val eventStr = events.getString(i)
-                                    val eventJson = JSONObject(eventStr)
-                                    val eventStatus = eventJson.optString("status", "")
-                                    when (eventStatus) {
-                                        "streaming" -> {
-                                            val token = eventJson.optString("token", "")
-                                            fullReply.append(token)
-                                        }
-                                        "done" -> {
-                                            batchHasComplete = true
-                                            val reply = eventJson.optString("reply", fullReply.toString())
-                                            fullReply.clear()
-                                            fullReply.append(reply)
-                                        }
-                                        "error" -> {
-                                            batchHasComplete = true
-                                            batchErrorMsg = eventJson.optString("message", "未知错误")
-                                        }
+                        "streaming" -> {
+                            // 单 token 流式：追加到 fullReply 并实时更新 UI（节流 50ms）
+                            val token = pollJson.optString("token", "")
+                            fullReply.append(token)
+                            val now = System.currentTimeMillis()
+                            if (now - lastMessageUpdateTime > 50) {
+                                runOnUiThread {
+                                    adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
+                                }
+                                lastMessageUpdateTime = now
+                            }
+                            // 滚动节流：仅当用户在底部时自动滚动
+                            if (now - lastScrollTime > 200) {
+                                runOnUiThread {
+                                    if (!binding.rvMessages.canScrollVertically(1)) {
+                                        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
                                     }
                                 }
-                                if (batchHasComplete) {
-                                    // batch 中包含 done/error 事件，直接处理最终结果
-                                    if (batchErrorMsg != null) {
-                                        runOnUiThread {
-                                            adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = "[错误] $batchErrorMsg"))
-                                            android.widget.Toast.makeText(
-                                                this@MainActivity,
-                                                this@MainActivity.getString(R.string.toast_conversation_failed, batchErrorMsg),
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                        shouldContinueLoop = false
-                                        isDone = true
-                                    } else {
-                                        // done 事件：处理最终消息（含多段拆分）
-                                        val finalContent = fullReply.toString()
-                                        val parts = finalContent
-                                            .replace("\r\n", "\n")
-                                            .split("\\n\\s*\\n".toRegex())
-                                            .map { it.trim() }
-                                            .filter { it.isNotEmpty() }
-                                        Log.d("MainActivity", "batchDone: parts=${parts.size}, contentLen=${finalContent.length}")
-                                        if (parts.size > 1) {
-                                            runOnUiThread {
-                                                adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
-                                                val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                                                parts.drop(1).forEachIndexed { idx, part ->
-                                                    handler.postDelayed({
-                                                        adapter.addMessage(Message(content = part, isUser = false))
-                                                        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-                                                    }, ((idx + 1) * 300).toLong())
-                                                }
-                                                handler.postDelayed({
-                                                    saveConversation()
-                                                }, (parts.size * 300).toLong())
-                                            }
-                                        } else {
-                                            runOnUiThread {
-                                                adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
-                                                saveConversation()
-                                            }
-                                        }
-                                        shouldContinueLoop = false
-                                        isDone = true
-                                    }
-                                } else {
-                                    // 仅 streaming 事件：流式更新（节流 50ms）
-                                    val now = System.currentTimeMillis()
-                                    if (now - lastMessageUpdateTime > 50) {
-                                        runOnUiThread {
-                                            adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
-                                        }
-                                        lastMessageUpdateTime = now
-                                    }
-                                    // 滚动节流：仅当用户在底部时自动滚动
-                                    if (now - lastScrollTime > 200) {
-                                        runOnUiThread {
-                                            if (!binding.rvMessages.canScrollVertically(1)) {
-                                                binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-                                            }
-                                        }
-                                        lastScrollTime = now
-                                    }
-                                }
+                                lastScrollTime = now
                             }
                         }
                         "done" -> {

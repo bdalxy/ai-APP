@@ -305,9 +305,9 @@ def chat_stream_start(user_input: str) -> str:
 
 
 def chat_stream_poll(stream_id: str) -> str:
-    """获取流式对话的可用 token（批量返回）。
+    """获取流式对话的下一个事件（单事件返回）。
 
-    一次性返回队列中所有已生成的 token，减少 Chaquopy 跨语言调用次数。
+    每次调用只返回一个事件，实现真正的逐 token 流式。
     当队列为空且流未结束时返回 {"status": "waiting"}。
 
     Args:
@@ -315,7 +315,7 @@ def chat_stream_poll(stream_id: str) -> str:
 
     Returns:
         JSON 字符串，格式如下：
-            {"status": "batch", "events": [{"status": "streaming", "token": "..."}, ...]}
+            {"status": "streaming", "token": "..."}  — 单个 token
             {"status": "done", "reply": "完整回复"}
             {"status": "error", "message": "错误信息"}
             {"status": "waiting"}  — 暂无新 token，流未结束
@@ -325,16 +325,12 @@ def chat_stream_poll(stream_id: str) -> str:
     if not stream:
         return json.dumps({"status": "error", "message": "无效的 stream_id"})
 
-    # 批量取出所有可用 token
-    events = []
-    while True:
-        try:
-            events.append(stream["queue"].get_nowait())
-        except queue.Empty:
-            break
-
-    if events:
-        return json.dumps({"status": "batch", "events": events})
+    # 每次只取一个事件，实现真正的逐 token 流式输出
+    try:
+        event = stream["queue"].get_nowait()
+        return event
+    except queue.Empty:
+        pass
 
     # 超时清理：超过 300 秒（5分钟）未完成的流自动清理
     stream_age = time.monotonic() - stream.get("created_at", 0)
@@ -422,6 +418,9 @@ def reset() -> dict:
     player = _ctx.player
     if player is not None:
         player.clear_context()
+
+    # 清除缓存的记忆，防止旧记忆注入新对话
+    _state._cached_memories = []
 
     # 重置世界书轮次计数
     try:
