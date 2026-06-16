@@ -290,7 +290,7 @@ private var isLoading = false
                 MemoryItem(
                     rowid = obj.optInt("rowid", 0),
                     id = obj.optString("id", ""),
-                    type = obj.optString("type", "unknown"),
+                    type = obj.optString("memory_type", "unknown"),
                     content = obj.optString("content", ""),
                     createdAt = obj.optString("created_at", ""),
                     importance = obj.optDouble("importance", 0.0)

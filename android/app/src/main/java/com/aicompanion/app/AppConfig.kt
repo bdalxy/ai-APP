@@ -23,7 +23,6 @@ object AppConfig {
     private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
 
     // ── 主动消息配置键 ──
-    private const val KEY_PROACTIVE_ENABLED = "proactive_enabled"
     private const val KEY_PROACTIVE_INTERVAL = "proactive_interval"
     private const val KEY_PROACTIVE_QUIET_START = "proactive_quiet_start"
     private const val KEY_PROACTIVE_QUIET_END = "proactive_quiet_end"
@@ -128,16 +127,7 @@ object AppConfig {
         getPrefs(context).edit().putInt(KEY_EXAMPLE_DIALOGUES, count).apply()
     }
 
-    // ── 主动消息配置 ──
-
-    /** 主动消息是否开启，默认 true */
-    fun isProactiveEnabled(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_PROACTIVE_ENABLED, true)
-    }
-
-    fun setProactiveEnabled(context: Context, enabled: Boolean) {
-        getPrefs(context).edit().putBoolean(KEY_PROACTIVE_ENABLED, enabled).apply()
-    }
+    // ── 主动消息配置（使用 app_prefs，由 SettingsDetailActivity 和 ProactiveWorker 直接管理）──
 
     /** 主动消息发送间隔（小时），默认 3 */
     fun getProactiveInterval(context: Context): Int {

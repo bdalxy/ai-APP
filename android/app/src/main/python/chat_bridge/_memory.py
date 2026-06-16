@@ -11,7 +11,7 @@ from src.memory.vector_store import MemoryEntry, _init_encryption
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
 
-from ._state import _ctx
+from ._state import _ctx, _state
 
 _log = get_logger()
 

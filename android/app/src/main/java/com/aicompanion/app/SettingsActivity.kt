@@ -89,9 +89,9 @@ class SettingsActivity : AppCompatActivity() {
             // 记忆摘要
             try {
                 val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                val result = module?.callAttr("get_memory_count")?.toString() ?: "{}"
+                val result = module?.callAttr("get_memory_stats")?.toString() ?: "{}"
                 val json = JSONObject(result)
-                val count = json.optInt("count", 0)
+                val count = json.optInt("total", 0)
                 withContext(Dispatchers.Main) {
                     binding.tvMemorySummary.text = "${count}条长期记忆"
                 }

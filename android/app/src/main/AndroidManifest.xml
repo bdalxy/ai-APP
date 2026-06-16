@@ -93,12 +93,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- 主动推送服务：WorkManager 定时触发 -->
-        <service
-            android:name=".ProactiveService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
-        </application>
+    </application>
 
 </manifest>
