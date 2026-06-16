@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 角色卡页面：头像 + 名称 + 描述 + 特征卡片 + 角色切换列表 -->
+<!-- 角色详情页：头像 + 名称 + 描述 + 特征卡片 + 动态角色列表 + 操作按钮 -->
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -77,18 +77,16 @@
             android:id="@+id/tvCharacterName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/tv_default_character_name"
             android:textSize="@dimen/text_large"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:layout_marginBottom="@dimen/spacing_xs" />
 
-        <!-- 角色描述 -->
+        <!-- 角色描述（简介/一句话描述） -->
         <TextView
             android:id="@+id/tvCharacterDesc"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/default_character_desc"
             android:textSize="@dimen/text_body_small"
             android:textColor="@color/text_secondary"
             android:gravity="center"
@@ -117,7 +115,6 @@
                     android:id="@+id/tvPersonality"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/default_personality"
                     android:textSize="@dimen/text_body_small"
                     android:textColor="@color/text_primary"
                     android:lineSpacingExtra="@dimen/spacing_xs" />
@@ -129,7 +126,7 @@
             style="@style/GlassCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/spacing_3xl"
+            android:layout_marginBottom="@dimen/spacing_xl"
             app:contentPadding="@dimen/card_padding_small">
 
             <LinearLayout
@@ -147,14 +144,71 @@
                     android:id="@+id/tvSpeakingStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/default_speaking_style"
                     android:textSize="@dimen/text_body_small"
                     android:textColor="@color/text_primary"
                     android:lineSpacingExtra="@dimen/spacing_xs" />
             </LinearLayout>
         </com.aicompanion.app.ui.GlassCard>
 
-        <!-- ===== 角色切换列表 ===== -->
+        <!-- ===== 背景故事卡片 ===== -->
+        <com.aicompanion.app.ui.GlassCard
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_xl"
+            app:contentPadding="@dimen/card_padding_small">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsItemTitle"
+                    android:text="@string/label_backstory"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="@dimen/spacing_sm" />
+
+                <TextView
+                    android:id="@+id/tvBackstory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="@dimen/text_body_small"
+                    android:textColor="@color/text_primary"
+                    android:lineSpacingExtra="@dimen/spacing_xs" />
+            </LinearLayout>
+        </com.aicompanion.app.ui.GlassCard>
+
+        <!-- ===== 开场白卡片 ===== -->
+        <com.aicompanion.app.ui.GlassCard
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_3xl"
+            app:contentPadding="@dimen/card_padding_small">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsItemTitle"
+                    android:text="@string/label_greeting"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="@dimen/spacing_sm" />
+
+                <TextView
+                    android:id="@+id/tvGreeting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="@dimen/text_body_small"
+                    android:textColor="@color/text_primary"
+                    android:lineSpacingExtra="@dimen/spacing_xs" />
+            </LinearLayout>
+        </com.aicompanion.app.ui.GlassCard>
+
+        <!-- ===== 动态角色切换列表 ===== -->
         <com.aicompanion.app.ui.GlassCard
             style="@style/GlassCard"
             android:layout_width="match_parent"
@@ -173,55 +227,40 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="@dimen/spacing_md" />
 
-                <RadioGroup
-                    android:id="@+id/rgCharacter"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvCharacterList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <RadioButton
-                        android:id="@+id/rbCharacter1"
-                        android:layout_width="match_parent"
-                        android:layout_height="@dimen/radio_item_height"
-                        android:text="@string/character_option_1"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body_small"
-                        android:checked="true"
-                        android:buttonTint="@color/elysian_purple" />
-
-                    <RadioButton
-                        android:id="@+id/rbCharacter2"
-                        android:layout_width="match_parent"
-                        android:layout_height="@dimen/radio_item_height"
-                        android:text="@string/character_option_2"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body_small"
-                        android:buttonTint="@color/elysian_purple" />
-
-                    <RadioButton
-                        android:id="@+id/rbCharacter3"
-                        android:layout_width="match_parent"
-                        android:layout_height="@dimen/radio_item_height"
-                        android:text="@string/character_option_3"
-                        android:textColor="@color/text_primary"
-                        android:textSize="@dimen/text_body_small"
-                        android:buttonTint="@color/elysian_purple" />
-                </RadioGroup>
+                    android:nestedScrollingEnabled="false" />
             </LinearLayout>
         </com.aicompanion.app.ui.GlassCard>
 
-        <!-- ===== 自定义角色卡入口 ===== -->
+        <!-- ===== 操作按钮 ===== -->
         <TextView
-            android:id="@+id/btnCustomCharacter"
+            android:id="@+id/btnNewCharacter"
             android:layout_width="match_parent"
             android:layout_height="@dimen/button_default"
-            android:text="@string/btn_custom_character_coming"
+            android:text="@string/btn_new_character"
             android:textSize="@dimen/text_body_small"
-            android:textColor="@color/text_tertiary"
+            android:textColor="@color/bubble_user_text"
+            android:gravity="center"
+            android:background="@drawable/bg_btn_send"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="@dimen/spacing_md" />
+
+        <TextView
+            android:id="@+id/btnManageCharacters"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_default"
+            android:text="@string/title_character_manage"
+            android:textSize="@dimen/text_body_small"
+            android:textColor="@color/text_secondary"
             android:gravity="center"
             android:background="@drawable/bg_input_field"
             android:clickable="true"
-            android:focusable="true" />
+            android:focusable="true"
+            android:layout_marginBottom="@dimen/spacing_4xl" />
 
     </LinearLayout>
 </ScrollView>

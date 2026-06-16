@@ -60,7 +60,9 @@ from ._memory import (
 # ---- 角色卡管理 ----
 from ._character import (
     set_character_card,
+    set_character_card_legacy,
     get_character_card,
+    reload_card,
 )
 
 # ---- 主动消息 ----
@@ -123,7 +125,9 @@ __all__ = [
     "export_memories",
     "import_memories",
     "set_character_card",
+    "set_character_card_legacy",
     "get_character_card",
+    "reload_card",
     "generate_proactive_message",
     "list_world_books",
     "enable_world_book",

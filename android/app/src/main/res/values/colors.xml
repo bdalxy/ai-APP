@@ -62,8 +62,8 @@
     <!-- ===== drawable 引用的颜色 ===== -->
     <color name="glass_top_bg">#1A102030</color>
     <color name="glass_bottom_bg">#1A102030</color>
-    <color name="input_field_bg">#14FFFFFF</color>
-    <color name="input_field_border">#2DFFFFFF</color>
+    <color name="input_field_bg">#B3FFFFFF</color>
+    <color name="input_field_border">#4D9B59B6</color>
     <color name="avatar_border_inner">#1A1028</color>
     <color name="avatar_border_stroke">#FFB7C5</color>
     <color name="send_inactive_bg">#251838</color>

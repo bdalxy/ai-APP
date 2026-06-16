@@ -242,6 +242,7 @@ class MemoryEntry:
     decay_factor: float = 1.0
     source_turn_id: str = ""
     archived: bool = False
+    source: str = "user_related"  # ai_related | user_related | other
 
     def to_dict(self) -> dict:
         return {
@@ -250,7 +251,7 @@ class MemoryEntry:
             "importance": self.importance, "created_at": self.created_at,
             "last_accessed": self.last_accessed, "access_count": self.access_count,
             "decay_factor": self.decay_factor, "source_turn_id": self.source_turn_id,
-            "archived": self.archived,
+            "archived": self.archived, "source": self.source,
         }
 
     @classmethod
@@ -263,6 +264,7 @@ class MemoryEntry:
             access_count=data.get("access_count", 0), decay_factor=data.get("decay_factor", 1.0),
             source_turn_id=data.get("source_turn_id", ""),
             archived=data.get("archived", False),
+            source=data.get("source", "user_related"),
         )
 
 
@@ -351,7 +353,8 @@ class VectorStore:
         access_count INTEGER NOT NULL DEFAULT 0,
         decay_factor REAL NOT NULL DEFAULT 1.0,
         source_turn_id TEXT NOT NULL DEFAULT '',
-        archived INTEGER DEFAULT 0
+        archived INTEGER DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'user_related'
     )
     """
 
@@ -382,6 +385,8 @@ class VectorStore:
             self._conn.commit()
             # 迁移：为旧数据库添加 archived 字段
             self._migrate_add_archived()
+            # 迁移：为旧数据库添加 source 字段
+            self._migrate_add_source()
             self._log.debug("数据库表已就绪")
         except sqlite3.Error as e:
             raise MemoryStorageError(f"创建数据库表失败: {e}", detail=self.db_path) from e
@@ -394,6 +399,18 @@ class VectorStore:
             )
             self._conn.commit()
             self._log.info("[迁移] 已添加 archived 字段")
+        except sqlite3.OperationalError:
+            # 字段已存在，忽略
+            pass
+
+    def _migrate_add_source(self) -> None:
+        """为旧数据库添加 source 字段（兼容无该字段的旧数据库）。"""
+        try:
+            self._conn.execute(
+                f"ALTER TABLE {self._TABLE_NAME} ADD COLUMN source TEXT NOT NULL DEFAULT 'user_related'"
+            )
+            self._conn.commit()
+            self._log.info("[迁移] 已添加 source 字段")
         except sqlite3.OperationalError:
             # 字段已存在，忽略
             pass
@@ -447,8 +464,8 @@ class VectorStore:
             entry.last_accessed = entry.created_at
         # T-FIX-04: 加密 content 后再存储
         encrypted_content = _encrypt(entry.content)
-        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id, archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id, int(entry.archived))
+        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id, archived, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id, int(entry.archived), entry.source)
         try:
             with self._lock:
                 self._conn.execute(sql, params)
@@ -926,15 +943,16 @@ class VectorStore:
         sql_update = f"""UPDATE {self._TABLE_NAME} SET
             type = ?, content = ?, keywords = ?, embedding = ?,
             importance = ?, created_at = ?, last_accessed = ?,
-            access_count = ?, decay_factor = ?, source_turn_id = ?
+            access_count = ?, decay_factor = ?, source_turn_id = ?,
+            source = ?
             WHERE rowid = ?"""
         params = (
             entry.memory_type, encrypted_content,
             json.dumps(entry.keywords, ensure_ascii=False),
-            json.dumps(entry.embedding),
-            entry.importance, entry.created_at, entry.last_accessed,
-            entry.access_count, entry.decay_factor, entry.source_turn_id,
-            rowid,
+            json.dumps(entry.embedding), entry.importance,
+            entry.created_at, entry.last_accessed,
+            entry.access_count, entry.decay_factor,
+            entry.source_turn_id, entry.source, rowid,
         )
         try:
             with self._lock:
@@ -1088,11 +1106,13 @@ class VectorStore:
         decrypted_content = _decrypt(row[2])
         # 读取 archived 字段（兼容旧数据库可能没有该字段）
         archived = bool(row[11]) if len(row) > 11 else False
+        # 读取 source 字段（兼容旧数据库可能没有该字段）
+        source = row[12] if len(row) > 12 else "user_related"
         return MemoryEntry(
             id=row[0], memory_type=row[1], content=decrypted_content, keywords=keywords,
             embedding=embedding, importance=float(row[5]), created_at=row[6],
             last_accessed=row[7], access_count=int(row[8]), decay_factor=float(row[9]),
-            source_turn_id=row[10], archived=archived,
+            source_turn_id=row[10], archived=archived, source=source,
         )
 
     def close(self) -> None:

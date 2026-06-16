@@ -46,13 +46,14 @@ _lock = threading.Lock()
 _current_params: dict[str, object] = {}
 
 # 当前角色卡信息（由 set_character_card() 写入，get_character_card() 读取）
-_current_character: dict[str, str] = {}
+# 现在包含完整字段（不只是 name/personality/speaking_style/backstory）
+_current_character: dict[str, object] = {}
 
 # 记忆自动注入相关
 _memory_inject_interval: int = 3  # 每 N 轮对话更新一次记忆注入
 _turn_since_last_inject: int = 0  # 自上次注入以来的轮数
 _cached_memories: list[str] = []  # 缓存的记忆文本
 
-# Android 上的角色卡路径（data/ 在 python/ 根目录下）
+# Android 上的角色卡目录（data/ 在 python/ 根目录下）
 _BASE_DIR = Path(_PYTHON_ROOT)
-_CARD_PATH = _BASE_DIR / "data" / "role_cards" / "小美.json"
+_CARD_DIR = _BASE_DIR / "data" / "role_cards"

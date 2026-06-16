@@ -16,7 +16,7 @@ from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso
 
 from . import _state
-from ._state import _ctx, _CARD_PATH, _current_params
+from ._state import _ctx, _CARD_DIR, _current_params
 
 _log = get_logger()
 
@@ -26,6 +26,28 @@ _plugin_manager = get_plugin_manager()
 # 流式对话会话管理（队列+轮询方案，解决 Chaquopy 无法迭代 Python 生成器的问题）
 _streams: dict[str, dict] = {}
 _streams_lock = threading.Lock()
+
+
+def _resolve_card_path() -> str:
+    """根据当前角色名解析角色卡文件路径。
+
+    优先级：
+    1. _CARD_DIR / {settings.CHARACTER_NAME}.json
+    2. _CARD_DIR / 小美.json（兜底）
+
+    Returns:
+        可用的角色卡文件路径字符串。
+    """
+    name = getattr(settings, 'CHARACTER_NAME', '小美') or '小美'
+    card_path = _CARD_DIR / f"{name}.json"
+    if card_path.exists():
+        return str(card_path)
+    # 兜底：使用默认角色卡
+    default_path = _CARD_DIR / "小美.json"
+    if default_path.exists():
+        _log.warning(f"角色卡 {card_path} 不存在，使用默认角色卡: {default_path}")
+        return str(default_path)
+    return str(card_path)  # 返回路径，让 load_card 抛出清晰的 FileNotFoundError
 
 
 def _build_custom_preset(
@@ -87,7 +109,7 @@ def init(
 
         custom_preset = _build_custom_preset(context_size, temperature, max_tokens, example_dialogues, model)
         player = _ctx.initialize(preset=custom_preset, model=model if model else "")
-        player.load_card(str(_CARD_PATH))
+        player.load_card(_resolve_card_path())
 
         info = player.get_card_info()
         params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
@@ -458,7 +480,7 @@ def apply_params(
 
         custom_preset = _build_custom_preset(context_size, temperature, max_tokens, example_dialogues, model)
         player = _ctx.initialize(preset=custom_preset, model=model if model else "")
-        player.load_card(str(_CARD_PATH))
+        player.load_card(_resolve_card_path())
 
         params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
         _log.info(

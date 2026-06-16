@@ -426,6 +426,11 @@ class SettingsDetailActivity : AppCompatActivity() {
             isChecked = enabled
             setOnCheckedChangeListener { _, isChecked ->
                 prefs.edit().putBoolean("proactive_enabled", isChecked).apply()
+                if (isChecked) {
+                    ProactiveService.schedule(this@SettingsDetailActivity)
+                } else {
+                    ProactiveService.cancel(this@SettingsDetailActivity)
+                }
             }
         }
         toggleRow.addView(sw)
@@ -438,6 +443,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 .setTitle("发送频率")
                 .setSingleChoiceItems(INTERVAL_OPTIONS, idx) { dialog, which ->
                     prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
+                    ProactiveService.reschedule(this@SettingsDetailActivity)
                     dialog.dismiss()
                     recreate()
                 }

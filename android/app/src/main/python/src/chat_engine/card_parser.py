@@ -50,6 +50,7 @@ class Card:
         dislikes: 厌恶列表。
         example_dialogues: 示例对话列表，每项为 {"user": "...", "character": "..."}。
         creator_notes: 创作者备注，默认为空字符串。
+        greeting: 开场白/问候语（Kotlin 侧 CharacterData 传入）。
         tags: 标签列表。
     """
 
@@ -62,6 +63,7 @@ class Card:
     personality: str = ""
     background: str = ""
     speaking_style: str = ""
+    greeting: str = ""  # 开场白，Kotlin 侧 CharacterData 传入
     likes: list[str] = field(default_factory=list)
     dislikes: list[str] = field(default_factory=list)
     example_dialogues: list[dict[str, str]] = field(default_factory=list)
@@ -243,11 +245,106 @@ class CardParser:
             personality=str(card_data.get("personality", "")),
             background=str(card_data.get("background", "")),
             speaking_style=str(card_data.get("speaking_style", "")),
+            greeting=str(card_data.get("greeting", "")),
             likes=self._parse_string_list(card_data.get("likes", [])),
             dislikes=self._parse_string_list(card_data.get("dislikes", [])),
             example_dialogues=self._parse_dialogues(card_data.get("example_dialogues", [])),
             creator_notes=str(card_data.get("creator_notes", "")),
             tags=self._parse_string_list(card_data.get("tags", [])),
+        )
+
+    def from_character_data(self, char_data: dict[str, Any], output_dir: str | Path | None = None) -> Card:
+        """从 Kotlin CharacterData 字典构建 Card 并可选持久化为 JSON 文件。
+
+        这是 Kotlin 侧角色数据与 Python 侧 Card 模型的核心桥接方法。
+        将 CharacterData 的扁平结构映射到 Card 的完整字段，
+        缺失的扩展字段（nickname/age/gender/appearance/likes/dislikes/example_dialogues）
+        使用合理的空默认值，确保 Card 始终可用。
+
+        Args:
+            char_data: 来自 Kotlin CharacterData 的字典，必须包含 name/personality/
+                       speaking_style/backstory/greeting 等字段。
+            output_dir: 可选，如果提供则将 Card 序列化为 JSON 写入此目录，
+                        文件名为 "{name}.json"。用于覆盖 Python 侧默认角色卡文件。
+
+        Returns:
+            构建好的 Card 对象。
+
+        Raises:
+            CardParseError: 必填字段缺失时。
+        """
+        # 字段映射：CharacterData -> Card
+        # CharacterData: name, personality, speakingStyle, backstory, greeting, ...
+        # Card: name, personality, speaking_style, background, greeting, ...
+        card_dict = {
+            "version": "1.0",
+            "name": char_data.get("name", ""),
+            "nickname": char_data.get("nickname", char_data.get("name", "")),
+            "age": char_data.get("age", ""),
+            "gender": char_data.get("gender", ""),
+            "appearance": char_data.get("appearance", ""),
+            "personality": char_data.get("personality", ""),
+            "background": char_data.get("backstory", char_data.get("background", "")),
+            "speaking_style": char_data.get("speaking_style", char_data.get("speakingStyle", "")),
+            "greeting": char_data.get("greeting", ""),
+            "likes": char_data.get("likes", []),
+            "dislikes": char_data.get("dislikes", []),
+            "example_dialogues": char_data.get("example_dialogues", []),
+            "creator_notes": char_data.get("creator_notes", ""),
+            "tags": char_data.get("tags", []),
+        }
+
+        card = self.from_dict(card_dict, source=f"CharacterData:{card_dict['name']}")
+
+        # 持久化到 Python 角色卡目录（如果提供了 output_dir）
+        if output_dir is not None:
+            self._save_card_to_file(card, Path(output_dir))
+
+        extra_count = sum(1 for f in ['nickname', 'age', 'gender', 'appearance'] if getattr(card, f))
+        self._log.info(
+            f"从 CharacterData 构建 Card 完成: name={card.name}, "
+            f"greeting={'有' if card.greeting else '无'}, "
+            f"extra_fields={extra_count} 个扩展字段"
+        )
+        return card
+
+    @staticmethod
+    def _save_card_to_file(card: Card, output_dir: Path) -> None:
+        """将 Card 序列化保存为 JSON 文件（{name}.json）。
+
+        写入格式与 CardParser.from_file() 兼容，即包含 version 和 card 包装。
+
+        Args:
+            card: 要保存的 Card 对象。
+            output_dir: 输出目录路径。
+        """
+        import json as json_lib  # 避免与 top-level import 冲突
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        file_path = output_dir / f"{card.name}.json"
+
+        data: dict[str, Any] = {
+            "version": card.version,
+            "card": {
+                "name": card.name,
+                "nickname": card.nickname,
+                "age": card.age,
+                "gender": card.gender,
+                "appearance": card.appearance,
+                "personality": card.personality,
+                "background": card.background,
+                "speaking_style": card.speaking_style,
+                "greeting": card.greeting,
+                "likes": card.likes,
+                "dislikes": card.dislikes,
+                "example_dialogues": card.example_dialogues,
+                "creator_notes": card.creator_notes,
+                "tags": card.tags,
+            },
+        }
+        file_path.write_text(
+            json_lib.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
 
     # -------------------------------------------------------------------------

@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from src.chat_engine.card_parser import Card
 from src.chat_engine.context_manager import ContextManager
-from src.config.settings import settings
 from src.utils.logger import get_logger
 
 
@@ -98,15 +97,10 @@ class PromptBuilder:
         sections: list[tuple[str, str]] = []
 
         # 1. 角色卡信息（最高优先级）
+        # Card 始终通过 RolePlayer.load_card_from_dict() 与 Kotlin 侧同步，
+        # 包含当前角色的完整设定，无需额外的自定义覆盖段落。
         card_text = card.to_prompt_text()
         sections.append(("card", self._truncate(card_text, self._CARD_MAX_CHARS)))
-
-        # 1b. 运行时角色卡设定覆盖（如果 Kotlin 端通过 set_character_card 自定义了角色）
-        custom_char_text = self._build_custom_character_section()
-        if custom_char_text:
-            sections.append(
-                ("custom_char", self._truncate(custom_char_text, 300))
-            )
 
         # 2. 世界书内容
         if world_book_entries:
@@ -123,10 +117,11 @@ class PromptBuilder:
             )
 
         # 4. 对话风格指引
-        guideline_text = self._build_guideline_section()
-        sections.append(
-            ("guideline", self._truncate(guideline_text, self._GUIDELINE_MAX_CHARS))
-        )
+        if self._include_guideline:
+            guideline_text = self._build_guideline_section()
+            sections.append(
+                ("guideline", self._truncate(guideline_text, self._GUIDELINE_MAX_CHARS))
+            )
 
         # 组装并做最终裁剪
         system_prompt = "\n\n".join(text for _, text in sections)
@@ -197,37 +192,14 @@ class PromptBuilder:
             格式化的记忆文本。
         """
         lines = [
-            "## 关于对方的已知信息\n",
-            "以下是你之前了解到的关于对方的信息。请在对话中自然地运用，",
-            "不要逐条机械复述，也不要说[根据我的记忆]之类的话——",
+            "## 相关记忆\n",
+            "以下是之前对话中了解到的信息，可能关于用户、AI角色自身或第三方。",
+            "请在对话中自然地运用，不要逐条机械复述，",
+            "也不要说[根据我的记忆]之类的话——",
             "就像真正的朋友一样，在不经意间自然地提及。\n",
         ]
         for i, memory in enumerate(memories, 1):
             lines.append(f"- {memory}")
-        return "\n".join(lines)
-
-    @staticmethod
-    def _build_custom_character_section() -> str | None:
-        """构建运行时自定义角色卡设定部分。
-
-        如果 settings 中的 CHARACTER_* 字段与默认值不同，
-        说明 Kotlin 端通过 set_character_card 自定义了角色，需要注入到 System Prompt 中。
-
-        Returns:
-            自定义角色设定文本，如果使用默认角色则返回 None。
-        """
-        # 如果角色名仍是默认值，说明没有自定义角色卡
-        if getattr(settings, 'CHARACTER_NAME', '小美') == '小美' \
-                and not getattr(settings, 'CHARACTER_PERSONALITY', ''):
-            return None
-
-        lines = [
-            "## 当前角色设定\n",
-            f"你是{getattr(settings, 'CHARACTER_NAME', '小美')}。",
-            f"性格：{getattr(settings, 'CHARACTER_PERSONALITY', '温柔、善解人意')}",
-            f"说话风格：{getattr(settings, 'CHARACTER_SPEAKING_STYLE', '语气轻柔自然')}",
-            f"背景：{getattr(settings, 'CHARACTER_BACKSTORY', '')}",
-        ]
         return "\n".join(lines)
 
     @staticmethod

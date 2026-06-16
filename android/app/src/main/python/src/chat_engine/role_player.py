@@ -164,6 +164,26 @@ class RolePlayer:
         self._log.info(f"角色卡已加载: {self.card.name}")
         return self.card
 
+    def load_card_from_dict(self, char_data: dict[str, Any], output_dir: str | None = None) -> Card:
+        """从字典加载角色卡（供 Kotlin 桥接层使用）。
+
+        这是角色切换时的核心方法。接收 Kotlin CharacterData 的字典表示，
+        构建 Card 对象并直接设置到 self.card，无需文件 I/O。
+
+        Args:
+            char_data: 来自 Kotlin CharacterData 的字典。
+            output_dir: 可选，如果提供则同步写入 JSON 文件到 Python 角色卡目录。
+
+        Returns:
+            构建好的 Card 对象。
+
+        Raises:
+            CardParseError: 必填字段缺失时。
+        """
+        self.card = self._parser.from_character_data(char_data, output_dir)
+        self._log.info(f"角色卡已从字典加载: {self.card.name}")
+        return self.card
+
     # -------------------------------------------------------------------------
     # 世界书加载
     # -------------------------------------------------------------------------

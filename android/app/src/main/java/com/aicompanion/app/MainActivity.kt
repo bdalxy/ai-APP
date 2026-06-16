@@ -1,6 +1,5 @@
 package com.aicompanion.app
 
-import android.app.ActivityOptions
 import android.content.Intent
 import android.os.Bundle
 import android.os.Environment
@@ -15,8 +14,10 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -68,6 +69,15 @@ private val searchHandler = Handler(Looper.getMainLooper())
 /** 当前活跃的流式对话 ID（用于 onDestroy 清理 Python 流资源） */
 @Volatile
 private var activeStreamId: String? = null
+
+/** 角色选择回调（CharacterSelectActivity 返回后同步角色到 Python） */
+private val characterSelectLauncher = registerForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result ->
+    if (result.resultCode == RESULT_OK) {
+        syncCharacterToPython()
+    }
+}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,10 +145,9 @@ private var activeStreamId: String? = null
         // 点击角色名称或头像，跳转角色选择页（从左边滑入）
         val openCharacterSelect = {
             val intent = Intent(this, CharacterSelectActivity::class.java)
-            val options = ActivityOptions.makeCustomAnimation(
+            characterSelectLauncher.launch(intent, ActivityOptionsCompat.makeCustomAnimation(
                 this, R.anim.slide_in_left, R.anim.slide_out_right
-            )
-            startActivity(intent, options.toBundle())
+            ))
         }
         binding.tvTitle.setOnClickListener { openCharacterSelect() }
         binding.ivAvatar.setOnClickListener { openCharacterSelect() }
@@ -207,9 +216,16 @@ private var activeStreamId: String? = null
                 val dbDir = filesDir.absolutePath
                 module.callAttr("init_memory", dbDir)
 
-                // 4. 加载角色卡
+                // 4. 加载角色卡（完整JSON同步）
                 val character = CharacterStorage.getCurrent(this@MainActivity)
-                module.callAttr("set_character_card", character.name, character.personality, character.speakingStyle, character.backstory)
+                val charJson = JSONObject().apply {
+                    put("name", character.name)
+                    put("personality", character.personality)
+                    put("speaking_style", character.speakingStyle)
+                    put("backstory", character.backstory)
+                    put("greeting", character.greeting)
+                }.toString()
+                module.callAttr("set_character_card", charJson)
 
                 // 5. 恢复已启用的世界书
                 val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
@@ -241,6 +257,31 @@ private var activeStreamId: String? = null
                 withContext(Dispatchers.Main) {
                     binding.tvStatus.text = this@MainActivity.getString(R.string.error_init_failed, e.message)
                 }
+            }
+        }
+    }
+
+    /** 将当前角色卡同步到 Python 引擎（角色切换后调用） */
+    private fun syncCharacterToPython() {
+        if (!::pythonModule.isInitialized) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val character = CharacterStorage.getCurrent(this@MainActivity)
+                val charJson = JSONObject().apply {
+                    put("name", character.name)
+                    put("personality", character.personality)
+                    put("speaking_style", character.speakingStyle)
+                    put("backstory", character.backstory)
+                    put("greeting", character.greeting)
+                }.toString()
+                pythonModule.callAttr("set_character_card", charJson)
+                pythonModule.callAttr("reload_card")
+                withContext(Dispatchers.Main) {
+                    binding.tvTitle.text = character.name
+                    Log.d("MainActivity", "角色卡已同步: ${character.name}")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "角色卡同步失败", e)
             }
         }
     }

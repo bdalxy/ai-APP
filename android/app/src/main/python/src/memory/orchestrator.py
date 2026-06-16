@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from src.api_client.deepseek import DeepSeekClient
-from src.memory.extractor import MemoryExtractor
+from src.memory.extractor import MemoryExtractor, _is_low_info_conversation
 from src.memory.retriever import MemoryRetriever
 from src.memory.vector_store import MemoryEntry, VectorStore
 from src.utils.logger import get_logger
@@ -131,8 +131,13 @@ class MemoryOrchestrator:
         # 2. 提取记忆：根据节流策略决定使用 LLM 还是规则模式
         #    每 _extract_interval 轮启用一次 LLM 提取，其余轮次使用规则模式
         #    _extract_interval == 0 始终使用 LLM
+        #    低信息量对话始终使用规则模式（省Token）
+        is_low_info = _is_low_info_conversation(messages)
         use_llm: bool
-        if self._extract_interval <= 0:
+        if is_low_info:
+            use_llm = False
+            self._log.info(f"[记忆存储] 检测到低信息量对话（纯寒暄），跳过 LLM 提取，使用规则模式")
+        elif self._extract_interval <= 0:
             use_llm = True
         elif self._extract_interval == 1:
             use_llm = True

@@ -21,16 +21,18 @@ def generate_proactive_message() -> str:
 
     try:
         engine = ProactiveEngine()
-        card = _ctx.player
+        player = _ctx.player
         retriever = _ctx.orchestrator.retriever if _ctx.orchestrator else None
         api_client = _ctx.client
 
-        result = engine.decide_and_generate(card, retriever, api_client)
+        # 直接调用 generate_proactive_message，跳过 decide_and_generate 的重复检查
+        # Android 端 ProactiveWorker 已处理：开关、间隔、免打扰时段的决策逻辑
+        result = engine.generate_proactive_message(player, retriever, api_client)
 
         if result is None:
-            return json.dumps({"status": "skip", "message": "当前不满足主动消息发送条件"})
+            return json.dumps({"status": "skip", "message": "消息生成失败（API 异常或无合适话题）"})
 
-        title = card.card.name if card.card else "AI伴侣"
+        title = player.card.name if player.card else "AI伴侣"
         _log.info(f"[主动消息] 生成成功，即将推送: {result[:50]}...")
         return json.dumps({"status": "ok", "title": title, "message": result})
 
