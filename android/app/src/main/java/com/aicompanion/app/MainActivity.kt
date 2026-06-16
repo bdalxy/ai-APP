@@ -31,6 +31,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * AI 角色扮演聊天主界面 (P3)
@@ -142,14 +145,16 @@ private val characterSelectLauncher = registerForActivityResult(
             false
         }
 
-        // 点击角色名称或头像，跳转角色选择页（从左边滑入）
-        val openCharacterSelect = {
-            val intent = Intent(this, CharacterSelectActivity::class.java)
-            characterSelectLauncher.launch(intent, ActivityOptionsCompat.makeCustomAnimation(
-                this, R.anim.slide_in_left, R.anim.slide_out_right
-            ))
+        // 点击角色名称 → 弹出会话列表（支持切换/新建/删除会话）
+        binding.tvTitle.setOnClickListener {
+            showSessionListDialog()
         }
-        binding.tvTitle.setOnClickListener { openCharacterSelect() }
+        // 长按角色名称 → 跳转角色选择页
+        binding.tvTitle.setOnLongClickListener {
+            openCharacterSelect()
+            true
+        }
+        // 点击头像 → 跳转角色选择页
         binding.ivAvatar.setOnClickListener { openCharacterSelect() }
 
         // 左滑手势进入角色选择页（通过 dispatchTouchEvent 拦截，确保不会被子视图消费）
@@ -177,6 +182,9 @@ private val characterSelectLauncher = registerForActivityResult(
                 true
             } else false
         }
+
+        // 初始化多会话管理器
+        ConversationSessionManager.init(this)
 
         // 异步初始化 Python
         initializePythonAsync()
@@ -259,6 +267,14 @@ private val characterSelectLauncher = registerForActivityResult(
                 }
             }
         }
+    }
+
+    /** 打开角色选择页面（从左边滑入动画）。 */
+    private fun openCharacterSelect() {
+        val intent = Intent(this, CharacterSelectActivity::class.java)
+        characterSelectLauncher.launch(intent, ActivityOptionsCompat.makeCustomAnimation(
+            this, R.anim.slide_in_left, R.anim.slide_out_right
+        ))
     }
 
     /** 将当前角色卡同步到 Python 引擎（角色切换后调用） */
@@ -538,37 +554,15 @@ private val characterSelectLauncher = registerForActivityResult(
         }
     }
 
-    /** 持久化文件名 */
-    private val conversationFile: File by lazy {
-        File(filesDir, "conversation.json")
-    }
-
-    /** 保存当前对话历史到本地 JSON 文件（原子写入，防止写入中断导致文件损坏） */
+    /** 保存当前会话消息到会话管理器（原子写入） */
     private fun saveConversation() {
+        val sessionId = ConversationSessionManager.getCurrentSessionId()
+        if (sessionId.isEmpty()) return
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val messages = adapter.getMessages()
-                val jsonArray = JSONArray()
-                for (msg in messages) {
-                    val obj = JSONObject()
-                    obj.put("content", msg.content)
-                    obj.put("isUser", msg.isUser)
-                    obj.put("timestamp", msg.timestamp)
-                    jsonArray.put(obj)
-                }
-                val jsonStr = jsonArray.toString()
-                // 原子写入：先写临时文件，验证 JSON 后再替换
-                val tmpFile = File(filesDir, "conversation.json.tmp")
-                tmpFile.writeText(jsonStr, Charsets.UTF_8)
-                // 验证写入的 JSON 可解析
-                JSONArray(tmpFile.readText(Charsets.UTF_8))
-                // 原子替换
-                if (!tmpFile.renameTo(conversationFile)) {
-                    // renameTo 失败时回退到直接写入
-                    conversationFile.writeText(jsonStr, Charsets.UTF_8)
-                    tmpFile.delete()
-                }
-                Log.d("MainActivity", "对话已保存，共 ${messages.size} 条消息")
+                ConversationSessionManager.saveMessages(sessionId, messages)
+                Log.d("MainActivity", "会话 $sessionId 已保存，共 ${messages.size} 条消息")
             } catch (e: Exception) {
                 Log.e("MainActivity", "保存对话失败: ${e.message}")
                 withContext(Dispatchers.Main) {
@@ -578,28 +572,19 @@ private val characterSelectLauncher = registerForActivityResult(
         }
     }
 
-    /** 从本地 JSON 文件恢复对话历史 */
+    /** 从会话管理器加载当前会话的消息历史 */
     private fun loadConversation() {
-        if (!conversationFile.exists()) return
+        val sessionId = ConversationSessionManager.getCurrentSessionId()
+        if (sessionId.isEmpty()) return
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val json = conversationFile.readText(Charsets.UTF_8)
-                val jsonArray = JSONArray(json)
-                val messages = mutableListOf<Message>()
-                for (i in 0 until jsonArray.length()) {
-                    val obj = jsonArray.getJSONObject(i)
-                    messages.add(Message(
-                        content = obj.getString("content"),
-                        isUser = obj.getBoolean("isUser"),
-                        timestamp = obj.optLong("timestamp", System.currentTimeMillis())
-                    ))
-                }
+                val messages = ConversationSessionManager.loadMessages(sessionId)
                 withContext(Dispatchers.Main) {
                     adapter.replaceMessages(messages)
                     if (messages.isNotEmpty()) {
                         binding.rvMessages.scrollToPosition(messages.size - 1)
                     }
-                    Log.d("MainActivity", "对话已恢复，共 ${messages.size} 条消息")
+                    Log.d("MainActivity", "会话 $sessionId 已恢复，共 ${messages.size} 条消息")
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "恢复对话失败: ${e.message}")
@@ -607,31 +592,66 @@ private val characterSelectLauncher = registerForActivityResult(
         }
     }
 
-    /** 显示新对话确认对话框 */
+    /** 显示新建会话对话框 */
     private fun showNewChatDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("开始新对话")
-            .setMessage("将清空当前对话历史。确定继续吗？")
-            .setPositiveButton("确定") { _, _ ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-                        module?.callAttr("reset")
-                        // 删除本地对话文件
-                        conversationFile.delete()
-                        withContext(Dispatchers.Main) {
-                            adapter.clear()
-                            Toast.makeText(this@MainActivity, "对话已清空", Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@MainActivity, "清空对话失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
+        // 弹出输入框让用户输入会话名称
+        val input = android.widget.EditText(this).apply {
+            hint = "输入会话名称"
+            setSingleLine(true)
+            // 默认名称：新会话 + 序号
+            val sessions = ConversationSessionManager.getSessions()
+            val newIndex = sessions.count { it.name.startsWith("新会话") } + 1
+            setText("新会话 $newIndex")
+            setSelection(text.length)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("新建会话")
+            .setView(input)
+            .setPositiveButton("创建") { _, _ ->
+                val name = input.text.toString().trim().ifEmpty { "新会话" }
+                createNewSession(name)
             }
             .setNegativeButton("取消", null)
-            .show()
+            .create()
+        dialog.show()
+        // 自动弹出键盘
+        input.postDelayed({
+            input.requestFocus()
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+        }, 200)
+    }
+
+    /** 创建新会话并切换到该会话 */
+    private fun createNewSession(name: String) {
+        // 在主线程捕获当前消息列表，避免跨线程访问 adapter
+        val currentMessages = adapter.getMessages()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 先保存当前会话
+                val currentId = ConversationSessionManager.getCurrentSessionId()
+                if (currentId.isNotEmpty()) {
+                    ConversationSessionManager.saveMessages(currentId, currentMessages)
+                }
+
+                // 重置 Python 引擎
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                module?.callAttr("reset")
+
+                // 创建新会话
+                val character = CharacterStorage.getCurrent(this@MainActivity)
+                val session = ConversationSessionManager.createSession(name, character.id)
+
+                withContext(Dispatchers.Main) {
+                    adapter.clear()
+                    Toast.makeText(this@MainActivity, "已创建会话「${session.name}」", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "创建会话失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     // ======================== 消息气泡辅助方法 ========================
@@ -872,6 +892,201 @@ private val characterSelectLauncher = registerForActivityResult(
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            }
+        }
+    }
+
+    // ======================== 多会话管理 ========================
+
+    /** 显示会话列表对话框（支持切换/重命名/删除/新建） */
+    private fun showSessionListDialog() {
+        val sessions = ConversationSessionManager.getSessions()
+        val currentId = ConversationSessionManager.getCurrentSessionId()
+
+        if (sessions.isEmpty()) {
+            // 无会话时直接提示创建
+            showNewChatDialog()
+            return
+        }
+
+        // 构建会话名称列表（带当前标记）
+        val displayNames = sessions.map { session ->
+            val marker = if (session.id == currentId) " [当前]" else ""
+            val preview = if (session.lastMessage.isNotEmpty()) {
+                " — ${session.lastMessage}"
+            } else ""
+            val time = formatTimestamp(session.updatedAt)
+            "${session.name}$marker\n$preview\n$time"
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("会话列表")
+            .setItems(displayNames) { _, which ->
+                val selected = sessions[which]
+                if (selected.id != currentId) {
+                    switchToSession(selected.id)
+                }
+            }
+            .setPositiveButton("新建会话") { _, _ ->
+                showNewChatDialog()
+            }
+            .setNeutralButton("重命名") { _, _ ->
+                // 重命名当前会话
+                val currentSession = sessions.find { it.id == currentId }
+                if (currentSession != null) {
+                    showRenameDialog(currentSession)
+                }
+            }
+            .setNegativeButton("删除") { _, _ ->
+                // 删除确认：仅当会话数 > 1 时允许删除
+                if (sessions.size <= 1) {
+                    Toast.makeText(this, "至少保留一个会话", Toast.LENGTH_SHORT).show()
+                    return@setNegativeButton
+                }
+                // 让用户选择要删除的会话
+                showDeleteSessionDialog(sessions, currentId)
+            }
+            .show()
+    }
+
+    /** 显示删除会话选择对话框 */
+    private fun showDeleteSessionDialog(
+        sessions: List<ConversationSession>,
+        currentId: String
+    ) {
+        val names = sessions.map { s ->
+            "${s.name} (${s.messageCount}条消息)" +
+            if (s.id == currentId) " [当前]" else ""
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("选择要删除的会话")
+            .setItems(names) { _, which ->
+                val session = sessions[which]
+                showDeleteConfirmDialog(session)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 显示删除确认对话框 */
+    private fun showDeleteConfirmDialog(session: ConversationSession) {
+        AlertDialog.Builder(this)
+            .setTitle("删除会话")
+            .setMessage("确定要删除「${session.name}」吗？\n该会话的 ${session.messageCount} 条消息将被永久删除，无法恢复。")
+            .setPositiveButton("删除") { _, _ ->
+                deleteSessionAndSwitch(session.id)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 删除会话并自动切换到其他会话 */
+    private fun deleteSessionAndSwitch(sessionId: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                ConversationSessionManager.deleteSession(sessionId)
+
+                // 如果删除的是当前会话，切换到另一个会话
+                val newId = ConversationSessionManager.getCurrentSessionId()
+                if (newId.isNotEmpty() && newId != sessionId) {
+                    val messages = ConversationSessionManager.loadMessages(newId)
+                    withContext(Dispatchers.Main) {
+                        adapter.replaceMessages(messages)
+                        if (messages.isNotEmpty()) {
+                            binding.rvMessages.scrollToPosition(messages.size - 1)
+                        }
+                        Toast.makeText(this@MainActivity, "会话已删除", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        adapter.clear()
+                        Toast.makeText(this@MainActivity, "会话已删除", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "删除会话失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /** 显示重命名对话框 */
+    private fun showRenameDialog(session: ConversationSession) {
+        val input = android.widget.EditText(this).apply {
+            setText(session.name)
+            setSingleLine(true)
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("重命名会话")
+            .setView(input)
+            .setPositiveButton("确定") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotEmpty() && newName != session.name) {
+                    ConversationSessionManager.renameSession(session.id, newName)
+                    Toast.makeText(this, "已重命名为「${newName}」", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 切换到指定会话（保存当前会话，加载目标会话） */
+    private fun switchToSession(targetSessionId: String) {
+        // 在主线程捕获当前消息列表，避免跨线程访问 adapter
+        val currentMessages = adapter.getMessages()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 1. 保存当前会话
+                val currentId = ConversationSessionManager.getCurrentSessionId()
+                if (currentId.isNotEmpty() && currentId != targetSessionId) {
+                    ConversationSessionManager.saveMessages(currentId, currentMessages)
+                }
+
+                // 2. 重置 Python 引擎
+                try {
+                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    module?.callAttr("reset")
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "重置 Python 引擎失败: ${e.message}")
+                }
+
+                // 3. 切换会话
+                ConversationSessionManager.setCurrentSessionId(targetSessionId)
+
+                // 4. 加载目标会话消息
+                val messages = ConversationSessionManager.loadMessages(targetSessionId)
+
+                withContext(Dispatchers.Main) {
+                    adapter.replaceMessages(messages)
+                    if (messages.isNotEmpty()) {
+                        binding.rvMessages.scrollToPosition(messages.size - 1)
+                    }
+                    Log.d("MainActivity", "已切换到会话 $targetSessionId，共 ${messages.size} 条消息")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "切换会话失败: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "切换会话失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /** 格式化时间戳为可读字符串（今天/昨天/日期）。 */
+    private fun formatTimestamp(timestamp: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = now - timestamp
+        return when {
+            diff < 60_000 -> "刚刚"
+            diff < 3_600_000 -> "${diff / 60_000}分钟前"
+            diff < 86_400_000 -> "${diff / 3_600_000}小时前"
+            diff < 172_800_000 -> "昨天"
+            else -> {
+                val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                sdf.format(Date(timestamp))
             }
         }
     }
