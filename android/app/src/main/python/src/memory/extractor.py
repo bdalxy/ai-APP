@@ -95,9 +95,12 @@ def _infer_source(text: str, speaker_role: str) -> str:
     # 用户说话时，检查是否在描述AI
     if speaker_role == "user":
         ai_patterns = [
-            r"你是", r"你真", r"你好", r"你很", r"你太", r"你非常",
+            r"你是", r"你真", r"你很", r"你太", r"你非常",
             r"AI你", r"ai你",
         ]
+        # "你好"是纯问候语，不表示在描述AI，单独过滤
+        if text.strip() in ("你好", "嗨", "在吗", "hello", "hi"):
+            return "user_related"
         for pat in ai_patterns:
             if re.search(pat, text):
                 return "ai_related"
@@ -164,7 +167,10 @@ _LLM_TRIVIAL_PATTERNS: list[re.Pattern] = [
     re.compile(r"^(用户|AI角色)(说了|回复了|表示|说)[\u4e00-\u9fff]{1,5}$"),  # "用户说了你好"
     re.compile(r"^(用户|AI角色)(打了个|咳嗽了|打了个喷嚏|伸了个懒腰)$"),  # 过于琐碎
     re.compile(r"^对话中(用户|AI角色)使用了[\u4e00-\u9fff]{1,3}语气$"),  # "对话中用户使用了友好语气"
-    re.compile(r"^[^。，；]{1,6}$"),  # 极短内容（<6字符且无标点）
+    # 注意：^[^。，；]{1,6}$ 已移除，会误杀"用户27岁"等5-6字符的重要短信息
+    # 改为更精确的过滤：仅过滤纯语气/动作描述，保留含数字、年龄、姓名等关键信息的短内容
+    re.compile(r"^(用户|AI角色)(笑|哭|叹气|点头|摇头|沉默|停顿|犹豫)了?$"),  # 纯动作描述
+    re.compile(r"^(用户|AI角色)(很|非常|有点|稍微)(高兴|难过|生气|开心|紧张|焦虑|兴奋)$"),  # 过于宽泛的情绪
 ]
 
 
@@ -253,12 +259,25 @@ _LOW_INFO_KEYWORDS: set[str] = {
     "hh", "emmm", "emmm", "哈哈", "嘿嘿", "嘻嘻",
 }
 
+# 高信息量短模式：即使对话很短，包含这些模式也不应跳过LLM提取
+_HIGH_INFO_SHORT_PATTERNS: list[re.Pattern] = [
+    re.compile(r"\d+岁"),         # "我27岁"
+    re.compile(r"我叫[\u4e00-\u9fff]{1,4}"),  # "我叫李明"
+    re.compile(r"我是[\u4e00-\u9fff]{1,10}"), # "我是程序员"
+    re.compile(r"我喜欢"),         # "我喜欢猫"
+    re.compile(r"我住在"),         # "我住在北京"
+    re.compile(r"我的[\u4e00-\u9fff]"),  # "我的生日"
+    re.compile(r"我(不|很|最|非常|特别)(喜欢|爱|讨厌|恨)"),  # 情感表达
+    re.compile(r"\d{4}年"),        # 年份
+    re.compile(r"\d{1,2}月\d{1,2}日"),  # 具体日期
+]
+
 
 def _is_low_info_conversation(messages: list[dict[str, str]]) -> bool:
     """检测对话是否属于低信息量的寒暄/闲聊，不值得LLM提取。
 
     判断标准：
-    1. 总字符数 < 30（很短的消息）
+    1. 总字符数 < 15（很短的消息），但包含高信息量短模式（如"我27岁"）例外
     2. 对话以寒暄关键词为主（占比 > 80%）
 
     Args:
@@ -278,6 +297,10 @@ def _is_low_info_conversation(messages: list[dict[str, str]]) -> bool:
 
     # 标准1：总字符数 < 15（降低阈值，短消息也可能包含重要信息如"我27岁"）
     if len(all_text) < 15:
+        # 检查是否包含高信息量短模式，如果包含则不跳过
+        for pattern in _HIGH_INFO_SHORT_PATTERNS:
+            if pattern.search(all_text):
+                return False  # 包含重要信息，不跳过
         return True
 
     # 标准2：寒暄关键词占比过高

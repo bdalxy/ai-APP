@@ -48,6 +48,10 @@ DEFAULT_TYPE_MULTIPLIER: float = 1.0
 
 ACCESS_BOOST_FACTOR: float = 0.08  # 原 0.05，每次访问的衰减补偿提升
 
+# 访问加成上限：防止 access_count 无上限导致衰减因子永久锁定在 1.0
+# 达到上限后，再多的访问也不会增加衰减补偿
+MAX_ACCESS_BOOST: float = 0.5  # 最大访问加成（相当于 6-7 次有效访问）
+
 
 def calculate_decay(entry: MemoryEntry, current_time: datetime | None = None) -> float:
     """计算记忆衰减因子。
@@ -76,7 +80,7 @@ def calculate_decay(entry: MemoryEntry, current_time: datetime | None = None) ->
         return 1.0
     half_life = HALF_LIFE_DAYS.get(entry.memory_type, DEFAULT_HALF_LIFE)
     decay = math.exp(-math.log(2) * elapsed_days / half_life)
-    boost = entry.access_count * ACCESS_BOOST_FACTOR
+    boost = min(entry.access_count * ACCESS_BOOST_FACTOR, MAX_ACCESS_BOOST)
     decay = min(decay + boost, 1.0)
     decay = max(decay, 0.05)  # 最小衰减因子从 0.01 提升到 0.05
     return decay
