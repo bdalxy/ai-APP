@@ -48,8 +48,8 @@ class MemoryRetriever:
         self,
         vector_store: VectorStore,
         deepseek_client: DeepSeekClient,
-        similarity_weight: float = 0.6,
-        decay_weight: float = 0.4,
+        similarity_weight: float = 0.75,
+        decay_weight: float = 0.25,
     ) -> None:
         self.vector_store = vector_store
         self.client = deepseek_client

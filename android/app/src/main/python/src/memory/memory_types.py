@@ -249,6 +249,7 @@ _CONTRADICTION_PATTERNS: list[tuple[re.Pattern, str]] = [
 def detect_conflict(
     new_content: str,
     existing_memories: list[dict[str, Any]],
+    new_content_type: str = "",
 ) -> ConflictResult:
     """检测新记忆是否与已有记忆存在冲突。
 
@@ -297,7 +298,7 @@ def detect_conflict(
             continue
 
         # 实体重叠 + 相同类型 = 高置信度冲突
-        same_type = mem.get("memory_type", "") == new_content[:10]  # 简化判断
+        same_type = mem.get("memory_type", "") == new_content_type
         confidence = min(overlap / len(key_entities), 1.0)
         if same_type:
             confidence = min(confidence + 0.2, 1.0)

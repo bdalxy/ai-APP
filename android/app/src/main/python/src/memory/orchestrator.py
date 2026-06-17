@@ -67,7 +67,7 @@ class MemoryOrchestrator:
         self.extractor = MemoryExtractor(deepseek_client, vector_store)
         self.retriever = MemoryRetriever(vector_store, deepseek_client)
         self._turn_count = 0          # 用于 LLM 提取节流
-        self._extract_interval = 5    # 每 N 轮启用一次 LLM 提取（P4 仅规则模式）
+        self._extract_interval = 2    # 每 N 轮启用一次 LLM 提取（降低到2，减少信息丢失）
         self._archiver = None          # 懒加载的记忆归档器
         self._consolidator: MemoryConsolidator | None = None  # 懒加载的记忆合并器
         self._lifecycle: MemoryLifecycle | None = None        # 懒加载的生命周期管理器
@@ -110,11 +110,12 @@ class MemoryOrchestrator:
         turn_id: str,
         user_msg: str,
         ai_reply: str,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> int:
         """对话完成后提取并存储本轮记忆。
 
         流程：
-            1. 构建本轮对话 messages（user + assistant）
+            1. 构建本轮对话 messages（user + assistant + 可选历史上下文）
             2. 根据节流策略决定提取模式：
                - 每 _extract_interval 轮触发一次 LLM 提取（mode="llm"）
                - 其余轮次使用规则模式（mode="rule"，零 API 开销）
@@ -129,6 +130,7 @@ class MemoryOrchestrator:
             turn_id: 对话轮次 ID（用于关联记忆与对话）。
             user_msg: 用户输入消息。
             ai_reply: AI 回复消息。
+            conversation_history: 最近几轮对话历史（可选），为 LLM 提取提供上下文。
 
         Returns:
             成功存储的记忆条数。
@@ -139,11 +141,12 @@ class MemoryOrchestrator:
             self._log.warning("[记忆存储] 消息为空，跳过")
             return 0
 
-        # 1. 构建本轮对话 messages
-        messages: list[dict[str, str]] = [
-            {"role": "user", "content": user_msg},
-            {"role": "assistant", "content": ai_reply},
-        ]
+        # 1. 构建本轮对话 messages（含历史上下文，帮助LLM理解省略和指代）
+        messages: list[dict[str, str]] = []
+        if conversation_history:
+            messages.extend(conversation_history[-6:])  # 最多3轮历史（6条消息）
+        messages.append({"role": "user", "content": user_msg})
+        messages.append({"role": "assistant", "content": ai_reply})
 
         # 2. 提取记忆：根据节流策略决定使用 LLM 还是规则模式
         #    每 _extract_interval 轮启用一次 LLM 提取，其余轮次使用规则模式
@@ -275,7 +278,7 @@ class MemoryOrchestrator:
     def recall(
         self,
         query_text: str,
-        top_k: int = 3,
+        top_k: int = 6,
     ) -> list[str]:
         """对话前检索相关记忆。
 

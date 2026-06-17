@@ -77,6 +77,138 @@ def _to_third_person(text: str) -> str:
     return result
 
 
+def _infer_source(text: str, speaker_role: str) -> str:
+    """基于内容语义推断记忆来源分类。
+
+    规则：
+    - 如果内容以"用户"开头或包含"用户"相关表述 → user_related
+    - 如果内容以"AI"开头或包含"AI角色"相关表述 → ai_related
+    - 回退：按说话者角色判断（user→user_related, assistant→ai_related）
+
+    Args:
+        text: 消息文本。
+        speaker_role: 说话者角色（"user" 或 "assistant"）。
+
+    Returns:
+        来源分类字符串。
+    """
+    # 用户说话时，检查是否在描述AI
+    if speaker_role == "user":
+        ai_patterns = [
+            r"你是", r"你真", r"你好", r"你很", r"你太", r"你非常",
+            r"AI你", r"ai你",
+        ]
+        for pat in ai_patterns:
+            if re.search(pat, text):
+                return "ai_related"
+        return "user_related"
+
+    # AI说话时，检查是否在描述用户
+    if speaker_role == "assistant":
+        user_patterns = [
+            r"你是", r"你叫", r"你喜欢", r"你住在", r"你的",
+            r"用户", r"看来你", r"原来你", r"你之前", r"你曾经",
+        ]
+        for pat in user_patterns:
+            if re.search(pat, text):
+                return "user_related"
+        return "ai_related"
+
+    return "other"
+
+
+# 无效记忆内容关键词：这些词单独出现时不构成有效记忆
+_INVALID_MEMORY_PATTERNS: list[re.Pattern] = [
+    re.compile(r"^[\s，,。；.!?！？]+$"),           # 纯标点/空白
+    re.compile(r"^(哈哈|嘿嘿|嘻嘻|呵呵|嗯嗯|哦哦|啊啊)+$"),  # 纯语气词
+    re.compile(r"^(就是|那个|随便|还行|可以|好吧|是的|对的)$"),  # 无信息量短语
+    re.compile(r"^(我是|我叫|我喜欢|我不喜欢|我住在|我家在)$"),  # 不完整的句式（无宾语）
+    re.compile(r"^(今天|昨天|刚刚|刚才|上周|前几天)$"),       # 只有时间词无内容
+]
+
+
+def _is_valid_memory_content(content: str) -> bool:
+    """检查记忆内容是否有效（不是噪音/语气词/不完整信息）。
+
+    Args:
+        content: 记忆文本内容。
+
+    Returns:
+        True 如果内容有效，False 如果应被过滤。
+    """
+    if not content or not content.strip():
+        return False
+
+    stripped = content.strip()
+
+    # 检查所有无效模式
+    for pattern in _INVALID_MEMORY_PATTERNS:
+        if pattern.match(stripped):
+            return False
+
+    # 太短且无实质内容
+    if len(stripped) < 4 and not any(
+        c in stripped for c in "是叫喜欢爱恨有住在做当"
+    ):
+        return False
+
+    return True
+
+
+# LLM 提取的额外质量过滤规则
+_LLM_INVALID_CATEGORIES: set[str] = {
+    "greeting", "farewell", "small_talk", "backchannel", "acknowledgment",
+}
+
+_LLM_TRIVIAL_PATTERNS: list[re.Pattern] = [
+    re.compile(r"^(用户|AI角色)(说了|回复了|表示|说)[\u4e00-\u9fff]{1,5}$"),  # "用户说了你好"
+    re.compile(r"^(用户|AI角色)(打了个|咳嗽了|打了个喷嚏|伸了个懒腰)$"),  # 过于琐碎
+    re.compile(r"^对话中(用户|AI角色)使用了[\u4e00-\u9fff]{1,3}语气$"),  # "对话中用户使用了友好语气"
+    re.compile(r"^[^。，；]{1,6}$"),  # 极短内容（<6字符且无标点）
+]
+
+
+def _is_valid_llm_memory(content: str, mem_type: str, importance: float) -> bool:
+    """LLM 提取结果的后处理质量过滤。
+
+    过滤规则：
+    1. 内容太短（<6字符且无实质内容）
+    2. 过于琐碎的身体动作/语气描述
+    3. 重要性过低（<0.2）的语义记忆
+
+    Args:
+        content: 记忆内容。
+        mem_type: 记忆类型。
+        importance: LLM 给出的重要性评分。
+
+    Returns:
+        True 如果应保留，False 如果应过滤。
+    """
+    if not content or not content.strip():
+        return False
+
+    stripped = content.strip()
+
+    # 基础有效性检查（复用规则提取的过滤）
+    if not _is_valid_memory_content(stripped):
+        return False
+
+    # 检查琐碎模式
+    for pattern in _LLM_TRIVIAL_PATTERNS:
+        if pattern.match(stripped):
+            return False
+
+    # 极低重要性的语义记忆过滤
+    if mem_type == "semantic" and importance < 0.25:
+        return False
+
+    # 极低重要性的事件记忆过滤
+    if mem_type == "episodic" and importance < 0.15:
+        return False
+
+    return True
+
+
 # =============================================================================
 # LLM 提取 Prompt
 # =============================================================================
@@ -144,8 +276,8 @@ def _is_low_info_conversation(messages: list[dict[str, str]]) -> bool:
         if msg.get("role") in ("user", "assistant")
     )
 
-    # 标准1：总字符数 < 30
-    if len(all_text) < 30:
+    # 标准1：总字符数 < 15（降低阈值，短消息也可能包含重要信息如"我27岁"）
+    if len(all_text) < 15:
         return True
 
     # 标准2：寒暄关键词占比过高
@@ -287,8 +419,10 @@ class MemoryExtractor:
             if not text:
                 continue
 
-            # 确定来源分类
-            source = "user_related" if role == "user" else "ai_related"
+            # 确定来源分类：基于内容语义推断，而非简单按说话者角色
+            # 规则：如果内容包含"用户"→user_related，包含"AI"→ai_related
+            # 回退时按说话者角色判断
+            source = _infer_source(text, role)
 
             self._log.info(f"[规则提取] 处理消息: role={role}, repr={repr(text[:80])}, len={len(text)}")
 
@@ -298,6 +432,10 @@ class MemoryExtractor:
                     content = match.group(0).strip()
                     self._log.info(f"[规则提取] 匹配到: '{content}' (len={len(content)}, type={mem_type})")
                     if content and len(content) >= 3:
+                        # 质量过滤：排除纯语气词和噪音内容
+                        if not _is_valid_memory_content(content):
+                            self._log.info(f"[规则提取] 跳过低质量内容: '{content}'")
+                            continue
                         content = _to_third_person(content)
                         entry = MemoryEntry(
                             memory_type=mem_type,
@@ -316,6 +454,10 @@ class MemoryExtractor:
                     content = match.group(0).strip()
                     self._log.info(f"[规则提取-事件] 匹配到: '{content}' (len={len(content)})")
                     if content and len(content) >= 5:
+                        # 质量过滤：排除纯语气词和噪音内容
+                        if not _is_valid_memory_content(content):
+                            self._log.info(f"[规则提取-事件] 跳过低质量内容: '{content}'")
+                            continue
                         entry = MemoryEntry(
                             memory_type="episodic",
                             content=content,
@@ -445,6 +587,11 @@ class MemoryExtractor:
             importance = max(0.0, min(1.0, importance))
 
             if content and len(content.strip()) >= 3:
+                # 后处理过滤：排除过于琐碎或不完整的记忆
+                content = content.strip()
+                if not _is_valid_llm_memory(content, mem_type, importance):
+                    self._log.debug(f"[LLM 提取] 跳过低质量记忆: '{content[:40]}...'")
+                    continue
                 entry = MemoryEntry(
                     memory_type=mem_type,
                     content=content.strip(),
@@ -501,7 +648,7 @@ class MemoryExtractor:
                     for e in existing[:50]  # 限制检查数量
                 ]
 
-                conflict = detect_conflict(entry.content, existing_dicts)
+                conflict = detect_conflict(entry.content, existing_dicts, entry.memory_type)
 
                 if conflict.has_conflict and conflict.confidence > 0.5:
                     # 高置信度冲突：标记旧记忆为 archived
@@ -570,18 +717,21 @@ class MemoryExtractor:
                         sentiment,
                     )
 
-                # 2. 情感分析
-                sentiment = analyze_sentiment(entry.content)
-                if sentiment["sentiment"] != "neutral":
-                    # 如果是强情感记忆，提升重要性
-                    if abs(sentiment["score"]) > 0.5:
-                        entry.importance = min(entry.importance + 0.1, 1.0)
+                # 2. 情感分析：仅在内容质量达标时才提升重要性
+                if len(entry.content) >= 10:  # 内容足够长才考虑情感加成
+                    sentiment = analyze_sentiment(entry.content)
+                    if sentiment["sentiment"] != "neutral":
+                        # 强情感且有实体才提升
+                        if abs(sentiment["score"]) > 0.5:
+                            entities = extract_entities(entry.content)
+                            if entities:
+                                entry.importance = min(entry.importance + 0.1, 1.0)
 
-                # 3. 实体提取
-                entities = extract_entities(entry.content)
-                if entities:
-                    # 实体的出现增加了记忆的重要性
-                    entry.importance = min(entry.importance + 0.05 * len(entities), 1.0)
+                # 3. 实体提取：仅在内容质量达标时加分
+                if len(entry.content) >= 8:
+                    entities = extract_entities(entry.content)
+                    if entities and len(entities) >= 2:  # 至少2个实体才加分
+                        entry.importance = min(entry.importance + 0.05 * len(entities), 1.0)
 
             except Exception as e:
                 self._log.debug(f"[增强] 处理失败: {e}")
