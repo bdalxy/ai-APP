@@ -57,8 +57,8 @@ class MemoryLifecycle:
     """
 
     DECAY_UPDATE_INTERVAL: int = 86400              # 24 小时
-    PRUNE_THRESHOLD: int = 1000                       # 记忆数超过此值触发清理
-    PRUNE_COUNT: int = 100                            # 每次清理上限
+    PRUNE_THRESHOLD: int = 800                       # 原 1000，更早触发清理
+    PRUNE_COUNT: int = 150                            # 原 100，提高单次清理上限
     DORMANT_THRESHOLD: float = 0.1                    # 休眠阈值
     HEALTH_CHECK_INTERVAL: int = 100                  # 健康检查间隔
 

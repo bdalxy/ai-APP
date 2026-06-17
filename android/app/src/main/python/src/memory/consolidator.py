@@ -59,9 +59,9 @@ class MemoryConsolidator:
         MAX_CONSOLIDATE_PER_RUN: 每次合并的最大记忆数（默认 50）。
     """
 
-    SIMILARITY_THRESHOLD: float = 0.85
-    CONSOLIDATION_INTERVAL: int = 10
-    MAX_CONSOLIDATE_PER_RUN: int = 50
+    SIMILARITY_THRESHOLD: float = 0.80  # 原 0.85，降低阈值捕获更多相似对
+    CONSOLIDATION_INTERVAL: int = 5     # 原 10，与提取频率（2轮）匹配，合并更频繁
+    MAX_CONSOLIDATE_PER_RUN: int = 80   # 原 50，提高单次合并上限
 
     def __init__(
         self,
