@@ -1138,3 +1138,478 @@ class VectorStore:
                 self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         except sqlite3.Error as e:
             self._log.debug(f"WAL checkpoint 失败（可忽略）: {e}")
+
+    # =========================================================================
+    # 辅助方法：通过 entry 获取 rowid
+    # =========================================================================
+
+    def _get_rowid_for_entry(self, entry: MemoryEntry) -> int:
+        """通过 entry.id 获取对应的 SQLite rowid。
+
+        Args:
+            entry: MemoryEntry 实例，必须包含有效的 id 字段。
+
+        Returns:
+            SQLite 隐式 rowid（整数）。
+
+        Raises:
+            MemoryNotFoundError: entry.id 不存在时。
+            MemoryStorageError: 数据库操作失败时。
+        """
+        self._check_closed()
+        sql = "SELECT rowid FROM memories WHERE id = ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (entry.id,))
+                row = cursor.fetchone()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(
+                f"获取 rowid 失败: {e}", detail=f"id={entry.id}"
+            ) from e
+        if row is None:
+            raise MemoryNotFoundError(
+                f"记忆不存在: id={entry.id}", detail=f"id={entry.id}"
+            )
+        return row[0]
+
+    # =========================================================================
+    # 记忆关系图管理
+    # =========================================================================
+
+    _RELATIONS_TABLE = "memory_relations"
+
+    _CREATE_RELATIONS_TABLE_SQL = f"""
+    CREATE TABLE IF NOT EXISTS {_RELATIONS_TABLE} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        relation_type TEXT NOT NULL DEFAULT 'related_to',
+        confidence REAL NOT NULL DEFAULT 0.5,
+        created_at TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        FOREIGN KEY (source_id) REFERENCES memories(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_id) REFERENCES memories(id) ON DELETE CASCADE
+    )
+    """
+
+    def _ensure_relations_table(self) -> None:
+        """确保记忆关系表存在。"""
+        try:
+            self._conn.execute(self._CREATE_RELATIONS_TABLE_SQL)
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_relations_source "
+                f"ON {self._RELATIONS_TABLE}(source_id)"
+            )
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_relations_target "
+                f"ON {self._RELATIONS_TABLE}(target_id)"
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
+            self._log.warning(f"创建关系表失败: {e}")
+
+    def add_relation(
+        self,
+        source_id: str,
+        target_id: str,
+        relation_type: str = "related_to",
+        confidence: float = 0.5,
+        notes: str = "",
+    ) -> int:
+        """添加记忆关系。
+
+        Args:
+            source_id: 源记忆 UUID。
+            target_id: 目标记忆 UUID。
+            relation_type: 关系类型（contradicts/extends/refines/supersedes/related_to/caused_by/part_of/similar_to）。
+            confidence: 置信度（0.0~1.0）。
+            notes: 关系备注。
+
+        Returns:
+            新关系的 ID。
+        """
+        self._check_closed()
+        self._ensure_relations_table()
+        from src.utils.time_utils import format_timestamp_iso
+        now = format_timestamp_iso()
+        sql = (
+            f"INSERT INTO {self._RELATIONS_TABLE} "
+            "(source_id, target_id, relation_type, confidence, created_at, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?)"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(
+                    sql, (source_id, target_id, relation_type, confidence, now, notes)
+                )
+                self._conn.commit()
+                self._log.debug(
+                    f"[关系] 添加: {source_id[:8]} --{relation_type}--> {target_id[:8]}"
+                )
+                return cursor.lastrowid
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"添加关系失败: {e}") from e
+
+    def get_relations(self, memory_id: str) -> list[dict]:
+        """获取某条记忆的所有关系。
+
+        Args:
+            memory_id: 记忆 UUID。
+
+        Returns:
+            关系字典列表，每项包含 source_id, target_id, relation_type, confidence。
+        """
+        self._check_closed()
+        self._ensure_relations_table()
+        sql = (
+            f"SELECT * FROM {self._RELATIONS_TABLE} "
+            "WHERE source_id = ? OR target_id = ?"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (memory_id, memory_id))
+                rows = cursor.fetchall()
+        except sqlite3.Error as e:
+            return []
+        results = []
+        for row in rows:
+            results.append({
+                "id": row[0],
+                "source_id": row[1],
+                "target_id": row[2],
+                "relation_type": row[3],
+                "confidence": row[4],
+                "created_at": row[5],
+                "notes": row[6],
+            })
+        return results
+
+    def delete_relations(self, memory_id: str) -> int:
+        """删除某条记忆的所有关系。
+
+        Args:
+            memory_id: 记忆 UUID。
+
+        Returns:
+            删除的关系数。
+        """
+        self._check_closed()
+        self._ensure_relations_table()
+        sql = (
+            f"DELETE FROM {self._RELATIONS_TABLE} "
+            "WHERE source_id = ? OR target_id = ?"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (memory_id, memory_id))
+                self._conn.commit()
+                return cursor.rowcount
+        except sqlite3.Error as e:
+            return 0
+
+    # =========================================================================
+    # 记忆标签管理
+    # =========================================================================
+
+    _TAGS_TABLE = "memory_tags"
+    _TAG_MAP_TABLE = "memory_tag_map"
+
+    _CREATE_TAGS_TABLE_SQL = f"""
+    CREATE TABLE IF NOT EXISTS {_TAGS_TABLE} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#9B59B6',
+        created_at TEXT NOT NULL DEFAULT ''
+    )
+    """
+
+    _CREATE_TAG_MAP_TABLE_SQL = f"""
+    CREATE TABLE IF NOT EXISTS {_TAG_MAP_TABLE} (
+        tag_id INTEGER NOT NULL,
+        memory_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (tag_id, memory_id),
+        FOREIGN KEY (tag_id) REFERENCES {_TAGS_TABLE}(id) ON DELETE CASCADE,
+        FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
+    )
+    """
+
+    def _ensure_tags_tables(self) -> None:
+        """确保标签相关表存在。"""
+        try:
+            self._conn.execute(self._CREATE_TAGS_TABLE_SQL)
+            self._conn.execute(self._CREATE_TAG_MAP_TABLE_SQL)
+            self._conn.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_tag_map_memory "
+                f"ON {_TAG_MAP_TABLE}(memory_id)"
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
+            self._log.warning(f"创建标签表失败: {e}")
+
+    def add_tag(self, name: str, color: str = "#9B59B6") -> int:
+        """添加标签。
+
+        Args:
+            name: 标签名称。
+            color: 标签颜色。
+
+        Returns:
+            标签 ID。
+        """
+        self._check_closed()
+        self._ensure_tags_tables()
+        from src.utils.time_utils import format_timestamp_iso
+        now = format_timestamp_iso()
+        sql = (
+            f"INSERT OR IGNORE INTO {_TAGS_TABLE} (name, color, created_at) "
+            "VALUES (?, ?, ?)"
+        )
+        try:
+            with self._lock:
+                self._conn.execute(sql, (name, color, now))
+                self._conn.commit()
+                cursor = self._conn.execute(
+                    f"SELECT id FROM {_TAGS_TABLE} WHERE name = ?", (name,)
+                )
+                row = cursor.fetchone()
+                return row[0] if row else -1
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"添加标签失败: {e}") from e
+
+    def tag_memory(self, memory_id: str, tag_name: str) -> None:
+        """为记忆添加标签。
+
+        Args:
+            memory_id: 记忆 UUID。
+            tag_name: 标签名称。
+        """
+        self._check_closed()
+        self._ensure_tags_tables()
+        # 先创建标签（如果不存在）
+        tag_id = self.add_tag(tag_name)
+        if tag_id < 0:
+            return
+        from src.utils.time_utils import format_timestamp_iso
+        now = format_timestamp_iso()
+        sql = (
+            f"INSERT OR IGNORE INTO {_TAG_MAP_TABLE} (tag_id, memory_id, created_at) "
+            "VALUES (?, ?, ?)"
+        )
+        try:
+            with self._lock:
+                self._conn.execute(sql, (tag_id, memory_id, now))
+                self._conn.commit()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"标记记忆失败: {e}") from e
+
+    def untag_memory(self, memory_id: str, tag_name: str) -> None:
+        """移除记忆的标签。
+
+        Args:
+            memory_id: 记忆 UUID。
+            tag_name: 标签名称。
+        """
+        self._check_closed()
+        self._ensure_tags_tables()
+        sql = (
+            f"DELETE FROM {_TAG_MAP_TABLE} "
+            "WHERE memory_id = ? AND tag_id = (SELECT id FROM memory_tags WHERE name = ?)"
+        )
+        try:
+            with self._lock:
+                self._conn.execute(sql, (memory_id, tag_name))
+                self._conn.commit()
+        except sqlite3.Error as e:
+            raise MemoryStorageError(f"移除标签失败: {e}") from e
+
+    def get_memory_tags(self, memory_id: str) -> list[dict]:
+        """获取记忆的所有标签。
+
+        Args:
+            memory_id: 记忆 UUID。
+
+        Returns:
+            标签字典列表。
+        """
+        self._check_closed()
+        self._ensure_tags_tables()
+        sql = (
+            f"SELECT t.id, t.name, t.color, t.created_at "
+            f"FROM {_TAGS_TABLE} t "
+            f"JOIN {_TAG_MAP_TABLE} m ON t.id = m.tag_id "
+            "WHERE m.memory_id = ?"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (memory_id,))
+                rows = cursor.fetchall()
+        except sqlite3.Error:
+            return []
+        return [
+            {"id": r[0], "name": r[1], "color": r[2], "created_at": r[3]}
+            for r in rows
+        ]
+
+    def list_all_tags(self) -> list[dict]:
+        """列出所有标签。
+
+        Returns:
+            标签字典列表，包含每个标签关联的记忆数量。
+        """
+        self._check_closed()
+        self._ensure_tags_tables()
+        sql = (
+            f"SELECT t.id, t.name, t.color, t.created_at, COUNT(m.memory_id) as cnt "
+            f"FROM {_TAGS_TABLE} t "
+            f"LEFT JOIN {_TAG_MAP_TABLE} m ON t.id = m.tag_id "
+            "GROUP BY t.id ORDER BY cnt DESC"
+        )
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql)
+                rows = cursor.fetchall()
+        except sqlite3.Error:
+            return []
+        return [
+            {"id": r[0], "name": r[1], "color": r[2], "created_at": r[3], "memory_count": r[4]}
+            for r in rows
+        ]
+
+    # =========================================================================
+    # 变更日志管理
+    # =========================================================================
+
+    _CHANGELOG_TABLE = "memory_changelog"
+
+    _CREATE_CHANGELOG_TABLE_SQL = f"""
+    CREATE TABLE IF NOT EXISTS {_CHANGELOG_TABLE} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        memory_id TEXT NOT NULL,
+        rowid INTEGER NOT NULL DEFAULT 0,
+        change_type TEXT NOT NULL,
+        old_content TEXT NOT NULL DEFAULT '',
+        new_content TEXT NOT NULL DEFAULT '',
+        changed_at TEXT NOT NULL DEFAULT '',
+        reason TEXT NOT NULL DEFAULT ''
+    )
+    """
+
+    def _ensure_changelog_table(self) -> None:
+        """确保变更日志表存在。"""
+        try:
+            self._conn.execute(self._CREATE_CHANGELOG_TABLE_SQL)
+            self._conn.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_changelog_memory "
+                f"ON {_CHANGELOG_TABLE}(memory_id)"
+            )
+            self._conn.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_changelog_time "
+                f"ON {_CHANGELOG_TABLE}(changed_at DESC)"
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
+            self._log.warning(f"创建变更日志表失败: {e}")
+
+    def log_change(
+        self,
+        memory_id: str,
+        rowid: int,
+        change_type: str,
+        old_content: str = "",
+        new_content: str = "",
+        reason: str = "",
+    ) -> None:
+        """记录记忆变更日志。
+
+        Args:
+            memory_id: 记忆 UUID。
+            rowid: 记忆行 ID。
+            change_type: 变更类型（create/update/delete/archive/consolidate）。
+            old_content: 变更前内容。
+            new_content: 变更后内容。
+            reason: 变更原因。
+        """
+        self._check_closed()
+        self._ensure_changelog_table()
+        from src.utils.time_utils import format_timestamp_iso
+        now = format_timestamp_iso()
+        sql = (
+            f"INSERT INTO {_CHANGELOG_TABLE} "
+            "(memory_id, rowid, change_type, old_content, new_content, changed_at, reason) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        try:
+            with self._lock:
+                self._conn.execute(
+                    sql, (memory_id, rowid, change_type, old_content, new_content, now, reason)
+                )
+                self._conn.commit()
+        except sqlite3.Error as e:
+            self._log.debug(f"记录变更日志失败: {e}")
+
+    def get_changelog(self, memory_id: str = "", limit: int = 50) -> list[dict]:
+        """获取变更日志。
+
+        Args:
+            memory_id: 记忆 UUID（空字符串返回所有日志）。
+            limit: 返回的最大日志数。
+
+        Returns:
+            变更日志字典列表。
+        """
+        self._check_closed()
+        self._ensure_changelog_table()
+        if memory_id:
+            sql = (
+                f"SELECT * FROM {_CHANGELOG_TABLE} "
+                "WHERE memory_id = ? ORDER BY changed_at DESC LIMIT ?"
+            )
+            params = (memory_id, limit)
+        else:
+            sql = (
+                f"SELECT * FROM {_CHANGELOG_TABLE} "
+                "ORDER BY changed_at DESC LIMIT ?"
+            )
+            params = (limit,)
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, params)
+                rows = cursor.fetchall()
+        except sqlite3.Error:
+            return []
+        return [
+            {
+                "id": r[0], "memory_id": r[1], "rowid": r[2],
+                "change_type": r[3], "old_content": r[4],
+                "new_content": r[5], "changed_at": r[6], "reason": r[7],
+            }
+            for r in rows
+        ]
+
+    # =========================================================================
+    # BM25 索引构建
+    # =========================================================================
+
+    def build_bm25_index(self) -> "BM25Scorer":
+        """构建 BM25 索引（从所有记忆构建）。
+
+        将所有记忆的 content 作为文档，id 作为文档 ID，构建 BM25 倒排索引。
+
+        Returns:
+            构建好的 BM25Scorer 实例。
+        """
+        from src.memory.bm25 import BM25Scorer
+        bm25 = BM25Scorer()
+        total = self.count()
+        offset = 0
+        page_size = 500
+        while offset < total:
+            page = self.get_page(offset, page_size)
+            for entry in page:
+                if entry.content:
+                    bm25.add_document(entry.id, entry.content)
+            offset += len(page)
+            if len(page) < page_size:
+                break
+        return bm25

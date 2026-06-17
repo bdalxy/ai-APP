@@ -20,6 +20,13 @@ import re
 from typing import Any
 
 from src.api_client.deepseek import DeepSeekClient
+from src.memory.memory_types import (
+    ConflictResult,
+    analyze_sentiment,
+    detect_conflict,
+    estimate_importance,
+    extract_entities,
+)
 from src.memory.vector_store import MemoryEntry, VectorStore, cosine_similarity
 from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso
@@ -235,6 +242,13 @@ class MemoryExtractor:
         if self.vector_store and entries:
             entries = self._deduplicate(entries)
 
+        # 冲突检测：检查新记忆是否与已有记忆冲突
+        if self.vector_store and entries:
+            entries = self._check_conflicts(entries)
+
+        # 自动补充重要性评分和情感分析
+        entries = self._enrich_entries(entries)
+
         self._log.info(f"[提取] 完成: mode={mode}, 提取={len(entries)} 条记忆")
         return entries
 
@@ -443,6 +457,135 @@ class MemoryExtractor:
                 entries.append(entry)
 
         self._log.debug(f"[LLM 提取] 提取 {len(entries)} 条记忆")
+        return entries
+
+    # -------------------------------------------------------------------------
+    # 冲突检测
+    # -------------------------------------------------------------------------
+
+    def _check_conflicts(
+        self,
+        new_entries: list[MemoryEntry],
+    ) -> list[MemoryEntry]:
+        """检测新记忆是否与已有记忆存在冲突。
+
+        对每条新记忆:
+            1. 获取同类型的已有记忆
+            2. 调用 detect_conflict() 进行规则级冲突检测
+            3. 如果检测到冲突，标记旧记忆为 archived
+            4. 记录记忆关系
+
+        Args:
+            new_entries: 新提取的记忆列表。
+
+        Returns:
+            处理后的记忆列表（可能包含合并后的冲突解决结果）。
+        """
+        if not self.vector_store:
+            return new_entries
+
+        processed: list[MemoryEntry] = []
+        archived_count = 0
+
+        for entry in new_entries:
+            try:
+                # 获取同类型的已有记忆
+                existing = self.vector_store.get_by_type(entry.memory_type)
+                if not existing:
+                    processed.append(entry)
+                    continue
+
+                # 构建冲突检测格式
+                existing_dicts = [
+                    {"id": e.id, "content": e.content, "memory_type": e.memory_type}
+                    for e in existing[:50]  # 限制检查数量
+                ]
+
+                conflict = detect_conflict(entry.content, existing_dicts)
+
+                if conflict.has_conflict and conflict.confidence > 0.5:
+                    # 高置信度冲突：标记旧记忆为 archived
+                    try:
+                        self.vector_store.mark_archived([conflict.conflicting_memory_id])
+                        archived_count += 1
+                        self._log.info(
+                            f"[冲突] 已解决: new='{entry.content[:40]}...', "
+                            f"archived='{conflict.conflicting_memory_content[:40]}...', "
+                            f"type={conflict.conflict_type}"
+                        )
+                        # 记录关系
+                        try:
+                            self.vector_store.add_relation(
+                                entry.id,
+                                conflict.conflicting_memory_id,
+                                relation_type=conflict.conflict_type,
+                                confidence=conflict.confidence,
+                                notes=conflict.explanation,
+                            )
+                        except Exception:
+                            pass  # 关系记录失败不影响主流程
+                    except Exception as e:
+                        self._log.debug(f"[冲突] 归档失败: {e}")
+
+                processed.append(entry)
+
+            except Exception as e:
+                self._log.debug(f"[冲突检测] 处理失败: {e}")
+                processed.append(entry)
+
+        if archived_count > 0:
+            self._log.info(f"[冲突] 共解决 {archived_count} 条冲突记忆")
+
+        return processed
+
+    # -------------------------------------------------------------------------
+    # 条目增强（重要性+情感+实体）
+    # -------------------------------------------------------------------------
+
+    def _enrich_entries(
+        self,
+        entries: list[MemoryEntry],
+    ) -> list[MemoryEntry]:
+        """自动补充记忆条目的重要性评分、情感分析和实体信息。
+
+        对每条记忆:
+            1. 如果 importance 为默认值 0.5，自动估算
+            2. 进行情感分析并记录
+            3. 提取实体信息
+
+        Args:
+            entries: 记忆条目列表。
+
+        Returns:
+            增强后的记忆条目列表。
+        """
+        for entry in entries:
+            try:
+                # 1. 自动估算重要性（仅在默认值时）
+                if entry.importance == 0.5 or entry.importance == 0.0:
+                    sentiment = analyze_sentiment(entry.content)
+                    entry.importance = estimate_importance(
+                        entry.content,
+                        entry.memory_type,
+                        sentiment,
+                    )
+
+                # 2. 情感分析
+                sentiment = analyze_sentiment(entry.content)
+                if sentiment["sentiment"] != "neutral":
+                    # 如果是强情感记忆，提升重要性
+                    if abs(sentiment["score"]) > 0.5:
+                        entry.importance = min(entry.importance + 0.1, 1.0)
+
+                # 3. 实体提取
+                entities = extract_entities(entry.content)
+                if entities:
+                    # 实体的出现增加了记忆的重要性
+                    entry.importance = min(entry.importance + 0.05 * len(entities), 1.0)
+
+            except Exception as e:
+                self._log.debug(f"[增强] 处理失败: {e}")
+
         return entries
 
     # -------------------------------------------------------------------------

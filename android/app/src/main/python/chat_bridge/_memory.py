@@ -11,7 +11,8 @@ from src.memory.vector_store import MemoryEntry, _init_encryption
 from src.utils.time_utils import format_timestamp_iso
 from src.utils.logger import get_logger
 
-from ._state import _ctx, _state
+from ._state import _ctx
+from . import _state
 
 _log = get_logger()
 
@@ -291,6 +292,200 @@ def search_memories(keyword: str) -> dict:
 
 
 # =============================================================================
+# 记忆维护接口
+# =============================================================================
+
+
+def run_maintenance() -> dict:
+    """执行记忆库维护任务（衰减更新 + 合并 + 清理 + 健康检查）。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        report = orchestrator.run_maintenance()
+        return json.dumps({"status": "ok", **report})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 记忆分析接口
+# =============================================================================
+
+
+def analyze_trends(days: int = 30) -> dict:
+    """分析记忆变化趋势。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        trends = orchestrator.analyze_trends(days)
+        return json.dumps({"status": "ok", **trends})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def analyze_topics(num_clusters: int = 5) -> dict:
+    """主题聚类分析。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        topics = orchestrator.analyze_topics(num_clusters)
+        return json.dumps({"status": "ok", **topics})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def generate_user_profile() -> dict:
+    """生成用户画像。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        profile = orchestrator.generate_user_profile()
+        return json.dumps({"status": "ok", **profile})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def analyze_quality() -> dict:
+    """分析记忆库质量。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        quality = orchestrator.analyze_quality()
+        return json.dumps({"status": "ok", **quality})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 记忆标签接口
+# =============================================================================
+
+
+def add_tag(name: str, color: str = "#9B59B6") -> dict:
+    """添加标签。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        tag_id = orchestrator.add_tag(name, color)
+        return json.dumps({"status": "ok", "tag_id": tag_id, "name": name})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def tag_memory(memory_id: str, tag_name: str) -> dict:
+    """为记忆添加标签。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        orchestrator.tag_memory(memory_id, tag_name)
+        return json.dumps({"status": "ok"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def untag_memory(memory_id: str, tag_name: str) -> dict:
+    """移除记忆的标签。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        orchestrator.untag_memory(memory_id, tag_name)
+        return json.dumps({"status": "ok"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_memory_tags(memory_id: str) -> dict:
+    """获取记忆的标签列表。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        tags = orchestrator.get_memory_tags(memory_id)
+        return json.dumps({"status": "ok", "tags": tags})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def list_all_tags() -> dict:
+    """列出所有标签。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        tags = orchestrator.list_all_tags()
+        return json.dumps({"status": "ok", "tags": tags})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 记忆关系接口
+# =============================================================================
+
+
+def add_relation(source_id: str, target_id: str, relation_type: str = "related_to", confidence: float = 0.5) -> dict:
+    """添加记忆关系。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        rel_id = orchestrator.add_relation(source_id, target_id, relation_type, confidence)
+        return json.dumps({"status": "ok", "relation_id": rel_id})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_relations(memory_id: str) -> dict:
+    """获取记忆的关系列表。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        relations = orchestrator.get_relations(memory_id)
+        return json.dumps({"status": "ok", "relations": relations})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 变更日志接口
+# =============================================================================
+
+
+def get_changelog(memory_id: str = "", limit: int = 50) -> dict:
+    """获取变更日志。"""
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        changelog = orchestrator.get_changelog(memory_id, limit)
+        return json.dumps({"status": "ok", "changelog": changelog})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
 # 记忆导出 / 导入接口
 # =============================================================================
 
@@ -409,5 +604,298 @@ def import_memories(memories_json: str) -> dict:
         return json.dumps({"status": "ok", "imported": imported, "skipped": skipped})
     except json.JSONDecodeError as e:
         return json.dumps({"status": "error", "message": f"JSON 解析失败: {e}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 上下文构建接口
+# =============================================================================
+
+
+def build_context(query_text: str, conversation_history_json: str = "", user_profile_json: str = "") -> dict:
+    """构建优化的记忆上下文窗口。
+
+    在有限 Token 预算内，分层注入最相关的记忆信息。
+
+    Args:
+        query_text: 用户当前查询文本。
+        conversation_history_json: 对话历史 JSON 数组字符串（可选）。
+        user_profile_json: 用户画像 JSON 字符串（可选）。
+
+    Returns:
+        {"status": "ok", "context": {...}} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    if not query_text or not query_text.strip():
+        return json.dumps({"status": "error", "message": "query_text 不能为空"})
+
+    try:
+        conversation_history: list[str] | None = None
+        if conversation_history_json:
+            conversation_history = json.loads(conversation_history_json)
+
+        user_profile: dict | None = None
+        if user_profile_json:
+            user_profile = json.loads(user_profile_json)
+
+        context = orchestrator.build_context(
+            query_text=query_text.strip(),
+            conversation_history=conversation_history,
+            user_profile=user_profile,
+        )
+
+        return json.dumps({
+            "status": "ok",
+            "formatted_text": context.formatted_text,
+            "core_memory_count": len(context.core_memories),
+            "extended_memory_count": len(context.extended_memories),
+            "recent_memory_count": len(context.recent_memories),
+            "total_chars": context.total_chars,
+            "estimated_tokens": context.estimated_tokens,
+            "budget_used_ratio": context.budget_used_ratio,
+            "build_time_ms": context.build_time_ms,
+        }, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def build_context_compact(query_text: str, max_memories: int = 5) -> dict:
+    """快速构建紧凑的记忆上下文。
+
+    Args:
+        query_text: 查询文本。
+        max_memories: 最大记忆数。
+
+    Returns:
+        {"status": "ok", "context": str} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        context_text = orchestrator.build_context_compact(
+            query_text=query_text.strip(),
+            max_memories=max_memories,
+        )
+        return json.dumps({"status": "ok", "context": context_text}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 备份管理接口
+# =============================================================================
+
+
+def backup_full() -> dict:
+    """执行完整备份（SQLite 数据库文件备份）。
+
+    Returns:
+        {"status": "ok", "metadata": {...}} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        metadata = orchestrator.backup_full()
+        if metadata is None:
+            return json.dumps({"status": "error", "message": "备份失败，可能数据库为内存模式"})
+        return json.dumps({"status": "ok", "metadata": metadata.to_dict()})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def backup_json() -> dict:
+    """执行 JSON 格式备份（记忆导出为 JSON 文件）。
+
+    Returns:
+        {"status": "ok", "metadata": {...}} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        metadata = orchestrator.backup_json()
+        if metadata is None:
+            return json.dumps({"status": "error", "message": "JSON 备份失败"})
+        return json.dumps({"status": "ok", "metadata": metadata.to_dict()})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def restore_backup(backup_id: str) -> dict:
+    """从备份恢复记忆库。
+
+    Args:
+        backup_id: 备份标识符。
+
+    Returns:
+        {"status": "ok"} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        success = orchestrator.restore_backup(backup_id)
+        if success:
+            return json.dumps({"status": "ok", "message": f"恢复成功: {backup_id}"})
+        return json.dumps({"status": "error", "message": f"恢复失败: {backup_id}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def list_backups() -> dict:
+    """列出所有备份。
+
+    Returns:
+        {"status": "ok", "backups": [...]} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        backups = orchestrator.list_backups()
+        return json.dumps({"status": "ok", "backups": backups, "count": len(backups)})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def delete_backup(backup_id: str) -> dict:
+    """删除指定备份。
+
+    Args:
+        backup_id: 备份标识符。
+
+    Returns:
+        {"status": "ok"} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        success = orchestrator.delete_backup(backup_id)
+        if success:
+            return json.dumps({"status": "ok", "message": f"已删除备份: {backup_id}"})
+        return json.dumps({"status": "error", "message": f"删除失败: {backup_id}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def verify_backup(backup_id: str) -> dict:
+    """验证备份文件的完整性。
+
+    Args:
+        backup_id: 备份标识符。
+
+    Returns:
+        {"status": "ok", "valid": bool, ...} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        result = orchestrator.verify_backup(backup_id)
+        return json.dumps({"status": "ok", **result})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_backup_stats() -> dict:
+    """获取备份管理器统计信息。
+
+    Returns:
+        {"status": "ok", ...} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        stats = orchestrator.get_backup_stats()
+        return json.dumps({"status": "ok", **stats})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+# =============================================================================
+# 缓存管理接口
+# =============================================================================
+
+
+def get_cache_stats() -> dict:
+    """获取所有缓存的统计信息。
+
+    Returns:
+        {"status": "ok", ...} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        stats = orchestrator.get_cache_stats()
+        return json.dumps({"status": "ok", **stats})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def invalidate_cache() -> dict:
+    """使检索和统计缓存失效（记忆库发生变化时调用）。
+
+    Returns:
+        {"status": "ok"}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        orchestrator.invalidate_cache()
+        return json.dumps({"status": "ok"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def invalidate_cache_all() -> dict:
+    """使所有缓存失效。
+
+    Returns:
+        {"status": "ok"}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        orchestrator.invalidate_cache_all()
+        return json.dumps({"status": "ok"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def cache_cleanup() -> dict:
+    """执行缓存定期清理（清理过期 TTL 条目）。
+
+    Returns:
+        {"status": "ok", "cleaned": int} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        result = orchestrator.cache_cleanup()
+        return json.dumps({"status": "ok", "cleaned": result.get("total", 0), **result})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
