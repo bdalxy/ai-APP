@@ -2,6 +2,7 @@
 <!-- 聊天主页面布局：玻璃态顶栏 + 消息列表 + 毛玻璃输入区 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -174,8 +175,10 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:minHeight="40dp"
+                android:maxHeight="120dp"
                 android:padding="@dimen/input_padding"
-                android:maxLines="4"
+                android:maxLines="5"
                 android:hint="@string/hint_input_message"
                 android:textColorHint="@color/text_tertiary"
                 android:textColor="@color/text_primary"
@@ -199,4 +202,21 @@
                 android:contentDescription="@string/btn_send" />
         </LinearLayout>
     </LinearLayout>
-</FrameLayout>
+
+        <!-- 滚动到底部按钮（浮动在消息列表右下角） -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnScrollBottom"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="8dp"
+            android:src="@drawable/ic_arrow_down"
+            android:contentDescription="滚动到底部"
+            android:visibility="gone"
+            android:elevation="4dp"
+            app:fabSize="mini"
+            app:backgroundTint="@color/elysian_purple"
+            app:tint="@color/text_primary"
+            android:scaleType="center" />
+    </FrameLayout>

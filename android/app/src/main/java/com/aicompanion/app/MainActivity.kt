@@ -23,6 +23,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -91,11 +92,32 @@ private val characterSelectLauncher = registerForActivityResult(
         ViewUtils.setupEdgeToEdge(this)
         applyInsets(binding.mainRoot)
 
-        adapter = ChatAdapter(mutableListOf())
+        adapter = ChatAdapter(mutableListOf()) { message, position ->
+            showMessageContextMenu(message, position)
+        }
         binding.rvMessages.adapter = adapter
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
         // 自定义消息入场动画（P2 UI 优化）
         binding.rvMessages.itemAnimator = MessageItemAnimator()
+
+        // 滚动到底部按钮
+        binding.btnScrollBottom.setOnClickListener {
+            binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+        }
+
+        binding.rvMessages.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                val lastVisible = layoutManager.findLastVisibleItemPosition()
+                val totalItems = adapter.itemCount
+                // 如果最后一条可见且不是打字指示器，隐藏按钮；否则显示
+                binding.btnScrollBottom.visibility = if (lastVisible < totalItems - 3) {
+                    View.VISIBLE
+                } else {
+                    View.GONE
+                }
+            }
+        })
 
         binding.btnSend.setOnClickListener { sendMessage() }
         binding.btnSettings.setOnClickListener {
@@ -173,6 +195,16 @@ private val characterSelectLauncher = registerForActivityResult(
                     return true
                 }
                 return false
+            }
+        })
+
+        // 输入框文本变化：控制发送按钮状态
+        binding.etInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val hasText = !s.isNullOrBlank()
+                updateSendButton(hasText)
             }
         })
 
@@ -315,7 +347,37 @@ private val characterSelectLauncher = registerForActivityResult(
         }
 
         binding.etInput.text.clear()
+        updateSendButton(false)
         sendMessageStream(text)
+    }
+
+    /** 显示消息长按上下文菜单 */
+    private fun showMessageContextMenu(message: Message, position: Int) {
+        if (message.isTyping) return
+        val items = mutableListOf("复制")
+        if (message.isUser) items.add("删除")
+
+        AlertDialog.Builder(this)
+            .setItems(items.toTypedArray()) { _, which ->
+                when (items[which]) {
+                    "复制" -> {
+                        val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("message", message.content))
+                        Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show()
+                    }
+                    "删除" -> {
+                        adapter.removeTypingAt(position)
+                        adapter.notifyItemRemoved(position)
+                        // 从列表中删除消息
+                        adapter.getMessages().toMutableList().apply {
+                            removeAt(position)
+                        }.let {
+                            adapter.replaceAll(it)
+                        }
+                    }
+                }
+            }
+            .show()
     }
 
     // ======================== 流式消息发送 ========================
@@ -329,6 +391,7 @@ private val characterSelectLauncher = registerForActivityResult(
      */
     private fun sendMessageStream(userInput: String) {
         isStreaming = true
+        updateSendButton(false)
         disableInput()
 
         // 添加用户消息气泡
@@ -460,7 +523,10 @@ private val characterSelectLauncher = registerForActivityResult(
                 }
             } finally {
                 isStreaming = false
-                runOnUiThread { enableInput() }
+                runOnUiThread {
+                    enableInput()
+                    updateSendButton(binding.etInput.text?.isNotBlank() == true)
+                }
             }
         }
     }
@@ -468,19 +534,31 @@ private val characterSelectLauncher = registerForActivityResult(
     /** 流式输出期间禁用输入框和发送按钮 */
     private fun disableInput() {
         binding.etInput.isEnabled = false
-        binding.btnSend.isEnabled = false
-        binding.btnSend.setBackgroundResource(R.drawable.bg_send_inactive_v2)
+        updateSendButton(false)
     }
 
     /** 流式输出完成后恢复输入框和发送按钮 */
     private fun enableInput() {
         binding.etInput.isEnabled = true
-        binding.btnSend.isEnabled = true
-        binding.btnSend.setBackgroundResource(R.drawable.bg_send_active)
+        updateSendButton(binding.etInput.text?.isNotBlank() == true)
         // 搜索模式下不抢夺焦点，避免键盘弹出打断搜索
         if (!isSearchMode) {
             binding.etInput.requestFocus()
         }
+    }
+
+    /** 更新发送按钮状态（根据文本内容和流式状态） */
+    private fun updateSendButton(hasText: Boolean) {
+        if (isStreaming) {
+            binding.btnSend.isEnabled = false
+            binding.btnSend.setBackgroundResource(R.drawable.bg_send_inactive)
+            binding.btnSend.text = "⏳"
+            return
+        }
+        binding.btnSend.isEnabled = hasText
+        binding.btnSend.setBackgroundResource(
+            if (hasText) R.drawable.bg_send_active else R.drawable.bg_send_inactive
+        )
     }
 
     /** 保存当前会话消息到会话管理器（原子写入） */

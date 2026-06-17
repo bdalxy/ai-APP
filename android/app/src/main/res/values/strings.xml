@@ -23,6 +23,7 @@
     <string name="cd_search">搜索</string>
     <string name="cd_clear_search">清除搜索</string>
     <string name="cd_avatar">角色头像</string>
+    <string name="cd_message_status">消息状态</string>
     <string name="cd_new_character">新建角色</string>
     <string name="cd_save_character">保存角色</string>
     <string name="cd_edit_character">编辑角色</string>
@@ -92,7 +93,8 @@
     <string name="stats_total_memories">总记忆数：-- 条</string>
     <string name="status_loading">加载中...</string>
     <string name="hint_search_memories">搜索 AI 记忆内容...</string>
-    <string name="empty_memories">AI 还没有形成记忆\n聊聊天，AI 会自动从对话中提取重要信息</string>
+    <string name="empty_memories">AI 还没有形成记忆
+聊聊天，AI 会自动从对话中提取重要信息</string>
     <string name="action_load_more">加载更多...</string>
     <string name="action_clear_all_memories">清空全部记忆</string>
     <string name="desc_memory_ai_perspective">以下是 AI 对你们对话的记忆（以 AI 的视角记录）</string>
@@ -159,10 +161,14 @@
     <!-- ===== 记忆管理页面 (MemoryManageActivity) 运行时文本 ===== -->
     <string name="label_total_memories_format">总记忆：%d 条</string>
     <string name="title_delete_memory">删除记忆</string>
-    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n\"%2$s\"</string>
+    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？
+
+"%2$s"</string>
     <string name="msg_no_memory_to_clear">当前没有记忆可以清空。</string>
     <string name="title_clear_all_memories">清空全部记忆</string>
-    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？\n\n此操作不可撤销！</string>
+    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？
+
+此操作不可撤销！</string>
 
     <!-- ===== 记忆类型标签 ===== -->
     <string name="label_memory_type_episodic">情景记忆</string>
