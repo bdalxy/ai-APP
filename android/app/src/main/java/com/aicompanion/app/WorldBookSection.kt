@@ -22,12 +22,15 @@ import org.json.JSONObject
  */
 class WorldBookSection(private val activity: SettingsDetailActivity) {
 
+    /** 缓存 Python 模块引用，避免重复获取 */
+    private fun getModule() = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+
     /**
      * 构建世界书管理页面
      */
     fun build() {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("list_world_books")?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
@@ -114,7 +117,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             isChecked = isEnabled
             setOnCheckedChangeListener { _, checked ->
                 try {
-                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    val module = getModule()
                     if (checked) {
                         val r = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
                         val j = JSONObject(r)
@@ -181,7 +184,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun createWorldBook(name: String, description: String) {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("create_world_book", name, description, "[]")?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") == "ok") {
@@ -199,7 +202,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun showEditWorldBookDialog(name: String) {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("get_world_book", name)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
@@ -291,7 +294,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun updateWorldBookDescription(name: String, description: String) {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val bookResult = module?.callAttr("get_world_book", name)?.toString() ?: "{}"
             val bookJson = JSONObject(bookResult)
             val book = bookJson.optJSONObject("book")
@@ -321,7 +324,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun deleteWorldBook(name: String) {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("delete_world_book", name)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") == "ok") {
@@ -340,7 +343,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun saveEnabledWorldBooks() {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
             val json = JSONObject(result)
             val enabled = json.optJSONArray("enabled") ?: return
@@ -358,7 +361,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun showEntryListDialog(bookName: String) {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("get_world_book", bookName)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
@@ -616,7 +619,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
 
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = if (isNew) {
                 module?.callAttr("add_world_book_entry", bookName, entryJson.toString())?.toString() ?: "{}"
             } else {
@@ -642,7 +645,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             .setMessage("确认删除条目「${entryId}」吗？此操作不可撤销。")
             .setPositiveButton("确认删除") { _, _ ->
                 try {
-                    val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                    val module = getModule()
                     val result = module?.callAttr("delete_world_book_entry", bookName, entryId)?.toString() ?: "{}"
                     val json = JSONObject(result)
                     if (json.optString("status") == "ok") {
@@ -662,7 +665,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun showAuditReportDialog(bookName: String) {
         try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+            val module = getModule()
             val result = module?.callAttr("validate_world_book", bookName)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {

@@ -20,8 +20,15 @@ from ._state import _ctx, _CARD_DIR, _current_params
 
 _log = get_logger()
 
-# 插件管理器（全局单例）
-_plugin_manager = get_plugin_manager()
+# 插件管理器（全局单例，惰性初始化，避免提前加载）
+_plugin_manager = None
+
+def _get_plugin_manager():
+    """惰性获取插件管理器，避免模块加载时提前初始化。"""
+    global _plugin_manager
+    if _plugin_manager is None:
+        _plugin_manager = get_plugin_manager()
+    return _plugin_manager
 
 # 流式对话会话管理（队列+轮询方案，解决 Chaquopy 无法迭代 Python 生成器的问题）
 _streams: dict[str, dict] = {}
@@ -116,7 +123,7 @@ def init(
         info.update(params)
 
         # 加载插件
-        plugin_count = _plugin_manager.load_all()
+        plugin_count = _get_plugin_manager().load_all()
         _log.info(f"已加载 {plugin_count} 个插件")
 
         return json.dumps({"status": "ok", "card": info, "params": params})
@@ -192,7 +199,7 @@ def chat(user_input: str) -> dict:
         user_input = user_input.strip()
 
         # 插件管道：预处理用户输入
-        user_input = _plugin_manager.pre_process(user_input)
+        user_input = _get_plugin_manager().pre_process(user_input)
 
         # 注入记忆和世界书上下文
         _inject_context(player, user_input, orchestrator)
@@ -200,8 +207,8 @@ def chat(user_input: str) -> dict:
         reply = player.chat(user_input)
 
         # 插件管道：后处理 AI 回复
-        reply = _plugin_manager.post_process(reply)
-        _plugin_manager.on_turn_end(user_input, reply)
+        reply = _get_plugin_manager().post_process(reply)
+        _get_plugin_manager().on_turn_end(user_input, reply)
 
         # 记忆存储：使用线程池异步执行，不阻塞对话回复
         if orchestrator is not None and reply:
@@ -239,7 +246,7 @@ def chat_stream_start(user_input: str) -> str:
     user_input = user_input.strip()
 
     # 插件管道：预处理用户输入
-    user_input = _plugin_manager.pre_process(user_input)
+    user_input = _get_plugin_manager().pre_process(user_input)
 
     # 注入记忆和世界书上下文
     _inject_context(player, user_input, orchestrator)
@@ -268,7 +275,7 @@ def chat_stream_start(user_input: str) -> str:
                     full_reply = token[len("__DONE__:"):]
                 elif token.startswith("__ERROR__:"):
                     error_msg = token[len("__ERROR__:"):]
-                    _log.error(f"[流式对话] 角色扮演器返回错误: {error_msg}")
+                    _log.debug(f"[流式对话] 角色扮演器返回错误: {error_msg}")
                     stream["error"] = error_msg
                     token_queue.put(json.dumps({"status": "error", "message": error_msg}))
                     return
@@ -280,19 +287,19 @@ def chat_stream_start(user_input: str) -> str:
                 _state._executor.submit(_auto_remember, user_input, full_reply)
 
             # 插件管道：后处理 AI 回复（流式对话）
-            full_reply = _plugin_manager.post_process(full_reply)
-            _plugin_manager.on_turn_end(user_input, full_reply)
+            full_reply = _get_plugin_manager().post_process(full_reply)
+            _get_plugin_manager().on_turn_end(user_input, full_reply)
 
             stream["full_reply"] = full_reply
             token_queue.put(json.dumps({"status": "done", "reply": full_reply}))
             _log.debug(f"[流式对话] 线程完成: reply_len={len(full_reply)}, error={stream.get('error')}")
         except RolePlayerError as e:
-            _log.error(f"[流式对话] RolePlayerError: {e}")
+            _log.debug(f"[流式对话] RolePlayerError: {e}")
             stream["error"] = str(e)
             token_queue.put(json.dumps({"status": "error", "message": str(e)}))
         except Exception as e:
-            _log.error(f"[流式对话] 后台线程未知错误: {e}")
-            _log.error(f"[流式对话] 异常详情: {traceback.format_exc()}")
+            _log.debug(f"[流式对话] 后台线程未知错误: {e}")
+            _log.debug(f"[流式对话] 异常详情: {traceback.format_exc()}")
             stream["error"] = str(e)
             token_queue.put(json.dumps({"status": "error", "message": f"内部错误: {e}"}))
         finally:
@@ -347,7 +354,7 @@ def chat_stream_poll(stream_id: str) -> str:
         return json.dumps({"status": "error", "message": "对话超时（超过5分钟无响应），请重试"})
 
     if stream["done"]:
-        # 清理已结束的流会话
+        # 在锁内清理已结束的流会话
         with _streams_lock:
             _streams.pop(stream_id, None)
         if stream["error"]:
@@ -385,9 +392,8 @@ def chat_stream(user_input: str):
         poll_json = json.loads(poll_result)
         status = poll_json.get("status")
 
-        if status == "batch":
-            for event_str in poll_json.get("events", []):
-                results.append(event_str)
+        if status == "streaming":
+            results.append(poll_result)
         elif status in ("done", "error"):
             results.append(poll_result)
             break
@@ -404,13 +410,11 @@ def _auto_remember(user_input: str, ai_reply: str) -> None:
         return
 
     try:
-        from src.utils.time_utils import format_timestamp_iso
         turn_num = _ctx.increment_turn()
         turn_id = f"turn_{turn_num}_{format_timestamp_iso()}"
         orchestrator.remember(turn_id, user_input, ai_reply)
     except Exception as e:
-        from src.utils.logger import get_logger as _get_logger
-        _get_logger().warning(f"[自动记忆] 存储失败（对话不受影响）: {e}")
+        _log.warning(f"[自动记忆] 存储失败（对话不受影响）: {e}")
 
 
 def reset() -> dict:

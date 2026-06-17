@@ -27,6 +27,7 @@ from ._core import (
     chat_stream,
     chat_stream_start,
     chat_stream_poll,
+    chat_stream_cancel,
     reset,
     get_card_info,
     set_api_key,

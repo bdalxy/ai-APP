@@ -1,1 +1,0 @@
-# test_world_book - 世界书测试

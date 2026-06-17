@@ -84,7 +84,7 @@
 - **行号**: 第 350-354 行
 - **问题描述**:
   当 `cryptography` 库不可用时，记忆导出功能使用 XOR 加密作为回退方案。XOR 加密极弱，有密钥即可轻易解密。
-  实际上，`cryptography` 库在 Chaquopy 环境中可通过 pip 安装，且 `vector_store.py` 的加密模块 `_init_encryption()` 已经妥善处理了 Fernet → XOR 的降级路径。
+  实际上，`cryptography` 库在 Chaquopy 环境中可通过 pip 安装，且 `vector_store.py` 的加密模块 `_init_encryption()` 已经妥善处理了 Fernet -> XOR 的降级路径。
   但 `_memory.py` 的导出加密是独立的实现，与 `vector_store.py` 的加密体系不共享逻辑。
 - **修复建议**:
   1. 移除 XOR 回退，当 `cryptography` 不可用时返回错误提示而非使用弱加密。
@@ -266,6 +266,62 @@
 
 ---
 
+### C5-04: 空异常处理检查
+
+| 检查项 | 检查范围 | 结果 |
+|---|---|---|
+| Python `except ... : pass` | `android/app/src/main/python/` 全部项目代码 | **未发现** |
+| Kotlin `catch {}` 空块 | `android/app/src/main/java/` 全部 .kt 文件 | **未发现** |
+
+**结论**: 项目代码中不存在空异常处理（静默吞错）问题。所有异常处理都有日志记录或错误上报。
+
+---
+
+### C5-05: 硬编码密钥检查
+
+| 检查项 | 检查模式 | 结果 |
+|---|---|---|
+| DeepSeek API Key (`sk-` 前缀) | `sk-[a-zA-Z0-9]{20,}` | **未发现** |
+| 其他密钥/密码 | 全文搜索 | **未发现** |
+
+**结论**: 项目代码中不存在硬编码的 API Key 或密码。API Key 通过 `SettingsDetailActivity` 用户输入和 `AppConfig` 加密存储，符合安全规范。
+
+---
+
+### C5-06: 资源泄漏检查
+
+| 检查项 | 检查范围 | 结果 |
+|---|---|---|
+| 文件句柄 | `open()` 调用是否使用 `with` 上下文管理器 | **全部正确** |
+| 数据库连接 | SQLite 连接是否有关闭逻辑 | **正确** |
+| HTTP Session | `requests.Session` 是否关闭 | **正确** |
+
+**结论**: 项目代码中不存在资源泄漏问题。文件操作、数据库连接、HTTP 会话均有正确的关闭逻辑。
+
+---
+
+### C5-07: 布局文件控件 ID 引用检查
+
+所有布局文件使用 Android ViewBinding 机制，Kotlin 代码通过自动生成的绑定类访问控件。
+
+| 布局文件 | 对应的 Binding/引用方式 | Kotlin 使用文件 | 状态 |
+|---|---|---|---|
+| `activity_main.xml` | `ActivityMainBinding` | MainActivity.kt | 正常 |
+| `activity_settings.xml` | `ActivitySettingsBinding` | SettingsActivity.kt | 正常 |
+| `activity_character.xml` | `ActivityCharacterBinding` | CharacterActivity.kt | 正常 |
+| `activity_memory_manage.xml` | `ActivityMemoryManageBinding` | MemoryManageActivity.kt | 正常 |
+| `activity_plugin_manage.xml` | 直接 `findViewById` | PluginManageActivity.kt | 正常 |
+| `item_message.xml` | Adapter `findViewById` | ChatAdapter.kt | 正常 |
+| `item_memory.xml` | Adapter `findViewById` | MemoryAdapter.kt | 正常 |
+| `item_plugin_card.xml` | Adapter `findViewById` | PluginAdapter.kt | 正常 |
+| `item_character_card.xml` | Adapter `findViewById` | CharacterListAdapter.kt | 正常 |
+| `activity_character_manage.xml` | `ActivityCharacterManageBinding` | CharacterManageActivity.kt | 正常 |
+| `activity_character_edit.xml` | `ActivityCharacterEditBinding` | CharacterEditActivity.kt | 正常 |
+
+**结论**: 所有布局文件中的控件 ID 均被对应的 Kotlin 代码正确引用，无孤立 ID 或缺失引用。
+
+---
+
 ## 六、未完成标记 (TODO/FIXME/HACK)
 
 ### 项目代码中的标记
@@ -287,6 +343,15 @@
 | **P0** (语法/编译错误) | **3** | 包括 1 个 Python NameError、1 个 Kotlin-Python 函数名不匹配、1 个 AndroidManifest 错误声明 |
 | **P1** (逻辑缺陷/安全隐患) | **7** | 包括配置不一致、弱加密回退、SharedPreferences 分裂、日志泄露风险等 |
 | **P2** (代码质量问题) | **6** | 包括重复导入、死代码、重复 Python 实例获取、字段名不一致等 |
+
+### 专项检查结果
+
+| 检查项 | 结果 |
+|---|---|
+| 空异常处理 | 未发现（所有异常处理均有日志记录） |
+| 硬编码密钥 | 未发现（API Key 通过加密存储） |
+| 资源泄漏 | 未发现（文件/数据库/HTTP 连接均有正确关闭逻辑） |
+| 布局控件 ID 引用 | 全部正确（ViewBinding + findViewById 均匹配） |
 
 ### 整体评价
 

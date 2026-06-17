@@ -86,9 +86,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // 记忆摘要、世界书摘要、插件摘要 -- 在后台线程调用 Python，避免 UI 卡顿
         lifecycleScope.launch(Dispatchers.IO) {
+            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
             // 记忆摘要
             try {
-                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                 val result = module?.callAttr("get_memory_stats")?.toString() ?: "{}"
                 val json = JSONObject(result)
                 val count = json.optInt("total", 0)
@@ -103,7 +103,6 @@ class SettingsActivity : AppCompatActivity() {
 
             // 世界书摘要
             try {
-                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                 val result = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
                 val json = JSONObject(result)
                 val enabled = json.optJSONArray("enabled")
@@ -119,7 +118,6 @@ class SettingsActivity : AppCompatActivity() {
 
             // 插件摘要
             try {
-                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                 val result = module?.callAttr("get_plugin_count")?.toString() ?: "{}"
                 val json = JSONObject(result)
                 val total = json.optInt("total", 0)

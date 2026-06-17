@@ -338,8 +338,10 @@ def export_memories(password: str = "") -> dict:
         }
 
         if password:
+            if len(password) < 8:
+                return json.dumps({"status": "error", "message": "密码长度不足，至少需要 8 位"})
             salt = os.urandom(16)
-            key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000, dklen=32)
+            key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 600000, dklen=32)
             plaintext = json.dumps(all_memories, ensure_ascii=False).encode("utf-8")
             try:
                 from cryptography.fernet import Fernet
@@ -348,10 +350,7 @@ def export_memories(password: str = "") -> dict:
                 ciphertext = f.encrypt(plaintext)
                 encrypted = base64.b64encode(salt + ciphertext).decode("ascii")
             except ImportError:
-                ciphertext = bytes(
-                    plaintext[i] ^ key[i % len(key)] for i in range(len(plaintext))
-                )
-                encrypted = base64.b64encode(salt + ciphertext).decode("ascii")
+                return json.dumps({"status": "error", "message": "cryptography 库不可用，无法加密导出"})
             result["memories"] = encrypted
             result["encrypted"] = True
             _log.info("[导出] 已加密导出")

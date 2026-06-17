@@ -22,11 +22,6 @@ object AppConfig {
     private const val KEY_MAX_TOKENS = "max_tokens"
     private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
 
-    // ── 主动消息配置键 ──
-    private const val KEY_PROACTIVE_INTERVAL = "proactive_interval"
-    private const val KEY_PROACTIVE_QUIET_START = "proactive_quiet_start"
-    private const val KEY_PROACTIVE_QUIET_END = "proactive_quiet_end"
-
     // ── 主动消息间隔选项（公共常量，避免多处重复定义）──
     val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
     val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
@@ -125,34 +120,5 @@ object AppConfig {
 
     fun setExampleDialogues(context: Context, count: Int) {
         getPrefs(context).edit().putInt(KEY_EXAMPLE_DIALOGUES, count).apply()
-    }
-
-    // ── 主动消息配置（使用 app_prefs，由 SettingsDetailActivity 和 ProactiveWorker 直接管理）──
-
-    /** 主动消息发送间隔（小时），默认 3 */
-    fun getProactiveInterval(context: Context): Int {
-        return getPrefs(context).getInt(KEY_PROACTIVE_INTERVAL, 3)
-    }
-
-    fun setProactiveInterval(context: Context, hours: Int) {
-        getPrefs(context).edit().putInt(KEY_PROACTIVE_INTERVAL, hours).apply()
-    }
-
-    /** 静默时段开始时间（HH:mm），默认 23:00 */
-    fun getProactiveQuietStart(context: Context): String {
-        return getPrefs(context).getString(KEY_PROACTIVE_QUIET_START, "23:00") ?: "23:00"
-    }
-
-    fun setProactiveQuietStart(context: Context, time: String) {
-        getPrefs(context).edit().putString(KEY_PROACTIVE_QUIET_START, time).apply()
-    }
-
-    /** 静默时段结束时间（HH:mm），默认 07:00 */
-    fun getProactiveQuietEnd(context: Context): String {
-        return getPrefs(context).getString(KEY_PROACTIVE_QUIET_END, "07:00") ?: "07:00"
-    }
-
-    fun setProactiveQuietEnd(context: Context, time: String) {
-        getPrefs(context).edit().putString(KEY_PROACTIVE_QUIET_END, time).apply()
     }
 }
