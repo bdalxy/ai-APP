@@ -21,7 +21,6 @@ class SettingsActivity : AppCompatActivity() {
         private val INTERVAL_MS = AppConfig.INTERVAL_MS
     }
 
-    private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
     private lateinit var binding: ActivitySettingsBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,12 +74,12 @@ class SettingsActivity : AppCompatActivity() {
         val maxTk = AppConfig.getMaxTokens(this)
         binding.tvChatSummary.text = "${ctxSize} token · 创意度${tempLabel} · 回复${maxTk}字"
 
-        // 主动消息摘要
-        val enabled = prefs.getBoolean("proactive_enabled", false)
-        val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
+        // 主动消息摘要（统一使用 AppConfig 读取，避免 SharedPreferences 分裂）
+        val enabled = AppConfig.getProactiveEnabled(this)
+        val intervalMs = AppConfig.getProactiveInterval(this)
         val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
-        val start = prefs.getString("quiet_start", "") ?: ""
-        val end = prefs.getString("quiet_end", "") ?: ""
+        val start = AppConfig.getQuietStart(this)
+        val end = AppConfig.getQuietEnd(this)
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "免打扰 $start-$end" else "无免打扰"
         binding.tvProactiveSummary.text = if (enabled) "已开启 · $intervalLabel · $quietLabel" else "已关闭"
 

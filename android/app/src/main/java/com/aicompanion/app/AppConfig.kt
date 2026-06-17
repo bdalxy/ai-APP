@@ -22,6 +22,12 @@ object AppConfig {
     private const val KEY_MAX_TOKENS = "max_tokens"
     private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
 
+    // ── 主动消息配置（proactive）──
+    private const val KEY_PROACTIVE_ENABLED = "proactive_enabled"
+    private const val KEY_PROACTIVE_INTERVAL = "proactive_interval"
+    private const val KEY_QUIET_START = "quiet_start"
+    private const val KEY_QUIET_END = "quiet_end"
+
     // ── 主动消息间隔选项（公共常量，避免多处重复定义）──
     val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
     val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
@@ -120,5 +126,49 @@ object AppConfig {
 
     fun setExampleDialogues(context: Context, count: Int) {
         getPrefs(context).edit().putInt(KEY_EXAMPLE_DIALOGUES, count).apply()
+    }
+
+    // ── 主动消息配置（proactive）──
+
+    fun getProactiveEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_PROACTIVE_ENABLED, false)
+    }
+
+    fun setProactiveEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_PROACTIVE_ENABLED, enabled).apply()
+    }
+
+    fun getProactiveInterval(context: Context): Long {
+        return getPrefs(context).getLong(KEY_PROACTIVE_INTERVAL, DEFAULT_INTERVAL_MS)
+    }
+
+    fun setProactiveInterval(context: Context, intervalMs: Long) {
+        getPrefs(context).edit().putLong(KEY_PROACTIVE_INTERVAL, intervalMs).apply()
+    }
+
+    fun getQuietStart(context: Context): String {
+        return getPrefs(context).getString(KEY_QUIET_START, "") ?: ""
+    }
+
+    fun setQuietStart(context: Context, start: String) {
+        getPrefs(context).edit().putString(KEY_QUIET_START, start).apply()
+    }
+
+    fun getQuietEnd(context: Context): String {
+        return getPrefs(context).getString(KEY_QUIET_END, "") ?: ""
+    }
+
+    fun setQuietEnd(context: Context, end: String) {
+        getPrefs(context).edit().putString(KEY_QUIET_END, end).apply()
+    }
+
+    /** 一次性设置免打扰时段 */
+    fun setQuietHours(context: Context, start: String, end: String) {
+        getPrefs(context).edit().putString(KEY_QUIET_START, start).putString(KEY_QUIET_END, end).apply()
+    }
+
+    /** 清除免打扰时段 */
+    fun clearQuietHours(context: Context) {
+        getPrefs(context).edit().remove(KEY_QUIET_START).remove(KEY_QUIET_END).apply()
     }
 }

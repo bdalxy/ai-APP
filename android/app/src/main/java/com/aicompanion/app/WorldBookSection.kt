@@ -1,17 +1,23 @@
 package com.aicompanion.app
 
 import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -26,57 +32,88 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
     private fun getModule() = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
 
     /**
-     * 构建世界书管理页面
+     * 构建世界书管理页面（异步加载，避免主线程调用 Python）
      */
     fun build() {
-        try {
-            val module = getModule()
-            val result = module?.callAttr("list_world_books")?.toString() ?: "{}"
-            val json = JSONObject(result)
-            if (json.optString("status") != "ok") {
-                activity.addEmptyHint("世界书加载失败")
-                return
-            }
-            val books = json.optJSONArray("books") ?: JSONArray()
+        activity.addSectionTitle("世界书（知识/常识注入）")
 
-            val enabledResult = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
-            val enabledJson = JSONObject(enabledResult)
-            val enabledArray = enabledJson.optJSONArray("enabled")
-            val enabledSet = mutableSetOf<String>()
-            if (enabledArray != null) {
-                for (i in 0 until enabledArray.length()) enabledSet.add(enabledArray.optString(i, ""))
-            }
+        // 添加加载指示器
+        val loadingLayout = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(0, 32, 0, 32)
+        }
+        loadingLayout.addView(ProgressBar(activity).apply {
+            indeterminateTintList = ContextCompat.getColorStateList(activity, R.color.primary)
+        })
+        loadingLayout.addView(TextView(activity).apply {
+            text = "加载中..."; textSize = 14f
+            setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
+            setPadding(0, 12, 0, 0)
+            gravity = Gravity.CENTER
+        })
+        activity.contentLayout.addView(loadingLayout)
 
-            activity.addSectionTitle("世界书（知识/常识注入）")
+        // 在后台线程调用 Python，避免阻塞 UI
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val module = getModule()
+                val result = module?.callAttr("list_world_books")?.toString() ?: "{}"
+                val json = JSONObject(result)
+                if (json.optString("status") != "ok") {
+                    withContext(Dispatchers.Main) {
+                        activity.contentLayout.removeView(loadingLayout)
+                        activity.addEmptyHint("世界书加载失败")
+                    }
+                    return@launch
+                }
+                val books = json.optJSONArray("books") ?: JSONArray()
 
-            if (books.length() == 0) {
-                activity.addEmptyHint("暂无世界书，点击下方按钮创建")
-            } else {
-                activity.addHintText("点击条目编辑，右滑开关启用/禁用")
-                activity.addDivider()
-                for (i in 0 until books.length()) {
-                    val book = books.getJSONObject(i)
-                    val name = book.optString("name", "")
-                    val description = book.optString("description", "")
-                    val entries = book.optInt("entry_count", 0)
-                    addWorldBookRow(name, description, entries, name in enabledSet)
-                    if (i < books.length() - 1) activity.addDivider()
+                val enabledResult = module?.callAttr("get_enabled_world_books")?.toString() ?: "{}"
+                val enabledJson = JSONObject(enabledResult)
+                val enabledArray = enabledJson.optJSONArray("enabled")
+                val enabledSet = mutableSetOf<String>()
+                if (enabledArray != null) {
+                    for (i in 0 until enabledArray.length()) enabledSet.add(enabledArray.optString(i, ""))
+                }
+
+                // 切回主线程更新 UI
+                withContext(Dispatchers.Main) {
+                    activity.contentLayout.removeView(loadingLayout)
+
+                    if (books.length() == 0) {
+                        activity.addEmptyHint("暂无世界书，点击下方按钮创建")
+                    } else {
+                        activity.addHintText("点击条目编辑，右滑开关启用/禁用")
+                        activity.addDivider()
+                        for (i in 0 until books.length()) {
+                            val book = books.getJSONObject(i)
+                            val name = book.optString("name", "")
+                            val description = book.optString("description", "")
+                            val entries = book.optInt("entry_count", 0)
+                            addWorldBookRow(name, description, entries, name in enabledSet)
+                            if (i < books.length() - 1) activity.addDivider()
+                        }
+                    }
+
+                    activity.addDivider()
+                    // 创建按钮
+                    val createBtn = Button(activity).apply {
+                        text = "＋ 创建世界书"; textSize = 14f
+                        setTextColor(ContextCompat.getColor(activity, R.color.primary))
+                        setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
+                        setPadding(0, 12, 0, 12)
+                        setOnClickListener { showCreateWorldBookDialog() }
+                    }
+                    activity.contentLayout.addView(createBtn)
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsDetail", "worldBook 失败: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    activity.contentLayout.removeView(loadingLayout)
+                    activity.addEmptyHint("世界书加载失败: ${e.message}")
                 }
             }
-
-            activity.addDivider()
-            // 创建按钮
-            val createBtn = Button(activity).apply {
-                text = "＋ 创建世界书"; textSize = 14f
-                setTextColor(ContextCompat.getColor(activity, R.color.primary))
-                setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
-                setPadding(0, 12, 0, 12)
-                setOnClickListener { showCreateWorldBookDialog() }
-            }
-            activity.contentLayout.addView(createBtn)
-        } catch (e: Exception) {
-            Log.e("SettingsDetail", "worldBook 失败: ${e.message}", e)
-            activity.addEmptyHint("世界书加载失败: ${e.message}")
         }
     }
 
@@ -116,26 +153,35 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         val switch = SwitchCompat(activity).apply {
             isChecked = isEnabled
             setOnCheckedChangeListener { _, checked ->
-                try {
-                    val module = getModule()
-                    if (checked) {
-                        val r = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
-                        val j = JSONObject(r)
-                        if (j.optString("status") == "ok") {
-                            saveEnabledWorldBooks()
-                            Toast.makeText(activity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
+                // 在后台线程调用 Python，避免阻塞 UI
+                activity.lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        val module = getModule()
+                        if (checked) {
+                            val r = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
+                            val j = JSONObject(r)
+                            withContext(Dispatchers.Main) {
+                                if (j.optString("status") == "ok") {
+                                    saveEnabledWorldBooks()
+                                    Toast.makeText(activity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    switch.isChecked = false
+                                    Toast.makeText(activity, "启用失败: ${j.optString("message")}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         } else {
-                            isChecked = false
-                            Toast.makeText(activity, "启用失败: ${j.optString("message")}", Toast.LENGTH_SHORT).show()
+                            module?.callAttr("disable_world_book", name)
+                            withContext(Dispatchers.Main) {
+                                saveEnabledWorldBooks()
+                                Toast.makeText(activity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    } else {
-                        module?.callAttr("disable_world_book", name)
-                        saveEnabledWorldBooks()
-                        Toast.makeText(activity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            switch.isChecked = !checked
+                            Toast.makeText(activity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                } catch (e: Exception) {
-                    isChecked = !checked
-                    Toast.makeText(activity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

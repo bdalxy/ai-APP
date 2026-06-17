@@ -403,8 +403,8 @@ class SettingsDetailActivity : AppCompatActivity() {
     // ======================== 主动消息 ========================
 
     private fun buildProactivePage() {
-        val enabled = prefs.getBoolean("proactive_enabled", false)
-        val intervalMs = prefs.getLong("proactive_interval", INTERVAL_MS[2])
+        val enabled = AppConfig.getProactiveEnabled(this)
+        val intervalMs = AppConfig.getProactiveInterval(this)
         val intervalIdx = INTERVAL_MS.indexOf(intervalMs)
         val intervalLabel = if (intervalIdx >= 0) {
             INTERVAL_OPTIONS[intervalIdx]
@@ -412,8 +412,8 @@ class SettingsDetailActivity : AppCompatActivity() {
             val hours = intervalMs / 3600000.0
             if (hours == hours.toLong().toDouble()) "每${hours.toLong()}小时" else "每${"%.1f".format(hours)}小时"
         }
-        val start = prefs.getString("quiet_start", "") ?: ""
-        val end = prefs.getString("quiet_end", "") ?: ""
+        val start = AppConfig.getQuietStart(this)
+        val end = AppConfig.getQuietEnd(this)
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
 
         addSectionTitle("主动消息")
@@ -431,7 +431,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val sw = SwitchCompat(this).apply {
             isChecked = enabled
             setOnCheckedChangeListener { _, isChecked ->
-                prefs.edit().putBoolean("proactive_enabled", isChecked).apply()
+                AppConfig.setProactiveEnabled(this@SettingsDetailActivity, isChecked)
                 if (isChecked) {
                     ProactiveService.schedule(this@SettingsDetailActivity)
                 } else {
@@ -458,7 +458,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                         dialog.dismiss()
                         showCustomIntervalDialog()
                     } else {
-                        prefs.edit().putLong("proactive_interval", INTERVAL_MS[which]).apply()
+                        AppConfig.setProactiveInterval(this@SettingsDetailActivity, INTERVAL_MS[which])
                         ProactiveService.reschedule(this@SettingsDetailActivity)
                         dialog.dismiss()
                         recreate()
@@ -480,13 +480,13 @@ class SettingsDetailActivity : AppCompatActivity() {
                 .setSingleChoiceItems(options, idx) { dialog, which ->
                     when (which) {
                         0 -> {
-                            prefs.edit().remove("quiet_start").remove("quiet_end").apply()
+                            AppConfig.clearQuietHours(this@SettingsDetailActivity)
                             dialog.dismiss()
                             recreate()
                         }
                         1, 2, 3 -> {
                             val parts = options[which].split(" - ")
-                            prefs.edit().putString("quiet_start", parts[0].trim()).putString("quiet_end", parts[1].trim()).apply()
+                            AppConfig.setQuietHours(this@SettingsDetailActivity, parts[0].trim(), parts[1].trim())
                             dialog.dismiss()
                             recreate()
                         }
@@ -525,7 +525,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                     Toast.makeText(this, "最低间隔为 30 分钟（0.5 小时）", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                prefs.edit().putLong("proactive_interval", intervalMs).apply()
+                AppConfig.setProactiveInterval(this@SettingsDetailActivity, intervalMs)
                 ProactiveService.reschedule(this@SettingsDetailActivity)
                 recreate()
             }
@@ -537,8 +537,8 @@ class SettingsDetailActivity : AppCompatActivity() {
      * 用户输入开始和结束时间（HH:mm 格式）。
      */
     private fun showCustomQuietDialog() {
-        val currentStart = prefs.getString("quiet_start", "") ?: ""
-        val currentEnd = prefs.getString("quiet_end", "") ?: ""
+        val currentStart = AppConfig.getQuietStart(this)
+        val currentEnd = AppConfig.getQuietEnd(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 16, 48, 16)
@@ -573,7 +573,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 val s = startInput.text.toString().trim()
                 val e = endInput.text.toString().trim()
                 if (s.isNotEmpty() && e.isNotEmpty() && s.matches(Regex("\\d{1,2}:\\d{2}")) && e.matches(Regex("\\d{1,2}:\\d{2}"))) {
-                    prefs.edit().putString("quiet_start", s).putString("quiet_end", e).apply()
+                    AppConfig.setQuietHours(this@SettingsDetailActivity, s, e)
                     recreate()
                 } else {
                     Toast.makeText(this, "请输入有效的时间格式（HH:mm）", Toast.LENGTH_SHORT).show()
@@ -682,16 +682,20 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
 
     private fun applyAllParams() {
-        try {
-            val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-            val ctx = AppConfig.getContextSize(this)
-            val temp = AppConfig.getTemperature(this).toDouble()
-            val maxTk = AppConfig.getMaxTokens(this)
-            val dialogues = AppConfig.getExampleDialogues(this)
-            val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
-            module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)
-        } catch (e: Exception) {
-            Toast.makeText(this, "参数应用失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+                val ctx = AppConfig.getContextSize(this@SettingsDetailActivity)
+                val temp = AppConfig.getTemperature(this@SettingsDetailActivity).toDouble()
+                val maxTk = AppConfig.getMaxTokens(this@SettingsDetailActivity)
+                val dialogues = AppConfig.getExampleDialogues(this@SettingsDetailActivity)
+                val model = AppConfig.getModel(this@SettingsDetailActivity).let { if (it.isBlank()) "deepseek-v4-flash" else it }
+                module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsDetailActivity, "参数应用失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 }

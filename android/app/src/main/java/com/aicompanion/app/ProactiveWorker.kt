@@ -32,17 +32,15 @@ class ProactiveWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            val prefs = applicationContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-
-            // 1. 检查主动消息是否开启
-            if (!prefs.getBoolean("proactive_enabled", false)) {
+            // 1. 检查主动消息是否开启（统一使用 AppConfig 读取）
+            if (!AppConfig.getProactiveEnabled(applicationContext)) {
                 Log.d(TAG, "主动消息未开启，跳过")
                 return@withContext Result.success()
             }
 
-            // 2. 免打扰时段检查
-            val quietStart = prefs.getString("quiet_start", "") ?: ""
-            val quietEnd = prefs.getString("quiet_end", "") ?: ""
+            // 2. 免打扰时段检查（统一使用 AppConfig 读取）
+            val quietStart = AppConfig.getQuietStart(applicationContext)
+            val quietEnd = AppConfig.getQuietEnd(applicationContext)
             if (quietStart.isNotEmpty() && quietEnd.isNotEmpty()) {
                 try {
                     val now = LocalTime.now()
