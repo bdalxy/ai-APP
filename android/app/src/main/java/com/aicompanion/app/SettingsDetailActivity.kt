@@ -24,7 +24,7 @@ import org.json.JSONObject
 
 /**
  * 设置子页面：根据传入的 type 参数展示不同设置内容。
- * type: account | chat | proactive | world_book
+ * type: account | chat | proactive | world_book | voice
  */
 class SettingsDetailActivity : AppCompatActivity() {
 
@@ -49,6 +49,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             "chat" -> "对话设置"
             "proactive" -> "主动消息"
             "world_book" -> "世界书"
+            "voice" -> "语音设置"
             else -> "设置"
         }
 
@@ -103,6 +104,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             "chat" -> buildChatPage()
             "proactive" -> buildProactivePage()
             "world_book" -> buildWorldBookPage()
+            "voice" -> buildVoicePage()
         }
 
         root.addView(contentLayout)
@@ -586,6 +588,102 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun buildWorldBookPage() {
         WorldBookSection(this).build()
+    }
+
+    // ======================== 语音设置 ========================
+
+    private fun buildVoicePage() {
+        val speechRate = AppConfig.getTtsSpeechRate(this)
+        val pitch = AppConfig.getTtsPitch(this)
+        val autoRead = AppConfig.getAutoReadAloud(this)
+        val lang = AppConfig.getVoiceRecognitionLang(this)
+        val langLabel = when (lang) {
+            "zh-CN" -> "中文（普通话）"
+            "en-US" -> "English (US)"
+            "ja-JP" -> "日本語"
+            else -> lang
+        }
+
+        addSectionTitle("语音合成（TTS）")
+
+        // TTS 语速
+        addClickRow("语速", "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) {
+            showTtsRateDialog()
+        }
+        addDivider()
+
+        // TTS 音调
+        addClickRow("音调", "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) {
+            showTtsPitchDialog()
+        }
+        addDivider()
+
+        // 自动朗读开关
+        val toggleRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 12, 0, 12)
+        }
+        toggleRow.addView(TextView(this).apply {
+            text = "自动朗读AI回复"
+            textSize = 16f
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val sw = SwitchCompat(this).apply {
+            isChecked = autoRead
+            setOnCheckedChangeListener { _, isChecked ->
+                AppConfig.setAutoReadAloud(this@SettingsDetailActivity, isChecked)
+            }
+        }
+        toggleRow.addView(sw)
+        contentLayout.addView(toggleRow)
+        addDivider()
+
+        addSectionTitle("语音识别（ASR）")
+
+        // 语音识别语言
+        addClickRow("识别语言", langLabel, iconRes = R.drawable.ic_language) {
+            showVoiceLangDialog()
+        }
+    }
+
+    private fun showTtsRateDialog() {
+        val current = AppConfig.getTtsSpeechRate(this)
+        val labels = arrayOf("0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x")
+        val values = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+        val idx = values.indexOfFirst { it >= current - 0.01f }.coerceAtLeast(0)
+        showSliderDialog("TTS 语速", "调整AI语音朗读的快慢", labels, labels, idx, labels.size - 1) { which ->
+            AppConfig.setTtsSpeechRate(this, values[which])
+            recreate()
+        }
+    }
+
+    private fun showTtsPitchDialog() {
+        val current = AppConfig.getTtsPitch(this)
+        val labels = arrayOf("0.5", "0.75", "1.0", "1.25", "1.5", "1.75", "2.0")
+        val values = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+        val idx = values.indexOfFirst { it >= current - 0.01f }.coerceAtLeast(0)
+        showSliderDialog("TTS 音调", "调整AI语音的音调高低", labels, labels, idx, labels.size - 1) { which ->
+            AppConfig.setTtsPitch(this, values[which])
+            recreate()
+        }
+    }
+
+    private fun showVoiceLangDialog() {
+        val current = AppConfig.getVoiceRecognitionLang(this)
+        val options = arrayOf("中文（普通话）", "English (US)", "日本語")
+        val values = arrayOf("zh-CN", "en-US", "ja-JP")
+        val idx = values.indexOf(current).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("语音识别语言")
+            .setSingleChoiceItems(options, idx) { dialog, which ->
+                AppConfig.setVoiceRecognitionLang(this, values[which])
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     internal fun dip(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()

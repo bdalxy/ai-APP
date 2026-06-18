@@ -93,8 +93,7 @@
     <string name="stats_total_memories">总记忆数：-- 条</string>
     <string name="status_loading">加载中...</string>
     <string name="hint_search_memories">搜索 AI 记忆内容...</string>
-    <string name="empty_memories">AI 还没有形成记忆
-聊聊天，AI 会自动从对话中提取重要信息</string>
+    <string name="empty_memories">AI 还没有形成记忆\n聊聊天，AI 会自动从对话中提取重要信息</string>
     <string name="action_load_more">加载更多...</string>
     <string name="action_clear_all_memories">清空全部记忆</string>
     <string name="desc_memory_ai_perspective">以下是 AI 对你们对话的记忆（以 AI 的视角记录）</string>
@@ -161,14 +160,10 @@
     <!-- ===== 记忆管理页面 (MemoryManageActivity) 运行时文本 ===== -->
     <string name="label_total_memories_format">总记忆：%d 条</string>
     <string name="title_delete_memory">删除记忆</string>
-    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？
-
-"%2$s"</string>
+    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n"%2$s"</string>
     <string name="msg_no_memory_to_clear">当前没有记忆可以清空。</string>
     <string name="title_clear_all_memories">清空全部记忆</string>
-    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？
-
-此操作不可撤销！</string>
+    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？\n\n此操作不可撤销！</string>
 
     <!-- ===== 记忆类型标签 ===== -->
     <string name="label_memory_type_episodic">情景记忆</string>
@@ -191,4 +186,25 @@
     <string name="plugin_web">联网</string>
     <string name="plugin_reserved">预留</string>
     <string name="plugin_more_coming">更多插件即将推出…</string>
+
+    <!-- ===== 语音功能 ===== -->
+    <string name="cd_voice_input">语音输入</string>
+    <string name="cd_play_voice">播放语音</string>
+    <string name="voice_recording">正在录音…松开发送，上滑取消</string>
+    <string name="voice_listening">正在聆听…</string>
+    <string name="voice_cancel_hint">松开取消</string>
+    <string name="voice_too_short">录音时间太短</string>
+    <string name="voice_permission_required">需要录音权限才能使用语音功能</string>
+    <string name="voice_no_match">未识别到语音</string>
+    <string name="voice_not_available">设备不支持语音识别</string>
+    <string name="voice_tts_not_available">TTS语音引擎不可用</string>
+    <string name="voice_tts_initializing">语音引擎初始化中…</string>
+
+    <!-- ===== 语音设置页 ===== -->
+    <string name="section_voice_settings">语音设置</string>
+    <string name="cd_voice_settings">语音设置</string>
+    <string name="label_tts_speech_rate">语速</string>
+    <string name="label_tts_pitch">音调</string>
+    <string name="label_auto_read_aloud">自动朗读AI回复</string>
+    <string name="label_voice_recognition_lang">识别语言</string>
 </resources>

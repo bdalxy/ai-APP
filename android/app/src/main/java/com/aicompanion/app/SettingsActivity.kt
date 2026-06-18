@@ -51,6 +51,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.cardPlugin.setOnClickListener {
             startActivity(Intent(this, PluginManageActivity::class.java))
         }
+        binding.cardVoice.setOnClickListener {
+            startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "voice"))
+        }
 
         refreshUI()
     }
@@ -130,6 +133,17 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         }
+
+        // 语音摘要（本地读取，无需后台线程）
+        val autoRead = AppConfig.getAutoReadAloud(this)
+        val lang = AppConfig.getVoiceRecognitionLang(this)
+        val langLabel = when (lang) {
+            "zh-CN" -> "中文"
+            "en-US" -> "English"
+            "ja-JP" -> "日本語"
+            else -> lang
+        }
+        binding.tvVoiceSummary.text = if (autoRead) "自动朗读 · ${langLabel}" else "未开启自动朗读 · ${langLabel}"
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
     }

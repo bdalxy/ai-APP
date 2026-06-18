@@ -22,6 +22,19 @@ object AppConfig {
     private const val KEY_MAX_TOKENS = "max_tokens"
     private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
 
+    // ── 语音设置（voice）──
+    private const val KEY_TTS_SPEECH_RATE = "tts_speech_rate"
+    private const val KEY_TTS_PITCH = "tts_pitch"
+    private const val KEY_AUTO_READ_ALOUD = "auto_read_aloud"
+    private const val KEY_VOICE_RECOGNITION_LANG = "voice_recognition_lang"
+
+    /** 默认 TTS 语速 */
+    const val DEFAULT_TTS_SPEECH_RATE = 1.0f
+    /** 默认 TTS 音调 */
+    const val DEFAULT_TTS_PITCH = 1.0f
+    /** 默认语音识别语言 */
+    const val DEFAULT_VOICE_RECOGNITION_LANG = "zh-CN"
+
     // ── 主动消息配置（proactive）──
     private const val KEY_PROACTIVE_ENABLED = "proactive_enabled"
     private const val KEY_PROACTIVE_INTERVAL = "proactive_interval"
@@ -126,6 +139,40 @@ object AppConfig {
 
     fun setExampleDialogues(context: Context, count: Int) {
         getPrefs(context).edit().putInt(KEY_EXAMPLE_DIALOGUES, count).apply()
+    }
+
+    // ── 语音设置（voice）──
+
+    fun getTtsSpeechRate(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_SPEECH_RATE, DEFAULT_TTS_SPEECH_RATE)
+    }
+
+    fun setTtsSpeechRate(context: Context, rate: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_SPEECH_RATE, rate).apply()
+    }
+
+    fun getTtsPitch(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
+    }
+
+    fun setTtsPitch(context: Context, pitch: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_PITCH, pitch).apply()
+    }
+
+    fun getAutoReadAloud(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_AUTO_READ_ALOUD, false)
+    }
+
+    fun setAutoReadAloud(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_AUTO_READ_ALOUD, enabled).apply()
+    }
+
+    fun getVoiceRecognitionLang(context: Context): String {
+        return getPrefs(context).getString(KEY_VOICE_RECOGNITION_LANG, DEFAULT_VOICE_RECOGNITION_LANG) ?: DEFAULT_VOICE_RECOGNITION_LANG
+    }
+
+    fun setVoiceRecognitionLang(context: Context, lang: String) {
+        getPrefs(context).edit().putString(KEY_VOICE_RECOGNITION_LANG, lang).apply()
     }
 
     // ── 主动消息配置（proactive）──
