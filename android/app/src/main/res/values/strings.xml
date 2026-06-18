@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 字符串资源文件：汇总所有布局中的硬编码文本 -->
 <resources>
-    <!-- ===== 应用名称 ===== -->
     <string name="app_name">AI 聊天</string>
-
-    <!-- ===== 通用按钮/图标文本 ===== -->
     <string name="btn_back_arrow">←</string>
     <string name="btn_back_arrow_label">← 返回</string>
     <string name="btn_menu">≡</string>
@@ -16,8 +13,6 @@
     <string name="btn_edit">✎</string>
     <string name="icon_chevron">›</string>
     <string name="btn_new_character">+ 新建</string>
-
-    <!-- ===== 通用 Content Description ===== -->
     <string name="cd_back">返回</string>
     <string name="cd_settings">设置</string>
     <string name="cd_search">搜索</string>
@@ -28,26 +23,18 @@
     <string name="cd_save_character">保存角色</string>
     <string name="cd_edit_character">编辑角色</string>
     <string name="cd_delete_character">删除角色</string>
-
-    <!-- ===== 聊天主页 (activity_main) ===== -->
     <string name="hint_input_message">说点什么...</string>
     <string name="hint_search_conversation">搜索对话内容...</string>
     <string name="search_result_count">找到 %d 条匹配</string>
     <string name="status_online">在线</string>
     <string name="tv_default_character_name">默认角色</string>
-
-    <!-- ===== 设置页 (activity_settings) ===== -->
     <string name="title_settings">设置</string>
-
-    <!-- 账户设置 -->
     <string name="section_account_settings">账户设置</string>
     <string name="label_api_key">API Key</string>
     <string name="status_not_configured">未配置</string>
     <string name="label_role_preset">角色预设</string>
     <string name="label_model_selection">模型选择</string>
     <string name="value_follow_preset">跟随预设</string>
-
-    <!-- 对话设置 -->
     <string name="section_chat_settings">对话设置</string>
     <string name="label_context_window">上下文窗口</string>
     <string name="label_temperature">创意度（温度）</string>
@@ -55,28 +42,18 @@
     <string name="label_example_dialogues">示例对话数</string>
     <string name="action_new_chat">开始新对话</string>
     <string name="action_clear_memory">清空对话记忆</string>
-
-    <!-- 对话设置默认值 -->
     <string name="default_context_size">2000</string>
     <string name="default_temperature">0.7</string>
     <string name="default_max_tokens">1000</string>
     <string name="default_example_dialogues">1条</string>
-
-    <!-- 主动消息 -->
     <string name="section_proactive_messages">主动消息</string>
     <string name="label_proactive_toggle">开启主动消息</string>
     <string name="label_send_frequency">发送频率</string>
     <string name="label_quiet_time">静默时段</string>
-
-    <!-- 主动消息默认值 -->
     <string name="default_proactive_interval">每3小时</string>
     <string name="value_not_set">不设置</string>
-
-    <!-- 记忆管理 -->
     <string name="label_memory_manage">AI 记忆管理</string>
     <string name="value_loading_ellipsis">...</string>
-
-    <!-- 关于 -->
     <string name="section_about">关于</string>
     <string name="section_world_book">世界书（知识/常识注入）</string>
     <string name="desc_world_book">勾选后 AI 将获得相应知识背景，在相关对话中自动注入</string>
@@ -84,24 +61,17 @@
     <string name="label_world_book_entries">%d条</string>
     <string name="label_version">版本号</string>
     <string name="app_version">v1.0.0</string>
-
-    <!-- 角色预设名称 -->
     <string name="preset_xiaomei">默认角色</string>
-
-    <!-- ===== 记忆管理页 (activity_memory_manage) ===== -->
     <string name="title_memory_manage">AI 的记忆</string>
     <string name="stats_total_memories">总记忆数：-- 条</string>
     <string name="status_loading">加载中...</string>
     <string name="hint_search_memories">搜索 AI 记忆内容...</string>
-    <string name="empty_memories">AI 还没有形成记忆\n聊聊天，AI 会自动从对话中提取重要信息</string>
+    <string name="empty_memories">AI 还没有形成记忆
+聊聊天，AI 会自动从对话中提取重要信息</string>
     <string name="action_load_more">加载更多...</string>
     <string name="action_clear_all_memories">清空全部记忆</string>
     <string name="desc_memory_ai_perspective">以下是 AI 对你们对话的记忆（以 AI 的视角记录）</string>
-
-    <!-- ===== 角色管理页 (activity_character_manage) ===== -->
     <string name="title_character_manage">角色管理</string>
-
-    <!-- ===== 角色编辑页 (activity_character_edit) ===== -->
     <string name="title_create_character">创建角色</string>
     <string name="title_edit_character">编辑角色</string>
     <string name="title_create_basic">快速创建</string>
@@ -113,34 +83,30 @@
     <string name="label_character_name">角色名称</string>
     <string name="hint_character_name">给角色起个名字</string>
     <string name="label_personality">性格特征</string>
-    <string name="hint_personality">描述角色的性格特点，如：温柔、活泼、善解人意</string>
+    <string name="hint_personality">描述角色的性格特点</string>
     <string name="label_speaking_style">说话风格</string>
-    <string name="hint_speaking_style">描述角色的说话方式，如语气、常用词、语速等</string>
+    <string name="hint_speaking_style">描述角色的说话方式</string>
     <string name="label_backstory">背景故事</string>
     <string name="hint_backstory">角色的出身、经历和世界观设定</string>
     <string name="label_greeting">开场白</string>
     <string name="hint_greeting">角色见到用户时说的第一句话</string>
-    <!-- P0-4 新字段标签 -->
     <string name="label_core_traits">核心特质</string>
-    <string name="hint_core_traits">用逗号分隔，如：温柔、傲娇、可靠</string>
+    <string name="hint_core_traits">用逗号分隔</string>
     <string name="label_taboo_topics">禁忌话题</string>
-    <string name="hint_taboo_topics">用逗号分隔，如：政治、暴力、死亡</string>
+    <string name="hint_taboo_topics">用逗号分隔</string>
     <string name="label_emotional_tendency">情感倾向</string>
     <string name="hint_emotional_tendency">格式：基调=温暖, 波动=平稳</string>
     <string name="label_role_anchor">角色锚点</string>
-    <string name="hint_role_anchor">用一句话（30-60字）定义角色本质</string>
+    <string name="hint_role_anchor">用一句话定义角色本质</string>
     <string name="label_self_identity">自我认同</string>
     <string name="hint_self_identity">角色对自身身份的认知声明</string>
-    <!-- 基础版/专业版切换 -->
-    <string name="link_switch_to_pro">切换到专业版，编辑更多细节</string>
+    <string name="link_switch_to_pro">切换到专业版</string>
     <string name="section_pro_fields">── 专业版字段 ──</string>
     <string name="dialog_create_mode_title">选择创建模式</string>
     <string name="dialog_create_mode_basic">基础版（快速创建）</string>
-    <string name="dialog_create_mode_basic_desc">仅需填写核心字段，快速开始对话</string>
+    <string name="dialog_create_mode_basic_desc">仅需填写核心字段</string>
     <string name="dialog_create_mode_pro">专业版（完整编辑）</string>
-    <string name="dialog_create_mode_pro_desc">编辑所有字段，打造精细角色</string>
-
-    <!-- ===== 角色卡页 (activity_character) ===== -->
+    <string name="dialog_create_mode_pro_desc">编辑所有字段</string>
     <string name="title_character_card">角色卡片</string>
     <string name="default_character_desc">请创建角色卡来开始对话</string>
     <string name="default_personality">请创建角色卡来设定性格</string>
@@ -150,60 +116,46 @@
     <string name="character_option_2">请创建角色卡</string>
     <string name="character_option_3">请创建角色卡</string>
     <string name="btn_custom_character_coming">创建自定义角色卡（即将推出）</string>
-
-    <!-- ===== 设置页卡片 contentDescription（无障碍） ===== -->
     <string name="cd_account_settings">账户设置</string>
     <string name="cd_chat_settings">对话设置</string>
     <string name="cd_proactive_messages">主动消息</string>
     <string name="cd_memory_manage">记忆管理</string>
     <string name="cd_world_book">世界书</string>
-
-    <!-- ===== 通用对话框/按钮文本 ===== -->
     <string name="btn_cancel">取消</string>
     <string name="btn_delete">删除</string>
     <string name="btn_confirm_clear">确认清空</string>
     <string name="btn_got_it">知道了</string>
     <string name="title_hint">提示</string>
     <string name="label_error_prefix">[错误]</string>
-
-    <!-- ===== 主页面 (MainActivity) 运行时文本 ===== -->
     <string name="status_initializing">正在初始化...</string>
     <string name="error_init_api_key">初始化失败：API Key 未配置</string>
     <string name="error_init_failed">初始化失败：%s</string>
-    <string name="toast_message_too_long">消息过长，请限制在2000字以内</string>
+    <string name="toast_message_too_long">消息过长</string>
     <string name="toast_conversation_failed">对话失败: %s</string>
     <string name="toast_save_failed">对话保存失败</string>
     <string name="toast_search_failed">搜索失败: %s</string>
     <string name="toast_export_failed">导出失败: %s</string>
-    <string name="toast_engine_not_init_export">引擎未初始化，无法导出</string>
+    <string name="toast_engine_not_init_export">引擎未初始化</string>
     <string name="toast_exported_to">已导出到: %s</string>
     <string name="title_export_dialog">导出对话历史</string>
     <string name="export_format_json">JSON (结构化)</string>
     <string name="export_format_txt">TXT (纯文本)</string>
     <string name="chooser_share_conversation">分享对话记录</string>
-
-    <!-- ===== 记忆管理页面 (MemoryManageActivity) 运行时文本 ===== -->
     <string name="label_total_memories_format">总记忆：%d 条</string>
     <string name="title_delete_memory">删除记忆</string>
-    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n\"%2$s\"</string>
+    <string name="msg_delete_memory_confirm">确定要删除这条记忆吗？</string>
     <string name="msg_no_memory_to_clear">当前没有记忆可以清空。</string>
     <string name="title_clear_all_memories">清空全部记忆</string>
-    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？\n\n此操作不可撤销！</string>
-
-    <!-- ===== 记忆类型标签 ===== -->
+    <string name="msg_clear_all_confirm">确定要删除全部记忆吗？</string>
     <string name="label_memory_type_episodic">情景记忆</string>
     <string name="label_memory_type_semantic">语义记忆</string>
     <string name="label_memory_type_user_fact">用户事实</string>
-
-    <!-- ===== 插件管理页面 (PluginManageActivity) ===== -->
     <string name="title_plugin_manage">插件管理</string>
     <string name="cd_plugin_manage">插件管理</string>
     <string name="cd_toggle_plugin">切换插件状态</string>
     <string name="msg_no_plugins">暂无可用插件</string>
     <string name="section_plugin_manage">插件管理</string>
     <string name="subtitle_plugin_manage">管理已安装的功能插件</string>
-
-    <!-- ===== 插件面板 (bottom_sheet_plugins) ===== -->
     <string name="plugin_panel_title">插件面板</string>
     <string name="plugin_image">图片</string>
     <string name="plugin_voice">语音</string>
@@ -211,32 +163,50 @@
     <string name="plugin_web">联网</string>
     <string name="plugin_reserved">预留</string>
     <string name="plugin_more_coming">更多插件即将推出…</string>
-
-    <!-- ===== 语音功能 ===== -->
     <string name="cd_voice_input">语音输入</string>
     <string name="cd_play_voice">播放语音</string>
-    <string name="voice_recording">正在录音…松开发送，上滑取消</string>
+    <string name="voice_recording">正在录音…</string>
     <string name="voice_listening">正在聆听…</string>
     <string name="voice_cancel_hint">松开取消</string>
     <string name="voice_too_short">录音时间太短</string>
-    <string name="voice_permission_required">需要录音权限才能使用语音功能</string>
+    <string name="voice_permission_required">需要录音权限</string>
     <string name="voice_no_match">未识别到语音</string>
     <string name="voice_not_available">设备不支持语音识别</string>
     <string name="voice_tts_not_available">TTS语音引擎不可用</string>
     <string name="voice_tts_initializing">语音引擎初始化中…</string>
-
-    <!-- ===== 记忆档案馆页面 (activity_memory_archive) ===== -->
     <string name="title_memory_archive">记忆档案馆</string>
     <string name="subtitle_memory_archive">时间褪色，记忆永恒</string>
-    <string name="empty_memory_archive">这里还没有记忆\n聊聊吧，AI 会帮你记录珍贵瞬间</string>
+    <string name="empty_memory_archive">这里还没有记忆</string>
     <string name="hint_delete_memory_confirm">松开确认删除这段记忆</string>
     <string name="btn_confirm_shatter">确认破碎</string>
-
-    <!-- ===== 语音设置页 ===== -->
     <string name="section_voice_settings">语音设置</string>
     <string name="cd_voice_settings">语音设置</string>
     <string name="label_tts_speech_rate">语速</string>
     <string name="label_tts_pitch">音调</string>
     <string name="label_auto_read_aloud">自动朗读AI回复</string>
     <string name="label_voice_recognition_lang">识别语言</string>
+
+    <!-- ===== 世界书页面 (activity_world_book) ===== -->
+    <string name="title_world_book">世界书</string>
+    <string name="subtitle_world_book">共享的常识根基</string>
+    <string name="desc_world_book_hint">这些常识是 AI 理解世界的根基，不绑定任何角色人格</string>
+    <string name="empty_world_book">这里还没有常识条目
+点击右下角的羽毛笔，写下第一条常识吧</string>
+    <string name="fab_add_entry">新增常识</string>
+    <string name="hint_entry_category">分类标签（如：世界观、物理规则、历史）</string>
+    <string name="hint_entry_content">常识内容（如：在这个世界里，魔法需要消耗精神力）</string>
+    <string name="label_category">分类标签</string>
+    <string name="label_content">常识内容</string>
+    <string name="title_add_entry">添加常识</string>
+    <string name="title_edit_entry">编辑常识</string>
+    <string name="btn_save_entry">保存</string>
+    <string name="toast_entry_saved">常识已保存</string>
+    <string name="toast_entry_deleted">常识已遗忘</string>
+    <string name="toast_entry_updated">常识已更新</string>
+    <string name="toast_load_failed">加载失败</string>
+    <string name="confirm_delete_entry">确认遗忘这条常识吗？</string>
+    <string name="cd_world_book_avatar">世界书形象</string>
+    <string name="cd_world_fab">新增常识条目</string>
+    <string name="cd_edit_entry">编辑常识</string>
+    <string name="cd_delete_entry">遗忘常识</string>
 </resources>

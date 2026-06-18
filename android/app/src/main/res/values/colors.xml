@@ -72,9 +72,45 @@
     <color name="switch_thumb_on">#FFB7C5</color>
     <color name="switch_track_on">#9B59B6</color>
 
+    <!-- ===== 樱粉色系（气泡组 + 头像） ===== -->
+    <color name="sakura_bg">#FDF0F0</color>
+    <color name="sakura_border">#B0C4DE</color>
+    <color name="sakura_white">#FFFFFF</color>
+    <color name="sakura_gradient_start">#FCE4E0</color>
+    <color name="sakura_gradient_end">#F5D5D8</color>
+    <color name="sakura_shadow">#18B0C4DE</color>
+
     <!-- ===== 记忆类型标签色（亮色模式）===== -->
     <color name="memory_episodic">#6C5CE7</color>
     <color name="memory_semantic">#4CAF50</color>
     <color name="memory_user_fact">#FF9800</color>
     <color name="memory_default">#9E9E9E</color>
+
+    <!-- ===== 玻璃糖纸边缘高光（Glassmorphism Edge）===== -->
+    <color name="glass_edge_white">#FFFFFFFF</color>
+    <color name="glass_edge_blue">#B0C4DE</color>
+    <color name="glass_fill_white">#CCFFFFFF</color>
+    <color name="glass_edge_glow">#33B0C4DE</color>
+
+    <!-- ===== 世界书配色（淡樱粉主题，非人格化）===== -->
+    <color name="wb_sakura_start">#FDF0F0</color>
+    <color name="wb_sakura_mid">#FCE4E0</color>
+    <color name="wb_sakura_end">#F8D8D8</color>
+    <color name="wb_card_bg">#CCFFFFFF</color>
+    <color name="wb_card_border">#40B0C4DE</color>
+    <color name="wb_tag_bg">#30B0C4DE</color>
+    <color name="wb_tag_text">#3A6B8C</color>
+    <color name="wb_text_warm">#4A3B3A</color>
+    <color name="wb_text_secondary">#8A7B7A</color>
+    <color name="wb_text_hint">#B0A5A4</color>
+    <color name="wb_fab_bg">#FCE4E0</color>
+    <color name="wb_fab_border">#B0C4DE</color>
+    <color name="wb_fab_icon">#4A3B3A</color>
+    <color name="wb_modal_bg">#F5FFFFFF</color>
+    <color name="wb_modal_border">#60B0C4DE</color>
+    <color name="wb_modal_overlay">#30B0C4DE</color>
+    <color name="wb_forget_cold">#E8EDF2</color>
+    <color name="wb_forget_fade">#F5F8FA</color>
+    <color name="wb_edit_bg">#30B0C4DE</color>
+    <color name="wb_delete_bg">#30E57373</color>
 </resources>
