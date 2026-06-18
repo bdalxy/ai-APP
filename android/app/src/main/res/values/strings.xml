@@ -34,7 +34,7 @@
     <string name="hint_search_conversation">搜索对话内容...</string>
     <string name="search_result_count">找到 %d 条匹配</string>
     <string name="status_online">在线</string>
-    <string name="tv_default_character_name">小美</string>
+    <string name="tv_default_character_name">默认角色</string>
 
     <!-- ===== 设置页 (activity_settings) ===== -->
     <string name="title_settings">设置</string>
@@ -86,7 +86,7 @@
     <string name="app_version">v1.0.0</string>
 
     <!-- 角色预设名称 -->
-    <string name="preset_xiaomei">小美</string>
+    <string name="preset_xiaomei">默认角色</string>
 
     <!-- ===== 记忆管理页 (activity_memory_manage) ===== -->
     <string name="title_memory_manage">AI 的记忆</string>
@@ -104,6 +104,12 @@
     <!-- ===== 角色编辑页 (activity_character_edit) ===== -->
     <string name="title_create_character">创建角色</string>
     <string name="title_edit_character">编辑角色</string>
+    <string name="title_create_basic">快速创建</string>
+    <string name="title_create_pro">专业编辑</string>
+    <string name="label_avatar">角色头像</string>
+    <string name="hint_avatar_tap">点击更换头像</string>
+    <string name="cd_avatar_edit">点击更换角色头像</string>
+    <string name="toast_avatar_saved">头像已保存</string>
     <string name="label_character_name">角色名称</string>
     <string name="hint_character_name">给角色起个名字</string>
     <string name="label_personality">性格特征</string>
@@ -114,16 +120,35 @@
     <string name="hint_backstory">角色的出身、经历和世界观设定</string>
     <string name="label_greeting">开场白</string>
     <string name="hint_greeting">角色见到用户时说的第一句话</string>
+    <!-- P0-4 新字段标签 -->
+    <string name="label_core_traits">核心特质</string>
+    <string name="hint_core_traits">用逗号分隔，如：温柔、傲娇、可靠</string>
+    <string name="label_taboo_topics">禁忌话题</string>
+    <string name="hint_taboo_topics">用逗号分隔，如：政治、暴力、死亡</string>
+    <string name="label_emotional_tendency">情感倾向</string>
+    <string name="hint_emotional_tendency">格式：基调=温暖, 波动=平稳</string>
+    <string name="label_role_anchor">角色锚点</string>
+    <string name="hint_role_anchor">用一句话（30-60字）定义角色本质</string>
+    <string name="label_self_identity">自我认同</string>
+    <string name="hint_self_identity">角色对自身身份的认知声明</string>
+    <!-- 基础版/专业版切换 -->
+    <string name="link_switch_to_pro">切换到专业版，编辑更多细节</string>
+    <string name="section_pro_fields">── 专业版字段 ──</string>
+    <string name="dialog_create_mode_title">选择创建模式</string>
+    <string name="dialog_create_mode_basic">基础版（快速创建）</string>
+    <string name="dialog_create_mode_basic_desc">仅需填写核心字段，快速开始对话</string>
+    <string name="dialog_create_mode_pro">专业版（完整编辑）</string>
+    <string name="dialog_create_mode_pro_desc">编辑所有字段，打造精细角色</string>
 
     <!-- ===== 角色卡页 (activity_character) ===== -->
     <string name="title_character_card">角色卡片</string>
-    <string name="default_character_desc">温柔体贴的AI伙伴，喜欢分享生活中的小确幸</string>
-    <string name="default_personality">温暖、活泼、善解人意、乐于倾听</string>
-    <string name="default_speaking_style">语气轻柔，喜欢使用可爱的语气词，偶尔夹杂日文短语</string>
+    <string name="default_character_desc">请创建角色卡来开始对话</string>
+    <string name="default_personality">请创建角色卡来设定性格</string>
+    <string name="default_speaking_style">请创建角色卡来设定说话风格</string>
     <string name="label_character_switch">角色切换</string>
-    <string name="character_option_1">小美 — 温柔女友</string>
-    <string name="character_option_2">小美 — 活泼妹妹</string>
-    <string name="character_option_3">小美 — 知性姐姐</string>
+    <string name="character_option_1">请创建角色卡</string>
+    <string name="character_option_2">请创建角色卡</string>
+    <string name="character_option_3">请创建角色卡</string>
     <string name="btn_custom_character_coming">创建自定义角色卡（即将推出）</string>
 
     <!-- ===== 设置页卡片 contentDescription（无障碍） ===== -->
@@ -160,7 +185,7 @@
     <!-- ===== 记忆管理页面 (MemoryManageActivity) 运行时文本 ===== -->
     <string name="label_total_memories_format">总记忆：%d 条</string>
     <string name="title_delete_memory">删除记忆</string>
-    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n"%2$s"</string>
+    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n\"%2$s\"</string>
     <string name="msg_no_memory_to_clear">当前没有记忆可以清空。</string>
     <string name="title_clear_all_memories">清空全部记忆</string>
     <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？\n\n此操作不可撤销！</string>
@@ -199,6 +224,13 @@
     <string name="voice_not_available">设备不支持语音识别</string>
     <string name="voice_tts_not_available">TTS语音引擎不可用</string>
     <string name="voice_tts_initializing">语音引擎初始化中…</string>
+
+    <!-- ===== 记忆档案馆页面 (activity_memory_archive) ===== -->
+    <string name="title_memory_archive">记忆档案馆</string>
+    <string name="subtitle_memory_archive">时间褪色，记忆永恒</string>
+    <string name="empty_memory_archive">这里还没有记忆\n聊聊吧，AI 会帮你记录珍贵瞬间</string>
+    <string name="hint_delete_memory_confirm">松开确认删除这段记忆</string>
+    <string name="btn_confirm_shatter">确认破碎</string>
 
     <!-- ===== 语音设置页 ===== -->
     <string name="section_voice_settings">语音设置</string>
