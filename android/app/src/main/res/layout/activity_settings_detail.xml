@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置详情页：淡樱粉渐变标题栏 + 设置项列表 + 保存按钮 -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/detail_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_dark">
+
+    <!-- ===== 淡樱粉渐变标题栏 ===== -->
+    <LinearLayout
+        android:id="@+id/detail_header"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/topbar_height_alt"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_sakura_header"
+        android:elevation="2dp">
+
+        <TextView
+            android:id="@+id/btnDetailBack"
+            android:layout_width="@dimen/button_medium"
+            android:layout_height="@dimen/button_medium"
+            android:text="@string/btn_back_arrow_label"
+            android:textSize="@dimen/text_body"
+            android:textColor="@color/wb_text_warm"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/cd_back" />
+
+        <TextView
+            android:id="@+id/tvDetailTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="设置"
+            android:textSize="@dimen/text_heading"
+            android:textStyle="bold"
+            android:textColor="@color/wb_text_warm"
+            android:gravity="center" />
+
+        <View
+            android:layout_width="@dimen/button_medium"
+            android:layout_height="@dimen/button_medium" />
+    </LinearLayout>
+
+    <!-- ===== 设置项内容区域（可滚动） ===== -->
+    <ScrollView
+        android:id="@+id/detail_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:id="@+id/detail_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/spacing_page" />
+    </ScrollView>
+
+    <!-- ===== 底部保存按钮 ===== -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/spacing_page"
+        android:background="@color/bg_mid"
+        android:elevation="4dp">
+
+        <Button
+            android:id="@+id/btnDetailSave"
+            style="@style/AppButton.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_default"
+            android:text="@string/btn_save"
+            android:textSize="@dimen/text_body" />
+    </FrameLayout>
+
+</LinearLayout>

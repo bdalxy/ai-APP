@@ -1,13 +1,12 @@
 package com.aicompanion.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
-import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -19,12 +18,13 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
- * 设置子页面：根据传入的 type 参数展示不同设置内容。
- * type: account | chat | proactive | world_book | voice
+ * 设置详情页：根据传入的 type 参数展示不同设置内容。
+ * 使用 activity_settings_detail.xml 布局。
+ *
+ * type 支持: account | chat | memory | voice | notification | about | world_book
+ * 兼容旧版: proactive → notification
  */
 class SettingsDetailActivity : AppCompatActivity() {
 
@@ -42,73 +42,50 @@ class SettingsDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         ViewUtils.setupEdgeToEdge(this)
+        setContentView(R.layout.activity_settings_detail)
 
-        val type = intent.getStringExtra("type") ?: "account"
+        // 获取内容容器
+        contentLayout = findViewById(R.id.detail_content)
+
+        // 获取传入类型，兼容旧版 proactive
+        var type = intent.getStringExtra("type") ?: "account"
+        if (type == "proactive") type = "notification"
+
+        // 标题映射
         val title = when (type) {
             "account" -> "账户设置"
             "chat" -> "对话设置"
-            "proactive" -> "主动消息"
-            "world_book" -> "世界书"
+            "memory" -> "记忆设置"
             "voice" -> "语音设置"
+            "notification" -> "通知设置"
+            "about" -> "关于"
+            "world_book" -> "世界书"
             else -> "设置"
         }
 
-        val root = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(ContextCompat.getColor(context, R.color.bg_dark))
+        // 设置标题
+        findViewById<TextView>(R.id.tvDetailTitle).text = title
+
+        // 返回按钮
+        findViewById<View>(R.id.btnDetailBack).setOnClickListener { finish() }
+
+        // 保存按钮
+        findViewById<Button>(R.id.btnDetailSave).setOnClickListener {
+            applyAllParams()
+            Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show()
+            finish()
         }
 
-        contentLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(
-                resources.getDimensionPixelSize(R.dimen.spacing_page),
-                resources.getDimensionPixelSize(R.dimen.spacing_page),
-                resources.getDimensionPixelSize(R.dimen.spacing_page),
-                resources.getDimensionPixelSize(R.dimen.spacing_page)
-            )
-        }
-
-        // 顶栏
-        val topBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, dip(12), 0, resources.getDimensionPixelSize(R.dimen.spacing_3xl))
-        }
-        topBar.addView(TextView(this).apply {
-            text = "← 返回"; textSize = 16f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            setPadding(0, 0, 0, 0)
-            setOnClickListener { finish() }
-        })
-        topBar.addView(TextView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            text = title; textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            gravity = android.view.Gravity.CENTER
-            android.widget.TextView.BufferType.NORMAL
-            paint.isFakeBoldText = true
-        })
-        topBar.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                resources.getDimensionPixelSize(R.dimen.button_medium),
-                resources.getDimensionPixelSize(R.dimen.button_medium)
-            )
-        })
-        contentLayout.addView(topBar)
-
+        // 根据类型构建内容
         when (type) {
             "account" -> buildAccountPage()
             "chat" -> buildChatPage()
-            "proactive" -> buildProactivePage()
-            "world_book" -> buildWorldBookPage()
+            "memory" -> buildMemoryPage()
             "voice" -> buildVoicePage()
+            "notification" -> buildNotificationPage()
+            "about" -> buildAboutPage()
+            "world_book" -> buildWorldBookPage()
         }
-
-        root.addView(contentLayout)
-        setContentView(root)
     }
 
     // ======================== 账户设置 ========================
@@ -124,6 +101,12 @@ class SettingsDetailActivity : AppCompatActivity() {
 
         addSectionTitle("模型")
         addClickRow("模型选择", model, iconRes = R.drawable.ic_model) { showModelSelectDialog() }
+        addDivider()
+
+        addSectionTitle("角色管理")
+        addClickRow("角色管理", "管理角色卡", iconRes = R.drawable.ic_settings_account) {
+            startActivity(Intent(this, CharacterManageActivity::class.java))
+        }
     }
 
     private fun showApiKeyEditDialog() {
@@ -140,7 +123,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setPositiveButton("保存") { _, _ ->
                 val key = edit.text.toString().trim()
                 AppConfig.setApiKey(this, key)
-                // 在后台线程调用 Python，避免阻塞 UI，且受生命周期管理
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
@@ -334,6 +316,34 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton("取消", null).show()
     }
 
+    // ======================== 记忆设置 ========================
+
+    private fun buildMemoryPage() {
+        // 记忆容量（当前仅显示，后续可扩展）
+        addSectionTitle("记忆参数")
+        addClickRow("记忆容量", "默认（自动管理）", iconRes = R.drawable.ic_settings_memory) {
+            Toast.makeText(this, "记忆容量由系统自动管理，后续版本将支持手动调整", Toast.LENGTH_SHORT).show()
+        }
+        addDivider()
+        addClickRow("去重阈值", "默认（自动去重）", iconRes = R.drawable.ic_settings_memory) {
+            Toast.makeText(this, "去重阈值将在后续版本中开放配置", Toast.LENGTH_SHORT).show()
+        }
+        addDivider()
+        addClickRow("衰减参数", "默认（自然衰减）", iconRes = R.drawable.ic_settings_memory) {
+            Toast.makeText(this, "衰减参数将在后续版本中开放配置", Toast.LENGTH_SHORT).show()
+        }
+        addDivider()
+
+        addSectionTitle("记忆管理")
+        addClickRow("查看记忆列表", "浏览和管理AI记忆", iconRes = R.drawable.ic_settings_memory) {
+            startActivity(Intent(this, MemoryManageActivity::class.java))
+        }
+        addDivider()
+        addClickRow("清空全部记忆", "删除所有长期记忆数据", iconRes = R.drawable.ic_settings_memory) {
+            showClearMemoryDialog()
+        }
+    }
+
     private fun showClearMemoryDialog() {
         MaterialAlertDialogBuilder(this)
             .setTitle("清空长期记忆")
@@ -357,54 +367,9 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton("取消", null).show()
     }
 
-    private fun showSliderDialog(
-        title: String, subtitle: String, labels: Array<String>, descs: Array<String>,
-        currentIdx: Int, max: Int, onSelected: (Int) -> Unit,
-    ) {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
-        layout.addView(TextView(this).apply {
-            text = subtitle; textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray)); setPadding(0, 0, 0, 16)
-        })
-        val tvValue = TextView(this).apply {
-            text = "${labels[currentIdx]} — ${descs[currentIdx]}"; textSize = 18f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
-            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 12)
-        }
-        layout.addView(tvValue)
-        val seekBar = SeekBar(this).apply {
-            this.max = max; progress = currentIdx; setPadding(8, 0, 8, 0)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    tvValue.text = "${labels[progress]} — ${descs[progress]}"
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        layout.addView(seekBar)
-        val labelRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; setPadding(8, 4, 8, 0)
-        }
-        for (i in 0..max) {
-            labelRow.addView(TextView(this).apply {
-                text = descs[i]; textSize = 11f
-                setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; max -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
-            })
-        }
-        layout.addView(labelRow)
-        MaterialAlertDialogBuilder(this).setTitle(title).setView(layout)
-            .setPositiveButton("确定") { _, _ -> onSelected(seekBar.progress) }
-            .setNegativeButton("取消", null).show()
-    }
+    // ======================== 通知设置（原主动消息） ========================
 
-    // ======================== 主动消息 ========================
-
-    private fun buildProactivePage() {
+    private fun buildNotificationPage() {
         val enabled = AppConfig.getProactiveEnabled(this)
         val intervalMs = AppConfig.getProactiveInterval(this)
         val intervalIdx = INTERVAL_MS.indexOf(intervalMs)
@@ -418,7 +383,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val end = AppConfig.getQuietEnd(this)
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
 
-        addSectionTitle("主动消息")
+        addSectionTitle("主动推送")
         // 开关行
         val toggleRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -450,13 +415,12 @@ class SettingsDetailActivity : AppCompatActivity() {
             val idx = if (INTERVAL_MS.contains(intervalMs)) {
                 INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
             } else {
-                optionsWithCustom.size - 1 // 自定义值 → 选中"自定义"
+                optionsWithCustom.size - 1
             }
             MaterialAlertDialogBuilder(this)
                 .setTitle("发送频率")
                 .setSingleChoiceItems(optionsWithCustom.toTypedArray(), idx) { dialog, which ->
                     if (which == optionsWithCustom.size - 1) {
-                        // 自定义间隔
                         dialog.dismiss()
                         showCustomIntervalDialog()
                     } else {
@@ -476,7 +440,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 else if (quietLabel == "22:00 - 08:00") 1
                 else if (quietLabel == "23:00 - 07:00") 2
                 else if (quietLabel == "00:00 - 06:00") 3
-                else options.size - 1 // 自定义值
+                else options.size - 1
             MaterialAlertDialogBuilder(this)
                 .setTitle("静默时段")
                 .setSingleChoiceItems(options, idx) { dialog, which ->
@@ -502,10 +466,6 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 显示自定义间隔对话框。
-     * 用户输入小时数，最低 0.5 小时（30 分钟）。
-     */
     private fun showCustomIntervalDialog() {
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
@@ -534,10 +494,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton("取消", null).show()
     }
 
-    /**
-     * 显示自定义静默时段对话框。
-     * 用户输入开始和结束时间（HH:mm 格式）。
-     */
     private fun showCustomQuietDialog() {
         val currentStart = AppConfig.getQuietStart(this)
         val currentEnd = AppConfig.getQuietEnd(this)
@@ -606,13 +562,11 @@ class SettingsDetailActivity : AppCompatActivity() {
 
         addSectionTitle("语音合成（TTS）")
 
-        // TTS 语速
         addClickRow("语速", "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) {
             showTtsRateDialog()
         }
         addDivider()
 
-        // TTS 音调
         addClickRow("音调", "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) {
             showTtsPitchDialog()
         }
@@ -642,7 +596,6 @@ class SettingsDetailActivity : AppCompatActivity() {
 
         addSectionTitle("语音识别（ASR）")
 
-        // 语音识别语言
         addClickRow("识别语言", langLabel, iconRes = R.drawable.ic_language) {
             showVoiceLangDialog()
         }
@@ -686,9 +639,93 @@ class SettingsDetailActivity : AppCompatActivity() {
             .show()
     }
 
+    // ======================== 关于 ========================
+
+    private fun buildAboutPage() {
+        addSectionTitle("应用信息")
+        addClickRow("版本号", "v${BuildConfig.VERSION_NAME}", iconRes = R.drawable.ic_export) {
+            // 仅显示，无操作
+        }
+        addDivider()
+        addClickRow("开源许可", "查看开源组件许可", iconRes = R.drawable.ic_export) {
+            Toast.makeText(this, "本项目使用以下开源组件：\n- Material Design 3\n- Chaquopy\n- OkHttp\n详情请查看 GitHub 仓库", Toast.LENGTH_LONG).show()
+        }
+        addDivider()
+        addClickRow("意见反馈", "向我们反馈问题或建议", iconRes = R.drawable.ic_export) {
+            Toast.makeText(this, "反馈功能将在后续版本中开放，敬请期待", Toast.LENGTH_SHORT).show()
+        }
+        addDivider()
+        addClickRow("导出对话记录", "将当前对话导出为文件", iconRes = R.drawable.ic_export) {
+            showExportDialog()
+        }
+    }
+
+    private fun showExportDialog() {
+        val formats = arrayOf(
+            getString(R.string.export_format_json),
+            getString(R.string.export_format_txt)
+        )
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.label_choose_export_format))
+            .setItems(formats) { _, which ->
+                val format = if (which == 0) "json" else "txt"
+                exportConversation(format)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun exportConversation(format: String) {
+        val sessionId = ConversationSessionManager.getCurrentSessionId()
+        if (sessionId.isEmpty()) {
+            Toast.makeText(this, getString(R.string.toast_export_no_messages), Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val messages = ConversationSessionManager.loadMessages(sessionId)
+                if (messages.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_no_messages), Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                val character = CharacterStorage.getCurrent(this@SettingsDetailActivity)
+                val content = when (format) {
+                    "json" -> ChatExporter.exportToJson(messages, character.name)
+                    else -> ChatExporter.exportToTxt(messages, character.name)
+                }
+                val fileName = ChatExporter.generateFileName(format, character.name)
+                val uri = ChatExporter.saveToFile(content, fileName, this@SettingsDetailActivity)
+                if (uri == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_file_failed), Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_success), Toast.LENGTH_SHORT).show()
+                    try {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = if (format == "json") "application/json" else "text/plain"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(Intent.createChooser(shareIntent, getString(R.string.chooser_share_conversation)))
+                    } catch (_: Exception) { }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_failed, e.message), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // ======================== 通用 UI 辅助方法 ========================
+
     internal fun dip(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
 
-    /** 对话框高度动态计算：屏幕高度的 55%，适配不同设备 */
     internal fun dialogHeight(): Int = (resources.displayMetrics.heightPixels * 0.55).toInt()
 
     internal fun getSelectableItemBackground(): Int {
@@ -778,6 +815,53 @@ class SettingsDetailActivity : AppCompatActivity() {
         )
         setBackgroundColor(ContextCompat.getColor(context, R.color.glass_border))
     }
+
+    private fun showSliderDialog(
+        title: String, subtitle: String, labels: Array<String>, descs: Array<String>,
+        currentIdx: Int, max: Int, onSelected: (Int) -> Unit,
+    ) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
+        }
+        layout.addView(TextView(this).apply {
+            text = subtitle; textSize = 13f
+            setTextColor(ContextCompat.getColor(context, R.color.darker_gray)); setPadding(0, 0, 0, 16)
+        })
+        val tvValue = TextView(this).apply {
+            text = "${labels[currentIdx]} — ${descs[currentIdx]}"; textSize = 18f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 12)
+        }
+        layout.addView(tvValue)
+        val seekBar = SeekBar(this).apply {
+            this.max = max; progress = currentIdx; setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                    tvValue.text = "${labels[progress]} — ${descs[progress]}"
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+        val labelRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; setPadding(8, 4, 8, 0)
+        }
+        for (i in 0..max) {
+            labelRow.addView(TextView(this).apply {
+                text = descs[i]; textSize = 11f
+                setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; max -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
+            })
+        }
+        layout.addView(labelRow)
+        MaterialAlertDialogBuilder(this).setTitle(title).setView(layout)
+            .setPositiveButton("确定") { _, _ -> onSelected(seekBar.progress) }
+            .setNegativeButton("取消", null).show()
+    }
+
+    // ======================== 参数应用 ========================
 
     private fun applyAllParams() {
         lifecycleScope.launch(Dispatchers.IO) {
