@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 世界书常识条目卡片 — 天使白卡片 + 左滑操作 -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="@dimen/spacing_sm">
+
+    <LinearLayout
+        android:id="@+id/layoutSwipeActions"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/spacing_sm">
+
+        <TextView
+            android:id="@+id/btnEdit"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:background="@color/wb_edit_bg"
+            android:gravity="center"
+            android:text="@string/btn_edit"
+            android:textColor="@color/wb_tag_text"
+            android:textSize="@dimen/text_body_small"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="@string/cd_edit_entry" />
+
+        <TextView
+            android:id="@+id/btnForget"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:background="@color/wb_delete_bg"
+            android:gravity="center"
+            android:text="@string/btn_delete"
+            android:textColor="@color/accent_red"
+            android:textSize="@dimen/text_body_small"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="@string/cd_delete_entry" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="@drawable/bg_world_entry_card"
+        android:clipToOutline="true"
+        android:outlineProvider="background"
+        android:elevation="2dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="@dimen/spacing_md">
+
+            <TextView
+                android:id="@+id/tvCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_world_category_tag"
+                android:gravity="center"
+                android:paddingHorizontal="@dimen/spacing_xl"
+                android:paddingVertical="@dimen/spacing_xs"
+                android:text="世界观"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/wb_tag_text" />
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/text_small"
+                android:textColor="@color/wb_text_hint"
+                android:layout_marginStart="@dimen/spacing_md" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="常识内容..."
+            android:textSize="@dimen/text_body_small"
+            android:textColor="@color/wb_text_warm"
+            android:maxLines="4"
+            android:ellipsize="end"
+            android:lineSpacingExtra="4dp" />
+    </LinearLayout>
+</FrameLayout>
