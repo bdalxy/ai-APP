@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 世界书分类标签背景 — 淡天蓝圆角 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/wb_tag_bg" />
+    <corners android:radius="10dp" />
+</shape>

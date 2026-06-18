@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 世界书条目卡片背景 — 天使白 80% 透明度 + 淡樱粉描边 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/wb_card_bg" />
+    <stroke
+        android:width="0.5dp"
+        android:color="@color/wb_card_border" />
+    <corners android:radius="12dp" />
+</shape>
