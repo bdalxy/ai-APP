@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp">
+    <CheckBox
+        android:id="@+id/cbSelect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginEnd="4dp"
+        android:visibility="gone" />
+    <LinearLayout
+        android:id="@+id/layoutMessageRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="end">
+        <LinearLayout
+            android:id="@+id/layoutQuote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_quote_bar"
+            android:visibility="gone">
+            <View
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:background="#B0C4DE" />
+            <TextView
+                android:id="@+id/tvQuoteContent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_tertiary"
+                android:maxWidth="240dp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="引用内容..." />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/tvContent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:lineSpacingExtra="3dp"
+            android:elevation="3dp"
+            android:maxWidth="280dp"
+            android:textColor="#4A3B3A"
+            android:background="@drawable/bg_bubble_user"
+            tools:text="这是一条用户消息示例" />
+        <LinearLayout
+            android:id="@+id/layoutStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:layout_marginTop="2dp"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="@color/text_tertiary"
+                tools:text="12:30" />
+            <ImageView
+                android:id="@+id/ivStatus"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"
+                android:src="@drawable/ic_check"
+                tools:ignore="ContentDescription" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
