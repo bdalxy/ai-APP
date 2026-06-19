@@ -6,10 +6,6 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-/**
- * 角色卡数据模型。
- * 包含角色的基本信息、性格、说话风格、背景故事和开场白。
- */
 data class CharacterData(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "小美",
@@ -17,49 +13,26 @@ data class CharacterData(
     val speakingStyle: String = "语气轻柔，喜欢使用可爱的语气词",
     val backstory: String = "来自神秘花园的AI少女，喜欢分享生活中的小确幸",
     val greeting: String = "你好呀~今天过得怎么样？",
-    val avatarUri: String = "",  // 头像路径，空串表示使用默认
+    val avatarUri: String = "",
+    val coreTraits: String = "",
+    val tabooTopics: String = "",
+    val roleAnchor: String = "",
     val isDefault: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
 
-/**
- * 角色卡本地存储管理器。
- * 使用 JSON 文件持久化角色卡列表，支持增删改查和当前选中角色管理。
- */
 object CharacterStorage {
     private const val FILENAME = "characters.json"
 
-    private fun getFile(context: Context): File {
-        return File(context.filesDir, FILENAME)
-    }
+    private fun getFile(context: Context): File = File(context.filesDir, FILENAME)
 
-    /** 加载所有角色卡。首次启动时自动创建三个默认角色。 */
     fun loadAll(context: Context): List<CharacterData> {
         val file = getFile(context)
         if (!file.exists()) {
             val defaults = listOf(
-                CharacterData(
-                    isDefault = true,
-                    name = "小美",
-                    personality = "温柔、活泼、善解人意、乐于倾听",
-                    speakingStyle = "语气轻柔，喜欢说\"呢\"\"呀\"\"哦\"等可爱的语气词",
-                    backstory = "来自往世乐土的AI少女，喜欢分享生活中的小确幸",
-                    greeting = "你好呀~今天心情怎么样？"
-                ),
-                CharacterData(
-                    name = "小玲",
-                    personality = "活泼开朗、元气满满、偶尔调皮",
-                    speakingStyle = "语速快，喜欢用感叹号，经常发颜文字",
-                    backstory = "充满活力的少女，对世界充满好奇",
-                    greeting = "嘿！！终于等到你啦~今天有啥好玩的事？"
-                ),
-                CharacterData(
-                    name = "小林",
-                    personality = "冷静理性、偶尔毒舌、内心温柔",
-                    speakingStyle = "说话简洁，不爱啰嗦，偶尔怼人但不伤人",
-                    backstory = "看似冷淡的学霸，其实很关心身边的人",
-                    greeting = "...嗯，来了啊。今天有什么事吗？"
-                )
+                CharacterData(isDefault = true, name = "小美", personality = "温柔、活泼、善解人意、乐于倾听", speakingStyle = "语气轻柔，喜欢说\"呢\"\"呀\"\"哦\"等可爱的语气词", backstory = "来自往世乐土的AI少女，喜欢分享生活中的小确幸", greeting = "你好呀~今天心情怎么样？"),
+                CharacterData(name = "小玲", personality = "活泼开朗、元气满满、偶尔调皮", speakingStyle = "语速快，喜欢用感叹号，经常发颜文字", backstory = "充满活力的少女，对世界充满好奇", greeting = "嘿！！终于等到你啦~今天有啥好玩的事？"),
+                CharacterData(name = "小林", personality = "冷静理性、偶尔毒舌、内心温柔", speakingStyle = "说话简洁，不爱啰嗦，偶尔怼人但不伤人", backstory = "看似冷淡的学霸，其实很关心身边的人", greeting = "...嗯，来了啊。今天有什么事吗？")
             )
             saveAll(context, defaults)
             return defaults
@@ -77,6 +50,9 @@ object CharacterStorage {
                 backstory = obj.getString("backstory"),
                 greeting = obj.getString("greeting"),
                 avatarUri = obj.optString("avatar_uri", ""),
+                coreTraits = obj.optString("core_traits", ""),
+                tabooTopics = obj.optString("taboo_topics", ""),
+                roleAnchor = obj.optString("role_anchor", ""),
                 isDefault = obj.optBoolean("is_default", false),
                 createdAt = obj.optLong("created_at", System.currentTimeMillis())
             ))
@@ -84,7 +60,6 @@ object CharacterStorage {
         return list
     }
 
-    /** 批量保存所有角色卡到 JSON 文件。 */
     fun saveAll(context: Context, characters: List<CharacterData>) {
         val arr = JSONArray()
         for (c in characters) {
@@ -96,6 +71,9 @@ object CharacterStorage {
             obj.put("backstory", c.backstory)
             obj.put("greeting", c.greeting)
             obj.put("avatar_uri", c.avatarUri)
+            obj.put("core_traits", c.coreTraits)
+            obj.put("taboo_topics", c.tabooTopics)
+            obj.put("role_anchor", c.roleAnchor)
             obj.put("is_default", c.isDefault)
             obj.put("created_at", c.createdAt)
             arr.put(obj)
@@ -103,7 +81,6 @@ object CharacterStorage {
         getFile(context).writeText(arr.toString(2))
     }
 
-    /** 保存/更新单个角色卡（存在则更新，不存在则新增）。 */
     fun save(context: Context, character: CharacterData) {
         val list = loadAll(context).toMutableList()
         val idx = list.indexOfFirst { it.id == character.id }
@@ -111,25 +88,18 @@ object CharacterStorage {
         saveAll(context, list)
     }
 
-    /** 删除指定角色卡（默认角色不可删除）。 */
     fun delete(context: Context, id: String) {
         val list = loadAll(context).filter { it.id != id }
         saveAll(context, list)
     }
 
-    /** 获取当前选中的角色卡。 */
     fun getCurrent(context: Context): CharacterData {
         val list = loadAll(context)
-        val selectedId = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            .getString("current_character_id", null)
-        return list.find { it.id == selectedId }
-            ?: list.firstOrNull { it.isDefault }
-            ?: list.first()
+        val selectedId = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE).getString("current_character_id", null)
+        return list.find { it.id == selectedId } ?: list.firstOrNull { it.isDefault } ?: list.firstOrNull() ?: CharacterData()
     }
 
-    /** 设置当前选中的角色卡。 */
     fun setCurrent(context: Context, id: String) {
-        context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            .edit().putString("current_character_id", id).apply()
+        context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE).edit().putString("current_character_id", id).apply()
     }
 }
