@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 往世乐土主题 — 深色模式 ===== -->
+    <!-- ===== 樱羽主题 v1.0 — 深色模式（夜樱） ===== -->
     <style name="Theme.AICompanion" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primaryVariant</item>
@@ -20,6 +20,10 @@
         <item name="colorControlActivated">@color/primary</item>
         <item name="colorControlNormal">@color/text_tertiary</item>
         <item name="android:textColorHint">@color/text_tertiary</item>
+        <item name="android:textColor">@color/text_primary</item>
         <item name="android:editTextColor">@color/text_primary</item>
+        <!-- 字体 -->
+        <item name="android:fontFamily">@font/quicksand</item>
+        <item name="fontFamily">@font/quicksand</item>
     </style>
 </resources>

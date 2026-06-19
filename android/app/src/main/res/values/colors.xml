@@ -49,9 +49,9 @@
     <color name="glow_blue">#40D4E8F0</color>
 
     <!-- Material Design 映射 -->
-    <color name="primary">#B0C4DE</color>
-    <color name="primaryVariant">#8AA8C0</color>
-    <color name="secondary">#FFDCE3</color>
+    <color name="primary">#B0C4DE</color>             <!-- 主色：淡天蓝 -->
+    <color name="primaryVariant">#8AA8C0</color>      <!-- 深天蓝 -->
+    <color name="secondary">#FFDCE3</color>            <!-- 次色：淡樱粉 -->
     <color name="surface">@color/bg_mid</color>
     <color name="background">@color/bg_dark</color>
     <color name="onPrimary">#4A3B3A</color>
@@ -75,10 +75,10 @@
     <color name="switch_track_on">#B0C4DE</color>
 
     <!-- 记忆类型标签色（柔和协调） -->
-    <color name="memory_episodic">#8C82D2</color>
-    <color name="memory_semantic">#66BB6A</color>
-    <color name="memory_user_fact">#F0A040</color>
-    <color name="memory_default">#9090A0</color>
+    <color name="memory_episodic">#8C82D2</color>      <!-- 柔和紫 -->
+    <color name="memory_semantic">#66BB6A</color>      <!-- 柔和绿 -->
+    <color name="memory_user_fact">#F0A040</color>     <!-- 柔和橙 -->
+    <color name="memory_default">#9090A0</color>       <!-- 柔和灰 -->
 
     <!-- ===== 玻璃糖纸边缘高光 ===== -->
     <color name="glass_edge_white">#FFFFFFFF</color>

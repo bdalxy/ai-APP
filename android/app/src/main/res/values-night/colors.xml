@@ -1,77 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 往世乐土主题色板 — 深色模式 ===== -->
+    <!-- ===== 樱羽主题 v1.0 色板 — 深色模式（夜樱） ===== -->
 
-    <color name="elysian_pink">#CC8899</color>
-    <color name="elysian_purple">#B388FF</color>
-    <color name="elysian_deep">#9B59B6</color>
-    <color name="elysian_pink_light">#AA6677</color>
+    <!-- 主色调 -->
+    <color name="sakura_pink">#FDF0F0</color>         <!-- 保留引用 -->
+    <color name="sakura_blue">#D4E8F0</color>
+    <color name="sakura_sky">#B0C4DE</color>
+    <color name="sakura_white">#FFFFFF</color>
 
-    <color name="bg_dark">#1A0E1F</color>
-    <color name="bg_mid">#241528</color>
-    <color name="bg_light">#2E1D35</color>
+    <!-- 背景色 -->
+    <color name="bg_dark">#1A0E1F</color>             <!-- 主背景：暖黑底 -->
+    <color name="bg_mid">#241528</color>              <!-- 卡片：暗紫 -->
+    <color name="bg_light">#2E1D35</color>            <!-- 分层 -->
 
-    <color name="bubble_ai">#2E2040</color>
-    <color name="bubble_ai_glow">#352848</color>
-    <color name="bubble_ai_text">#E0D0E8</color>
+    <!-- AI气泡（暗紫渐变） -->
+    <color name="bubble_ai">#2A1E35</color>
+    <color name="bubble_ai_glow">#2E2540</color>
+    <color name="bubble_ai_text">#E8DCD8</color>
 
-    <color name="bubble_user_start">#9B59B6</color>
-    <color name="bubble_user_end">#7B2D8B</color>
-    <color name="bubble_user_text">#FFFFFF</color>
+    <!-- 用户气泡（暗粉→暗紫渐变） -->
+    <color name="bubble_user_start">#D4859B</color>
+    <color name="bubble_user_end">#7B6B8A</color>
+    <color name="bubble_user_text">#E8DCD8</color>
 
+    <!-- 打字气泡 -->
     <color name="bubble_typing">#2A1E35</color>
 
-    <color name="text_primary">#E8E0F0</color>
+    <!-- 文字颜色 -->
+    <color name="text_primary">#E8DCD8</color>
     <color name="text_secondary">#B0A0C0</color>
     <color name="text_tertiary">#7A6A8A</color>
     <color name="text_on_pink">#2D1B3A</color>
     <color name="darker_gray">#888888</color>
 
-    <color name="glass_bg">#80B388FF</color>
-    <color name="glass_border">#8CB388FF</color>
+    <!-- 毛玻璃效果（暗紫系） -->
+    <color name="glass_bg">#40B0C4DE</color>
+    <color name="glass_border">#30B0C4DE</color>
     <color name="glass_bg_dark">#14000000</color>
 
+    <!-- 辅助色 -->
     <color name="accent_green">#66BB6A</color>
     <color name="accent_orange">#FFA726</color>
     <color name="accent_red">#E57373</color>
+    <color name="status_online">#7DE2A0</color>
 
-    <color name="glow_pink">#30CC8899</color>
-    <color name="glow_purple">#30B388FF</color>
+    <!-- 光晕效果 -->
+    <color name="glow_pink">#30D4859B</color>
+    <color name="glow_blue">#307B6B8A</color>
 
-    <color name="primary">@color/elysian_purple</color>
-    <color name="primaryVariant">@color/elysian_deep</color>
-    <color name="secondary">@color/elysian_pink</color>
+    <!-- Material Design 映射 -->
+    <color name="primary">#B0C4DE</color>
+    <color name="primaryVariant">#8AA8C0</color>
+    <color name="secondary">#D4859B</color>
     <color name="surface">@color/bg_mid</color>
     <color name="background">@color/bg_dark</color>
-    <color name="onPrimary">#FFFFFFFF</color>
-    <color name="onSecondary">@color/text_on_pink</color>
+    <color name="onPrimary">#4A3B3A</color>
+    <color name="onSecondary">#E8DCD8</color>
     <color name="onSurface">@color/text_primary</color>
     <color name="surfaceVariant">@color/bg_light</color>
     <color name="onSurfaceVariant">@color/text_secondary</color>
 
+    <!-- ===== drawable 引用色 ===== -->
     <color name="glass_top_bg">#1A000000</color>
     <color name="glass_bottom_bg">#1A000000</color>
     <color name="input_field_bg">#14FFFFFF</color>
     <color name="input_field_border">#2DFFFFFF</color>
     <color name="avatar_border_inner">#1A1028</color>
-    <color name="avatar_border_stroke">#CC8899</color>
+    <color name="avatar_border_stroke">#B0C4DE</color>
     <color name="send_inactive_bg">#251838</color>
     <color name="divider">#1DFFFFFF</color>
-    <color name="status_online">#7DE2A0</color>
-    <color name="switch_thumb_on">@color/elysian_pink</color>
-    <color name="switch_track_on">@color/elysian_purple</color>
 
-    <color name="memory_episodic">#A29BFE</color>
-    <color name="memory_semantic">#66BB6A</color>
-    <color name="memory_user_fact">#FFA726</color>
-    <color name="memory_default">#757575</color>
+    <!-- 开关 -->
+    <color name="switch_thumb_on">#FFFFFF</color>
+    <color name="switch_track_on">#B0C4DE</color>
 
-    <color name="glass_edge_white">#FFFFFFFF</color>
-    <color name="glass_edge_blue">#80B0C4DE</color>
-    <color name="glass_fill_white">#1AFFFFFF</color>
-    <color name="glass_edge_glow">#18B0C4DE</color>
+    <!-- 记忆类型标签色（深色模式） -->
+    <color name="memory_episodic">#A29BFE</color>      <!-- 柔和紫 -->
+    <color name="memory_semantic">#66BB6A</color>      <!-- 柔和绿 -->
+    <color name="memory_user_fact">#FFA726</color>     <!-- 柔和橙 -->
+    <color name="memory_default">#757575</color>       <!-- 柔和灰 -->
 
-    <!-- ===== 世界书配色（深色模式）===== -->
+    <!-- ===== 世界书配色（深色模式） ===== -->
     <color name="wb_sakura_start">#2A1A1F</color>
     <color name="wb_sakura_mid">#25181C</color>
     <color name="wb_sakura_end">#201518</color>
@@ -92,4 +101,14 @@
     <color name="wb_forget_fade">#1E1C1D</color>
     <color name="wb_edit_bg">#20B0C4DE</color>
     <color name="wb_delete_bg">#20E57373</color>
+
+    <!-- 保留兼容旧引用 -->
+    <color name="elysian_purple">@color/primary</color>
+    <color name="elysian_pink">@color/secondary</color>
+    <color name="elysian_pink_light">@color/sakura_pink</color>
+    <color name="sakura_bg">@color/sakura_pink</color>
+    <color name="sakura_border">@color/sakura_sky</color>
+    <color name="sakura_gradient_start">#D4859B</color>
+    <color name="sakura_gradient_end">#7B6B8A</color>
+    <color name="sakura_shadow">#18B0C4DE</color>
 </resources>

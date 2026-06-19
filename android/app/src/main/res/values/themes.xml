@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 往世乐土主题 — 亮色模式 ===== -->
+    <!-- ===== 樱羽主题 v1.0 — 亮色模式 ===== -->
     <style name="Theme.AICompanion" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primaryVariant</item>
@@ -20,19 +20,25 @@
         <item name="colorControlActivated">@color/primary</item>
         <item name="colorControlNormal">@color/text_tertiary</item>
         <item name="android:textColorHint">@color/text_tertiary</item>
+        <item name="android:textColor">@color/text_primary</item>
         <item name="android:editTextColor">@color/text_primary</item>
+        <!-- 字体 -->
+        <item name="android:fontFamily">@font/quicksand</item>
+        <item name="fontFamily">@font/quicksand</item>
     </style>
 
     <!-- 设置项标题 -->
     <style name="SettingsItemTitle" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">@font/quicksand</item>
     </style>
 
     <!-- 设置项副标题 -->
     <style name="SettingsItemSubtitle" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">13sp</item>
+        <item name="android:fontFamily">@font/quicksand</item>
     </style>
 
     <!-- 毛玻璃卡片 -->
@@ -45,9 +51,10 @@
     </style>
 
     <!-- ===== AppButton 系列 ===== -->
-    <!-- 主按钮：粉紫渐变填充 -->
+    <!-- 主按钮：粉蓝渐变填充 -->
     <style name="AppButton.Primary" parent="Widget.MaterialComponents.Button">
         <item name="android:textColor">@color/onPrimary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="backgroundTint">@null</item>
         <item name="android:background">@drawable/bg_btn_primary</item>
         <item name="cornerRadius">24dp</item>
@@ -55,22 +62,24 @@
         <item name="android:minHeight">@dimen/button_default</item>
     </style>
 
-    <!-- 次要按钮：透明底 + 主题色描边 -->
+    <!-- 次要按钮：透明底 + 淡天蓝描边 -->
     <style name="AppButton.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="android:textColor">@color/primary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="strokeColor">@color/primary</item>
         <item name="cornerRadius">24dp</item>
         <item name="android:minHeight">@dimen/button_default</item>
     </style>
 
-    <!-- 文字按钮：无背景 -->
+    <!-- 文字按钮 -->
     <style name="AppButton.Text" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">@color/primary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="android:textSize">@dimen/text_body_small</item>
         <item name="android:minHeight">@dimen/button_medium</item>
     </style>
 
-    <!-- ===== AppSwitch 开关样式 ===== -->
+    <!-- ===== AppSwitch 开关样式（粉蓝渐变） ===== -->
     <style name="AppSwitch" parent="Widget.AppCompat.CompoundButton.Switch">
         <item name="android:thumb">@drawable/bg_switch_thumb</item>
         <item name="android:track">@drawable/bg_switch_track</item>
@@ -80,6 +89,7 @@
     <style name="AppInput" parent="Widget.AppCompat.EditText">
         <item name="android:background">@drawable/bg_input_field</item>
         <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:textSize">@dimen/text_body</item>
         <item name="android:paddingStart">12dp</item>
@@ -87,13 +97,11 @@
         <item name="android:singleLine">true</item>
     </style>
 
-    <!-- 搜索输入框：继承 AppInput，圆角更大 -->
     <style name="AppInput.Search" parent="AppInput">
         <item name="android:layout_height">40dp</item>
         <item name="android:maxLines">1</item>
     </style>
 
-    <!-- 多行输入框：继承 AppInput，多行 -->
     <style name="AppInput.Multiline" parent="AppInput">
         <item name="android:singleLine">false</item>
         <item name="android:maxLines">4</item>
@@ -104,41 +112,42 @@
     <style name="AppChip">
         <item name="android:textSize">11sp</item>
         <item name="android:textColor">@color/onPrimary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="android:paddingHorizontal">8dp</item>
         <item name="android:paddingVertical">2dp</item>
         <item name="android:background">@drawable/bg_type_label</item>
     </style>
 
     <!-- ===== AppText 文本样式 ===== -->
-    <!-- 基础文本样式 -->
     <style name="AppText" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="android:textSize">@dimen/text_body</item>
     </style>
 
-    <!-- 页面标题 -->
     <style name="AppText.PageTitle">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">@dimen/text_heading</item>
         <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/caveat</item>
     </style>
 
-    <!-- 卡片标题 -->
     <style name="AppText.CardTitle">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">@dimen/text_body</item>
         <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/caveat</item>
     </style>
 
-    <!-- 卡片副标题 -->
     <style name="AppText.CardSubtitle">
         <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="android:textSize">13sp</item>
     </style>
 
-    <!-- 说明/标签文字 -->
     <style name="AppText.Caption">
         <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:fontFamily">@font/quicksand</item>
         <item name="android:textSize">@dimen/text_caption</item>
     </style>
 </resources>
