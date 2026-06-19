@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 世界书主页面布局 — 淡樱粉主题，非人格化设计 -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -8,12 +7,10 @@
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
     android:fitsSystemWindows="true">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
-
         <LinearLayout
             android:id="@+id/layoutHeader"
             android:layout_width="match_parent"
@@ -22,14 +19,12 @@
             android:gravity="center_horizontal"
             android:background="@drawable/bg_world_book_top"
             android:paddingBottom="@dimen/spacing_4xl">
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/topbar_height_alt"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="@dimen/spacing_page"
                 android:elevation="0dp">
-
                 <TextView
                     android:id="@+id/btnBack"
                     android:layout_width="@dimen/button_medium"
@@ -42,7 +37,6 @@
                     android:focusable="true"
                     android:background="?attr/selectableItemBackground"
                     android:contentDescription="@string/cd_back" />
-
                 <TextView
                     android:id="@+id/tvPageTitle"
                     android:layout_width="0dp"
@@ -53,24 +47,20 @@
                     android:textStyle="bold"
                     android:textColor="@color/wb_text_warm"
                     android:gravity="center" />
-
                 <View
                     android:layout_width="@dimen/button_medium"
                     android:layout_height="@dimen/button_medium" />
             </LinearLayout>
-
             <FrameLayout
                 android:layout_width="72dp"
                 android:layout_height="72dp"
                 android:layout_marginTop="@dimen/spacing_xl"
                 android:contentDescription="@string/cd_world_book_avatar">
-
                 <View
                     android:layout_width="72dp"
                     android:layout_height="72dp"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_avatar_circle" />
-
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
@@ -80,7 +70,6 @@
                     android:textColor="@color/wb_text_secondary"
                     android:alpha="0.6" />
             </FrameLayout>
-
             <TextView
                 android:id="@+id/tvSubtitle"
                 android:layout_width="wrap_content"
@@ -90,7 +79,6 @@
                 android:textColor="@color/wb_text_warm"
                 android:textStyle="bold"
                 android:layout_marginTop="@dimen/spacing_md" />
-
             <TextView
                 android:id="@+id/tvDescHint"
                 android:layout_width="match_parent"
@@ -102,7 +90,6 @@
                 android:layout_marginTop="@dimen/spacing_sm"
                 android:paddingHorizontal="@dimen/spacing_5xl"
                 android:lineSpacingExtra="2dp" />
-
             <TextView
                 android:id="@+id/tvEntryCount"
                 android:layout_width="wrap_content"
@@ -111,7 +98,6 @@
                 android:textColor="@color/wb_text_hint"
                 android:layout_marginTop="@dimen/spacing_sm" />
         </LinearLayout>
-
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvEntries"
             android:layout_width="match_parent"
@@ -121,21 +107,18 @@
             android:paddingTop="@dimen/spacing_md"
             android:paddingBottom="@dimen/spacing_5xl"
             android:paddingHorizontal="@dimen/spacing_page" />
-
         <FrameLayout
             android:id="@+id/layoutEmpty"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:visibility="gone">
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:orientation="vertical"
                 android:padding="@dimen/spacing_5xl">
-
                 <TextView
                     android:id="@+id/ivEmptyFeather"
                     android:layout_width="64dp"
@@ -145,7 +128,6 @@
                     android:textSize="48sp"
                     android:textColor="@color/wb_text_hint"
                     android:alpha="0.4" />
-
                 <TextView
                     android:id="@+id/tvEmptyText"
                     android:layout_width="wrap_content"
@@ -158,18 +140,15 @@
                     android:lineSpacingExtra="4dp" />
             </LinearLayout>
         </FrameLayout>
-
         <FrameLayout
             android:id="@+id/layoutLoading"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:visibility="gone">
-
             <include layout="@layout/layout_app_loading_state" />
         </FrameLayout>
     </LinearLayout>
-
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAddEntry"
         android:layout_width="wrap_content"
@@ -180,10 +159,9 @@
         app:srcCompat="@drawable/ic_feather"
         app:backgroundTint="@color/wb_fab_bg"
         app:borderWidth="1dp"
-        app:borderColor="@color/wb_fab_border"
+        app:strokeColor="@color/wb_fab_border"
         app:elevation="4dp"
         app:fabCustomSize="56dp"
         app:tint="@color/wb_fab_icon"
         app:rippleColor="@color/wb_text_hint" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
