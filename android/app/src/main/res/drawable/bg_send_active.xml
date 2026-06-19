@@ -1,10 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 发送按钮激活态：椭圆形状，粉→紫渐变 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <gradient
-        android:angle="135"
-        android:startColor="@color/elysian_pink"
-        android:endColor="@color/elysian_purple"
-        android:type="linear" />
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient android:angle="135" android:startColor="@color/sakura_gradient_start" android:endColor="@color/sakura_gradient_end" android:type="linear" />
 </shape>
