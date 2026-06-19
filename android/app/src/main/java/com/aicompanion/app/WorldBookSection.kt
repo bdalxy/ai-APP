@@ -21,23 +21,13 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 世界书（World Book）管理模块
- * 从 SettingsDetailActivity 提取，负责世界书的创建、编辑、条目管理、交叉审核等功能。
- * 通过持有 SettingsDetailActivity 引用，复用其 UI 工具方法和属性。
- */
 class WorldBookSection(private val activity: SettingsDetailActivity) {
 
-    /** 缓存 Python 模块引用，避免重复获取 */
     private fun getModule() = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
 
-    /**
-     * 构建世界书管理页面（异步加载，避免主线程调用 Python）
-     */
     fun build() {
         activity.addSectionTitle("世界书（知识/常识注入）")
 
-        // 添加加载指示器
         val loadingLayout = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -54,7 +44,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         })
         activity.contentLayout.addView(loadingLayout)
 
-        // 在后台线程调用 Python，避免阻塞 UI
         activity.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val module = getModule()
@@ -77,7 +66,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                     for (i in 0 until enabledArray.length()) enabledSet.add(enabledArray.optString(i, ""))
                 }
 
-                // 切回主线程更新 UI
                 withContext(Dispatchers.Main) {
                     activity.contentLayout.removeView(loadingLayout)
 
@@ -97,7 +85,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                     }
 
                     activity.addDivider()
-                    // 创建按钮
                     val createBtn = Button(activity).apply {
                         text = "＋ 创建世界书"; textSize = 14f
                         setTextColor(ContextCompat.getColor(activity, R.color.primary))
@@ -117,8 +104,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 世界书行条目 ========================
-
     private fun addWorldBookRow(name: String, description: String, entries: Int, isEnabled: Boolean) {
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -130,9 +115,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
         row.addView(android.widget.ImageView(activity).apply {
             setImageResource(R.drawable.ic_book)
-            layoutParams = LinearLayout.LayoutParams(20, 20).apply {
-                marginEnd = 12
-            }
+            layoutParams = LinearLayout.LayoutParams(20, 20).apply { marginEnd = 12 }
             setColorFilter(ContextCompat.getColor(activity, R.color.primary))
         })
         val textLayout = LinearLayout(activity).apply {
@@ -150,46 +133,42 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
         })
         row.addView(textLayout)
-        val switch = SwitchCompat(activity).apply {
-            isChecked = isEnabled
-            setOnCheckedChangeListener { _, checked ->
-                // 在后台线程调用 Python，避免阻塞 UI
-                activity.lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val module = getModule()
-                        if (checked) {
-                            val r = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
-                            val j = JSONObject(r)
-                            withContext(Dispatchers.Main) {
-                                if (j.optString("status") == "ok") {
-                                    saveEnabledWorldBooks()
-                                    Toast.makeText(activity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    switch.isChecked = false
-                                    Toast.makeText(activity, "启用失败: ${j.optString("message")}", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        } else {
-                            module?.callAttr("disable_world_book", name)
-                            withContext(Dispatchers.Main) {
-                                saveEnabledWorldBooks()
-                                Toast.makeText(activity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (e: Exception) {
+        val switchView = SwitchCompat(activity)
+        switchView.isChecked = isEnabled
+        switchView.setOnCheckedChangeListener { _, checked ->
+            activity.lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val module = getModule()
+                    if (checked) {
+                        val r = module?.callAttr("enable_world_book", name)?.toString() ?: "{}"
+                        val j = JSONObject(r)
                         withContext(Dispatchers.Main) {
-                            switch.isChecked = !checked
-                            Toast.makeText(activity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            if (j.optString("status") == "ok") {
+                                saveEnabledWorldBooks()
+                                Toast.makeText(activity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
+                            } else {
+                                switchView.isChecked = false
+                                Toast.makeText(activity, "启用失败: ${j.optString("message")}", Toast.LENGTH_SHORT).show()
+                            }
                         }
+                    } else {
+                        module?.callAttr("disable_world_book", name)
+                        withContext(Dispatchers.Main) {
+                            saveEnabledWorldBooks()
+                            Toast.makeText(activity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        switchView.isChecked = !checked
+                        Toast.makeText(activity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
         }
-        row.addView(switch)
+        row.addView(switchView)
         activity.contentLayout.addView(row)
     }
-
-    // ======================== 创建世界书 ========================
 
     private fun showCreateWorldBookDialog() {
         val layout = LinearLayout(activity).apply {
@@ -243,8 +222,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             Toast.makeText(activity, "创建失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
-
-    // ======================== 编辑世界书 ========================
 
     private fun showEditWorldBookDialog(name: String) {
         try {
@@ -316,8 +293,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 编辑描述 ========================
-
     private fun showEditDescriptionDialog(name: String, currentDescription: String) {
         val layout = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 0)
@@ -358,8 +333,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 删除世界书 ========================
-
     private fun showDeleteWorldBookConfirmDialog(name: String) {
         MaterialAlertDialogBuilder(activity)
             .setTitle("删除世界书")
@@ -385,8 +358,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 保存已启用状态 ========================
-
     private fun saveEnabledWorldBooks() {
         try {
             val module = getModule()
@@ -403,8 +374,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 条目管理 ========================
-
     private fun showEntryListDialog(bookName: String) {
         try {
             val module = getModule()
@@ -418,14 +387,9 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
             val scrollView = ScrollView(activity).apply {
                 setPadding(48, 16, 48, 0)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    activity.dialogHeight()  // 动态计算：屏幕高度 55%
-                )
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, activity.dialogHeight())
             }
-            val layout = LinearLayout(activity).apply {
-                orientation = LinearLayout.VERTICAL
-            }
+            val layout = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
             if (entries.length() == 0) {
                 layout.addView(TextView(activity).apply {
@@ -466,15 +430,12 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                         maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
                     })
                     row.addView(textLayout)
-                    // 删除按钮
                     val delBtn = Button(activity).apply {
                         text = "✕"; textSize = 14f
                         setTextColor(ContextCompat.getColor(activity, R.color.accent_red))
                         setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                         setPadding(16, 4, 0, 4)
-                        setOnClickListener {
-                            confirmDeleteEntry(bookName, id)
-                        }
+                        setOnClickListener { confirmDeleteEntry(bookName, id) }
                     }
                     row.addView(delBtn)
                     layout.addView(row)
@@ -503,8 +464,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 条目编辑对话框 ========================
-
     private fun showEntryEditDialog(bookName: String, existingEntry: JSONObject?, isNew: Boolean) {
         val entryId = if (isNew) "" else existingEntry?.optString("id", "") ?: ""
         val entryContent = if (isNew) "" else existingEntry?.optString("content", "") ?: ""
@@ -519,30 +478,20 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
         val scrollView = ScrollView(activity).apply {
             setPadding(48, 16, 48, 0)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                activity.dialogHeight()  // 动态计算：屏幕高度 55%
-            )
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, activity.dialogHeight())
         }
-        val layout = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-        }
+        val layout = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
-        // ID
         val etId = addEditField(layout, "条目ID *", entryId, "如 entry_001")
         if (!isNew) etId.isEnabled = false
 
-        // 内容
         val etContent = addEditField(layout, "触发内容 *", entryContent, "触发时注入的上下文文本（至少20字）")
         etContent.minLines = 3
 
-        // 关键词
         val etKeys = addEditField(layout, "关键词（逗号分隔）", entryKeys, "如: 猫, 宠物, 喵")
 
-        // 备注
         val etComment = addEditField(layout, "备注", entryComment, "开发者的备注说明")
 
-        // 常量开关
         val switchConstant = SwitchCompat(activity).apply {
             isChecked = entryConstant
             text = "始终注入（constant）"
@@ -551,7 +500,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
         layout.addView(switchConstant)
 
-        // 概率
         val probLayout = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -579,7 +527,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         probLayout.addView(seekProb)
         layout.addView(probLayout)
 
-        // 优先级
         val priLayout = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -613,13 +560,10 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             .setTitle(title)
             .setView(scrollView)
             .setPositiveButton("保存") { _, _ ->
-                saveEntry(bookName, entryId, isNew, etId, etContent, etKeys, etComment,
-                    switchConstant.isChecked, seekProb.progress, seekPriority.progress)
+                saveEntry(bookName, entryId, isNew, etId, etContent, etKeys, etComment, switchConstant.isChecked, seekProb.progress, seekPriority.progress)
             }
             .setNegativeButton("取消", null).show()
     }
-
-    // ======================== 编辑字段辅助 ========================
 
     private fun addEditField(parent: LinearLayout, label: String, value: String, hint: String): EditText {
         parent.addView(TextView(activity).apply {
@@ -639,20 +583,14 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         return et
     }
 
-    // ======================== 保存条目 ========================
-
-    private fun saveEntry(bookName: String, entryId: String, isNew: Boolean,
-                          etId: EditText, etContent: EditText, etKeys: EditText, etComment: EditText,
-                          constant: Boolean, probability: Int, priority: Int) {
+    private fun saveEntry(bookName: String, entryId: String, isNew: Boolean, etId: EditText, etContent: EditText, etKeys: EditText, etComment: EditText, constant: Boolean, probability: Int, priority: Int) {
         val newId = etId.text.toString().trim()
         val content = etContent.text.toString().trim()
         if (newId.isEmpty()) { Toast.makeText(activity, "条目ID不能为空", Toast.LENGTH_SHORT).show(); return }
         if (content.isEmpty()) { Toast.makeText(activity, "触发内容不能为空", Toast.LENGTH_SHORT).show(); return }
 
         val keysStr = etKeys.text.toString().trim()
-        val keys = if (keysStr.isNotEmpty()) {
-            JSONArray(keysStr.split(",").map { it.trim() }.filter { it.isNotEmpty() })
-        } else JSONArray()
+        val keys = if (keysStr.isNotEmpty()) JSONArray(keysStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }) else JSONArray()
 
         val entryJson = JSONObject().apply {
             put("id", newId)
@@ -683,8 +621,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
     }
 
-    // ======================== 删除条目 ========================
-
     private fun confirmDeleteEntry(bookName: String, entryId: String) {
         MaterialAlertDialogBuilder(activity)
             .setTitle("删除条目")
@@ -707,8 +643,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             .setNegativeButton("取消", null).show()
     }
 
-    // ======================== 交叉审核 ========================
-
     private fun showAuditReportDialog(bookName: String) {
         try {
             val module = getModule()
@@ -725,16 +659,10 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
             val scrollView = ScrollView(activity).apply {
                 setPadding(48, 16, 48, 0)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    activity.dialogHeight()  // 动态计算：屏幕高度 55%
-                )
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, activity.dialogHeight())
             }
-            val layout = LinearLayout(activity).apply {
-                orientation = LinearLayout.VERTICAL
-            }
+            val layout = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
-            // 总分卡片
             val scoreColor = if (passed) R.color.primary else R.color.accent_red
             val scoreEmoji = if (passed) "通过" else "未通过"
             layout.addView(TextView(activity).apply {
@@ -750,7 +678,6 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             })
             layout.addView(activity.createDividerView())
 
-            // 各维度
             for (d in 0 until dimensions.length()) {
                 val dim = dimensions.getJSONObject(d)
                 val dimName = dim.optString("name", "")
