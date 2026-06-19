@@ -26,10 +26,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-/**
- * 世界书（World Book）管理页面。
- * 非人格化设计，聚焦"共享的常识根基"。
- */
 class WorldBookActivity : AppCompatActivity() {
 
     companion object {
@@ -183,7 +179,7 @@ class WorldBookActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(padding, padding, padding, padding)
             background = ContextCompat.getDrawable(this@WorldBookActivity, R.drawable.bg_world_modal)
-            clipToOutline = true; outlineProvider = background; elevation = 8 * density
+            clipToOutline = true; elevation = 8 * density
         }
         card.addView(TextView(this).apply {
             this.text = title; textSize = 18f
