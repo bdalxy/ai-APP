@@ -77,8 +77,7 @@
     <string name="stats_total_memories">总记忆数：-- 条</string>
     <string name="status_loading">加载中...</string>
     <string name="hint_search_memories">搜索 AI 记忆内容...</string>
-    <string name="empty_memories">AI 还没有形成记忆
-聊聊天，AI 会自动从对话中提取重要信息</string>
+    <string name="empty_memories">AI 还没有形成记忆\n聊聊天，AI 会自动从对话中提取重要信息</string>
     <string name="action_load_more">加载更多...</string>
     <string name="action_clear_all_memories">清空全部记忆</string>
     <string name="desc_memory_ai_perspective">以下是 AI 对你们对话的记忆（以 AI 的视角记录）</string>
@@ -176,14 +175,10 @@
     <string name="desc_export_chat">将当前对话导出为JSON或TXT文件</string>
     <string name="label_total_memories_format">总记忆：%d 条</string>
     <string name="title_delete_memory">删除记忆</string>
-    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？
-
-"%2$s"</string>
+    <string name="msg_delete_memory_confirm">确定要删除这条%1$s记忆吗？\n\n\"%2$s\"</string>
     <string name="msg_no_memory_to_clear">当前没有记忆可以清空。</string>
     <string name="title_clear_all_memories">清空全部记忆</string>
-    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？
-
-此操作不可撤销！</string>
+    <string name="msg_clear_all_confirm">确定要删除全部 %d 条记忆吗？\n\n此操作不可撤销！</string>
     <string name="label_memory_type_episodic">情景记忆</string>
     <string name="label_memory_type_semantic">语义记忆</string>
     <string name="label_memory_type_user_fact">用户事实</string>
@@ -214,8 +209,7 @@
     <string name="voice_tts_initializing">语音引擎初始化中…</string>
     <string name="title_memory_archive">记忆档案馆</string>
     <string name="subtitle_memory_archive">时间褪色，记忆永恒</string>
-    <string name="empty_memory_archive">这里还没有记忆
-聊聊吧，AI 会帮你记录珍贵瞬间</string>
+    <string name="empty_memory_archive">这里还没有记忆\n聊聊吧，AI 会帮你记录珍贵瞬间</string>
     <string name="hint_delete_memory_confirm">松开确认删除这段记忆</string>
     <string name="btn_confirm_shatter">确认破碎</string>
     <string name="section_voice_settings">语音设置</string>
@@ -227,8 +221,7 @@
     <string name="title_world_book">世界书</string>
     <string name="subtitle_world_book">共享的常识根基</string>
     <string name="desc_world_book_hint">这些常识是 AI 理解世界的根基，不绑定任何角色人格</string>
-    <string name="empty_world_book">这里还没有常识条目
-点击右下角的羽毛笔，写下第一条常识吧</string>
+    <string name="empty_world_book">这里还没有常识条目\n点击右下角的羽毛笔，写下第一条常识吧</string>
     <string name="fab_add_entry">新增常识</string>
     <string name="hint_entry_category">分类标签（如：世界观、物理规则、历史）</string>
     <string name="hint_entry_content">常识内容（如：在这个世界里，魔法需要消耗精神力）</string>
