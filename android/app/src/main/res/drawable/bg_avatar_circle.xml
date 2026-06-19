@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 圆形头像边框：白色描边 1dp，淡樱粉背景 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 背景圆形 -->
     <item>
         <shape android:shape="oval">
             <solid android:color="@color/sakura_bg" />
         </shape>
     </item>
+    <!-- 白色描边 -->
     <item>
         <shape android:shape="oval">
-            <stroke android:width="1dp" android:color="@color/sakura_white" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/sakura_white" />
         </shape>
     </item>
 </layer-list>
