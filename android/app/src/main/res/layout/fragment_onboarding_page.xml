@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:paddingHorizontal="@dimen/spacing_5xl"
+    android:paddingTop="@dimen/spacing_5xl"
+    android:paddingBottom="@dimen/spacing_5xl"
+    android:clipToPadding="false">
+    <ImageView
+        android:id="@+id/ivOnboardingIcon"
+        android:layout_width="@dimen/avatar_size_xlarge"
+        android:layout_height="@dimen/avatar_size_xlarge"
+        android:contentDescription="@string/cd_avatar"
+        android:tint="@color/sakura_border"
+        android:scaleType="fitCenter"
+        android:layout_marginBottom="@dimen/spacing_5xl" />
+    <TextView
+        android:id="@+id/tvOnboardingTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/text_xlarge"
+        android:textStyle="bold"
+        android:textColor="@color/wb_text_warm"
+        android:gravity="center"
+        android:layout_marginBottom="@dimen/spacing_lg" />
+    <TextView
+        android:id="@+id/tvOnboardingDesc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/text_body_small"
+        android:textColor="@color/text_secondary"
+        android:gravity="center"
+        android:lineSpacingExtra="@dimen/spacing_sm" />
+</LinearLayout>
