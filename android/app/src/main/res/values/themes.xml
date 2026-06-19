@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== 樱羽主题 v1.0 — 亮色模式 ===== -->
     <style name="Theme.AICompanion" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primaryVariant</item>
@@ -22,26 +21,22 @@
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:editTextColor">@color/text_primary</item>
-        <!-- 字体 -->
         <item name="android:fontFamily">@font/quicksand</item>
         <item name="fontFamily">@font/quicksand</item>
     </style>
 
-    <!-- 设置项标题 -->
     <style name="SettingsItemTitle" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">15sp</item>
         <item name="android:fontFamily">@font/quicksand</item>
     </style>
 
-    <!-- 设置项副标题 -->
     <style name="SettingsItemSubtitle" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">13sp</item>
         <item name="android:fontFamily">@font/quicksand</item>
     </style>
 
-    <!-- 毛玻璃卡片 -->
     <style name="GlassCard" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">@color/glass_bg</item>
         <item name="strokeColor">@color/glass_border</item>
@@ -50,8 +45,6 @@
         <item name="cardElevation">0dp</item>
     </style>
 
-    <!-- ===== AppButton 系列 ===== -->
-    <!-- 主按钮：粉蓝渐变填充 -->
     <style name="AppButton.Primary" parent="Widget.MaterialComponents.Button">
         <item name="android:textColor">@color/onPrimary</item>
         <item name="android:fontFamily">@font/quicksand</item>
@@ -62,7 +55,6 @@
         <item name="android:minHeight">@dimen/button_default</item>
     </style>
 
-    <!-- 次要按钮：透明底 + 淡天蓝描边 -->
     <style name="AppButton.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="android:textColor">@color/primary</item>
         <item name="android:fontFamily">@font/quicksand</item>
@@ -71,7 +63,6 @@
         <item name="android:minHeight">@dimen/button_default</item>
     </style>
 
-    <!-- 文字按钮 -->
     <style name="AppButton.Text" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">@color/primary</item>
         <item name="android:fontFamily">@font/quicksand</item>
@@ -79,13 +70,11 @@
         <item name="android:minHeight">@dimen/button_medium</item>
     </style>
 
-    <!-- ===== AppSwitch 开关样式（粉蓝渐变） ===== -->
     <style name="AppSwitch" parent="Widget.AppCompat.CompoundButton.Switch">
         <item name="android:thumb">@drawable/bg_switch_thumb</item>
         <item name="android:track">@drawable/bg_switch_track</item>
     </style>
 
-    <!-- ===== AppInput 输入框样式 ===== -->
     <style name="AppInput" parent="Widget.AppCompat.EditText">
         <item name="android:background">@drawable/bg_input_field</item>
         <item name="android:textColor">@color/text_primary</item>
@@ -108,7 +97,6 @@
         <item name="android:gravity">top</item>
     </style>
 
-    <!-- ===== AppChip 标签样式 ===== -->
     <style name="AppChip">
         <item name="android:textSize">11sp</item>
         <item name="android:textColor">@color/onPrimary</item>
@@ -118,7 +106,6 @@
         <item name="android:background">@drawable/bg_type_label</item>
     </style>
 
-    <!-- ===== AppText 文本样式 ===== -->
     <style name="AppText" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:fontFamily">@font/quicksand</item>
