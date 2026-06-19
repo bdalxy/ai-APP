@@ -1,116 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29"
-        tools:ignore="ScopedStorage" />
-
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <supports-screens
-        android:smallScreens="true"
-        android:normalScreens="true"
-        android:largeScreens="true"
-        android:xlargeScreens="true"
-        android:anyDensity="true" />
-
-    <application
-        android:name=".AICompanionApp"
-        android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.AICompanion"
-        android:usesCleartextTraffic="false"
-        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
-        tools:targetApi="36">
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+    <supports-screens android:smallScreens="true" android:normalScreens="true" android:largeScreens="true" android:xlargeScreens="true" android:anyDensity="true" />
+    <application android:name=".AICompanionApp" android:allowBackup="false" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:supportsRtl="true" android:theme="@style/Theme.AICompanion" android:usesCleartextTraffic="false" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density" android:hardwareAccelerated="true" android:largeHeap="true" android:extractNativeLibs="true" tools:targetApi="36">
+        <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".MemoryManageActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity" />
-
-        <activity
-            android:name=".MemoryArchiveActivity"
-            android:exported="false"
-            android:label="记忆档案馆"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:label="设置"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".SettingsDetailActivity"
-            android:exported="false"
-            android:label="设置详情"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".CharacterManageActivity"
-            android:exported="false"
-            android:label="角色管理"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".CharacterSelectActivity"
-            android:exported="false"
-            android:label="选择角色"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".CharacterActivity"
-            android:exported="false"
-            android:label="角色详情"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".CharacterEditActivity"
-            android:exported="false"
-            android:label="编辑角色"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".PluginManageActivity"
-            android:exported="false"
-            android:label="插件管理"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
-            android:name=".WorldBookActivity"
-            android:exported="false"
-            android:label="世界书"
-            android:theme="@style/Theme.AICompanion" />
-
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+        <activity android:name=".MemoryManageActivity" android:exported="false" android:parentActivityName=".MainActivity" />
+        <activity android:name=".MemoryArchiveActivity" android:exported="false" android:label="记忆档案馆" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".SettingsActivity" android:exported="false" android:label="设置" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".SettingsDetailActivity" android:exported="false" android:label="设置详情" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".CharacterManageActivity" android:exported="false" android:label="角色管理" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".CharacterSelectActivity" android:exported="false" android:label="选择角色" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".CharacterActivity" android:exported="false" android:label="角色详情" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".CharacterEditActivity" android:exported="false" android:label="编辑角色" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".CharacterPreviewActivity" android:exported="false" android:label="角色预览" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".OnboardingActivity" android:exported="false" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".PluginManageActivity" android:exported="false" android:label="插件管理" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".WorldBookActivity" android:exported="false" android:label="世界书" android:theme="@style/Theme.AICompanion" />
+        <activity android:name=".CrashLogViewerActivity" android:exported="false" android:label="崩溃日志" android:theme="@style/Theme.AICompanion" />
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
-
     </application>
-
 </manifest>

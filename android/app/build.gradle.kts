@@ -24,18 +24,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // arm64-v8a: 真机（移除 x86_64 避免 Chaquopy move_to_common 冲突）
             abiFilters += listOf("arm64-v8a")
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 
@@ -49,13 +53,10 @@ android {
     }
 }
 
-// Chaquopy 17.0.0 新 DSL：在 chaquopy 块中配置，而非 python 块
 chaquopy {
     defaultConfig {
-        // 使用 Python 3.10（运行时已缓存）
         version = "3.10"
 
-        // 配置国内 PyPI 镜像加速 pip 下载
         pip {
             options("--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple")
             options("--trusted-host", "pypi.tuna.tsinghua.edu.cn")
@@ -69,6 +70,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
