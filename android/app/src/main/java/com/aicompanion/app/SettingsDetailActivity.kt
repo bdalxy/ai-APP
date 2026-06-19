@@ -19,13 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * 设置详情页：根据传入的 type 参数展示不同设置内容。
- * 使用 activity_settings_detail.xml 布局。
- *
- * type 支持: account | chat | memory | voice | notification | about | world_book
- * 兼容旧版: proactive → notification
- */
 class SettingsDetailActivity : AppCompatActivity() {
 
     companion object {
@@ -44,14 +37,11 @@ class SettingsDetailActivity : AppCompatActivity() {
         ViewUtils.setupEdgeToEdge(this)
         setContentView(R.layout.activity_settings_detail)
 
-        // 获取内容容器
         contentLayout = findViewById(R.id.detail_content)
 
-        // 获取传入类型，兼容旧版 proactive
         var type = intent.getStringExtra("type") ?: "account"
         if (type == "proactive") type = "notification"
 
-        // 标题映射
         val title = when (type) {
             "account" -> "账户设置"
             "chat" -> "对话设置"
@@ -63,20 +53,14 @@ class SettingsDetailActivity : AppCompatActivity() {
             else -> "设置"
         }
 
-        // 设置标题
         findViewById<TextView>(R.id.tvDetailTitle).text = title
-
-        // 返回按钮
         findViewById<View>(R.id.btnDetailBack).setOnClickListener { finish() }
-
-        // 保存按钮
         findViewById<Button>(R.id.btnDetailSave).setOnClickListener {
             applyAllParams()
             Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show()
             finish()
         }
 
-        // 根据类型构建内容
         when (type) {
             "account" -> buildAccountPage()
             "chat" -> buildChatPage()
@@ -88,8 +72,6 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
     }
 
-    // ======================== 账户设置 ========================
-
     private fun buildAccountPage() {
         val apiKey = AppConfig.getApiKey(this)
         val apiKeyLabel = if (apiKey.isNotEmpty()) "已配置 (${apiKey.take(4)}...)" else "未配置"
@@ -98,11 +80,9 @@ class SettingsDetailActivity : AppCompatActivity() {
         addSectionTitle("API 配置")
         addClickRow("API Key", apiKeyLabel, iconRes = R.drawable.ic_key) { showApiKeyEditDialog() }
         addDivider()
-
         addSectionTitle("模型")
         addClickRow("模型选择", model, iconRes = R.drawable.ic_model) { showModelSelectDialog() }
         addDivider()
-
         addSectionTitle("角色管理")
         addClickRow("角色管理", "管理角色卡", iconRes = R.drawable.ic_settings_account) {
             startActivity(Intent(this, CharacterManageActivity::class.java))
@@ -156,8 +136,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             .show()
     }
 
-    // ======================== 对话设置 ========================
-
     private fun buildChatPage() {
         val ctxSize = AppConfig.getContextSize(this)
         val temp = AppConfig.getTemperature(this)
@@ -175,7 +153,6 @@ class SettingsDetailActivity : AppCompatActivity() {
         addDivider()
         addClickRow("示例对话数", "${dialogues}条", iconRes = R.drawable.ic_example) { showExampleDialoguesDialog() }
         addDivider()
-
         addClickRow("开始新对话", "清空当前对话历史", iconRes = R.drawable.ic_new_chat) { showNewChatDialog() }
     }
 
@@ -316,10 +293,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton("取消", null).show()
     }
 
-    // ======================== 记忆设置 ========================
-
     private fun buildMemoryPage() {
-        // 记忆容量（当前仅显示，后续可扩展）
         addSectionTitle("记忆参数")
         addClickRow("记忆容量", "默认（自动管理）", iconRes = R.drawable.ic_settings_memory) {
             Toast.makeText(this, "记忆容量由系统自动管理，后续版本将支持手动调整", Toast.LENGTH_SHORT).show()
@@ -333,7 +307,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             Toast.makeText(this, "衰减参数将在后续版本中开放配置", Toast.LENGTH_SHORT).show()
         }
         addDivider()
-
         addSectionTitle("记忆管理")
         addClickRow("查看记忆列表", "浏览和管理AI记忆", iconRes = R.drawable.ic_settings_memory) {
             startActivity(Intent(this, MemoryManageActivity::class.java))
@@ -367,8 +340,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton("取消", null).show()
     }
 
-    // ======================== 通知设置（原主动消息） ========================
-
     private fun buildNotificationPage() {
         val enabled = AppConfig.getProactiveEnabled(this)
         val intervalMs = AppConfig.getProactiveInterval(this)
@@ -384,7 +355,6 @@ class SettingsDetailActivity : AppCompatActivity() {
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
 
         addSectionTitle("主动推送")
-        // 开关行
         val toggleRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -399,11 +369,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             isChecked = enabled
             setOnCheckedChangeListener { _, isChecked ->
                 AppConfig.setProactiveEnabled(this@SettingsDetailActivity, isChecked)
-                if (isChecked) {
-                    ProactiveService.schedule(this@SettingsDetailActivity)
-                } else {
-                    ProactiveService.cancel(this@SettingsDetailActivity)
-                }
+                if (isChecked) ProactiveService.schedule(this@SettingsDetailActivity) else ProactiveService.cancel(this@SettingsDetailActivity)
             }
         }
         toggleRow.addView(sw)
@@ -412,22 +378,15 @@ class SettingsDetailActivity : AppCompatActivity() {
 
         addClickRow("发送频率", intervalLabel, iconRes = R.drawable.ic_frequency) {
             val optionsWithCustom = INTERVAL_OPTIONS.toMutableList().apply { add("自定义") }
-            val idx = if (INTERVAL_MS.contains(intervalMs)) {
-                INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)
-            } else {
-                optionsWithCustom.size - 1
-            }
+            val idx = if (INTERVAL_MS.contains(intervalMs)) INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0) else optionsWithCustom.size - 1
             MaterialAlertDialogBuilder(this)
                 .setTitle("发送频率")
                 .setSingleChoiceItems(optionsWithCustom.toTypedArray(), idx) { dialog, which ->
-                    if (which == optionsWithCustom.size - 1) {
-                        dialog.dismiss()
-                        showCustomIntervalDialog()
-                    } else {
+                    if (which == optionsWithCustom.size - 1) { dialog.dismiss(); showCustomIntervalDialog() }
+                    else {
                         AppConfig.setProactiveInterval(this@SettingsDetailActivity, INTERVAL_MS[which])
                         ProactiveService.reschedule(this@SettingsDetailActivity)
-                        dialog.dismiss()
-                        recreate()
+                        dialog.dismiss(); recreate()
                     }
                 }
                 .setNegativeButton("取消", null).show()
@@ -445,21 +404,13 @@ class SettingsDetailActivity : AppCompatActivity() {
                 .setTitle("静默时段")
                 .setSingleChoiceItems(options, idx) { dialog, which ->
                     when (which) {
-                        0 -> {
-                            AppConfig.clearQuietHours(this@SettingsDetailActivity)
-                            dialog.dismiss()
-                            recreate()
-                        }
+                        0 -> { AppConfig.clearQuietHours(this@SettingsDetailActivity); dialog.dismiss(); recreate() }
                         1, 2, 3 -> {
                             val parts = options[which].split(" - ")
                             AppConfig.setQuietHours(this@SettingsDetailActivity, parts[0].trim(), parts[1].trim())
-                            dialog.dismiss()
-                            recreate()
+                            dialog.dismiss(); recreate()
                         }
-                        4 -> {
-                            dialog.dismiss()
-                            showCustomQuietDialog()
-                        }
+                        4 -> { dialog.dismiss(); showCustomQuietDialog() }
                     }
                 }
                 .setNegativeButton("取消", null).show()
@@ -478,15 +429,9 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton("确定") { _, _ ->
                 val hours = input.text.toString().toDoubleOrNull()
-                if (hours == null || hours <= 0) {
-                    Toast.makeText(this, "请输入有效的正数", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
+                if (hours == null || hours <= 0) { Toast.makeText(this, "请输入有效的正数", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
                 val intervalMs = (hours * 3600000L).toLong()
-                if (intervalMs < AppConfig.MIN_INTERVAL_MS) {
-                    Toast.makeText(this, "最低间隔为 30 分钟（0.5 小时）", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
+                if (intervalMs < AppConfig.MIN_INTERVAL_MS) { Toast.makeText(this, "最低间隔为 30 分钟（0.5 小时）", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
                 AppConfig.setProactiveInterval(this@SettingsDetailActivity, intervalMs)
                 ProactiveService.reschedule(this@SettingsDetailActivity)
                 recreate()
@@ -498,8 +443,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val currentStart = AppConfig.getQuietStart(this)
         val currentEnd = AppConfig.getQuietEnd(this)
         val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 16, 48, 16)
+            orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 16)
         }
         val startInput = EditText(this).apply {
             hint = "开始时间（如 22:00）"
@@ -511,18 +455,9 @@ class SettingsDetailActivity : AppCompatActivity() {
             setText(currentEnd)
             inputType = InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME
         }
-        layout.addView(TextView(this).apply {
-            text = "开始时间"
-            textSize = 14f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-        })
+        layout.addView(TextView(this).apply { text = "开始时间"; textSize = 14f; setTextColor(ContextCompat.getColor(context, R.color.text_primary)) })
         layout.addView(startInput)
-        layout.addView(TextView(this).apply {
-            text = "结束时间"
-            textSize = 14f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            setPadding(0, 16, 0, 0)
-        })
+        layout.addView(TextView(this).apply { text = "结束时间"; textSize = 14f; setTextColor(ContextCompat.getColor(context, R.color.text_primary)); setPadding(0, 16, 0, 0) })
         layout.addView(endInput)
         MaterialAlertDialogBuilder(this)
             .setTitle("自定义静默时段")
@@ -540,65 +475,41 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton("取消", null).show()
     }
 
-    // ======================== 世界书 ========================
-
     private fun buildWorldBookPage() {
         WorldBookSection(this).build()
     }
-
-    // ======================== 语音设置 ========================
 
     private fun buildVoicePage() {
         val speechRate = AppConfig.getTtsSpeechRate(this)
         val pitch = AppConfig.getTtsPitch(this)
         val autoRead = AppConfig.getAutoReadAloud(this)
         val lang = AppConfig.getVoiceRecognitionLang(this)
-        val langLabel = when (lang) {
-            "zh-CN" -> "中文（普通话）"
-            "en-US" -> "English (US)"
-            "ja-JP" -> "日本語"
-            else -> lang
-        }
+        val langLabel = when (lang) { "zh-CN" -> "中文（普通话）"; "en-US" -> "English (US)"; "ja-JP" -> "日本語"; else -> lang }
 
         addSectionTitle("语音合成（TTS）")
-
-        addClickRow("语速", "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) {
-            showTtsRateDialog()
-        }
+        addClickRow("语速", "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) { showTtsRateDialog() }
+        addDivider()
+        addClickRow("音调", "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) { showTtsPitchDialog() }
         addDivider()
 
-        addClickRow("音调", "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) {
-            showTtsPitchDialog()
-        }
-        addDivider()
-
-        // 自动朗读开关
         val toggleRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, 12, 0, 12)
+            orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, 12, 0, 12)
         }
         toggleRow.addView(TextView(this).apply {
-            text = "自动朗读AI回复"
-            textSize = 16f
+            text = "自动朗读AI回复"; textSize = 16f
             setTextColor(ContextCompat.getColor(context, R.color.text_primary))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         val sw = SwitchCompat(this).apply {
             isChecked = autoRead
-            setOnCheckedChangeListener { _, isChecked ->
-                AppConfig.setAutoReadAloud(this@SettingsDetailActivity, isChecked)
-            }
+            setOnCheckedChangeListener { _, isChecked -> AppConfig.setAutoReadAloud(this@SettingsDetailActivity, isChecked) }
         }
         toggleRow.addView(sw)
         contentLayout.addView(toggleRow)
         addDivider()
 
         addSectionTitle("语音识别（ASR）")
-
-        addClickRow("识别语言", langLabel, iconRes = R.drawable.ic_language) {
-            showVoiceLangDialog()
-        }
+        addClickRow("识别语言", langLabel, iconRes = R.drawable.ic_language) { showVoiceLangDialog() }
     }
 
     private fun showTtsRateDialog() {
@@ -607,8 +518,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val values = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
         val idx = values.indexOfFirst { it >= current - 0.01f }.coerceAtLeast(0)
         showSliderDialog("TTS 语速", "调整AI语音朗读的快慢", labels, labels, idx, labels.size - 1) { which ->
-            AppConfig.setTtsSpeechRate(this, values[which])
-            recreate()
+            AppConfig.setTtsSpeechRate(this, values[which]); recreate()
         }
     }
 
@@ -618,8 +528,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val values = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
         val idx = values.indexOfFirst { it >= current - 0.01f }.coerceAtLeast(0)
         showSliderDialog("TTS 音调", "调整AI语音的音调高低", labels, labels, idx, labels.size - 1) { which ->
-            AppConfig.setTtsPitch(this, values[which])
-            recreate()
+            AppConfig.setTtsPitch(this, values[which]); recreate()
         }
     }
 
@@ -631,20 +540,17 @@ class SettingsDetailActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("语音识别语言")
             .setSingleChoiceItems(options, idx) { dialog, which ->
-                AppConfig.setVoiceRecognitionLang(this, values[which])
-                dialog.dismiss()
-                recreate()
+                AppConfig.setVoiceRecognitionLang(this, values[which]); dialog.dismiss(); recreate()
             }
-            .setNegativeButton("取消", null)
-            .show()
+            .setNegativeButton("取消", null).show()
     }
-
-    // ======================== 关于 ========================
 
     private fun buildAboutPage() {
         addSectionTitle("应用信息")
-        addClickRow("版本号", "v${BuildConfig.VERSION_NAME}", iconRes = R.drawable.ic_export) {
-            // 仅显示，无操作
+        addClickRow("版本号", "v${BuildConfig.VERSION_NAME}", iconRes = R.drawable.ic_export) {}
+        addDivider()
+        addClickRow("崩溃日志", "查看应用崩溃记录", iconRes = R.drawable.ic_error) {
+            startActivity(Intent(this, CrashLogViewerActivity::class.java))
         }
         addDivider()
         addClickRow("开源许可", "查看开源组件许可", iconRes = R.drawable.ic_export) {
@@ -655,24 +561,18 @@ class SettingsDetailActivity : AppCompatActivity() {
             Toast.makeText(this, "反馈功能将在后续版本中开放，敬请期待", Toast.LENGTH_SHORT).show()
         }
         addDivider()
-        addClickRow("导出对话记录", "将当前对话导出为文件", iconRes = R.drawable.ic_export) {
-            showExportDialog()
-        }
+        addClickRow("导出对话记录", "将当前对话导出为文件", iconRes = R.drawable.ic_export) { showExportDialog() }
     }
 
     private fun showExportDialog() {
-        val formats = arrayOf(
-            getString(R.string.export_format_json),
-            getString(R.string.export_format_txt)
-        )
+        val formats = arrayOf(getString(R.string.export_format_json), getString(R.string.export_format_txt))
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.label_choose_export_format))
             .setItems(formats) { _, which ->
                 val format = if (which == 0) "json" else "txt"
                 exportConversation(format)
             }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     private fun exportConversation(format: String) {
@@ -685,22 +585,15 @@ class SettingsDetailActivity : AppCompatActivity() {
             try {
                 val messages = ConversationSessionManager.loadMessages(sessionId)
                 if (messages.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_no_messages), Toast.LENGTH_SHORT).show()
-                    }
+                    withContext(Dispatchers.Main) { Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_no_messages), Toast.LENGTH_SHORT).show() }
                     return@launch
                 }
                 val character = CharacterStorage.getCurrent(this@SettingsDetailActivity)
-                val content = when (format) {
-                    "json" -> ChatExporter.exportToJson(messages, character.name)
-                    else -> ChatExporter.exportToTxt(messages, character.name)
-                }
+                val content = when (format) { "json" -> ChatExporter.exportToJson(messages, character.name); else -> ChatExporter.exportToTxt(messages, character.name) }
                 val fileName = ChatExporter.generateFileName(format, character.name)
                 val uri = ChatExporter.saveToFile(content, fileName, this@SettingsDetailActivity)
                 if (uri == null) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_file_failed), Toast.LENGTH_LONG).show()
-                    }
+                    withContext(Dispatchers.Main) { Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_export_file_failed), Toast.LENGTH_LONG).show() }
                     return@launch
                 }
                 withContext(Dispatchers.Main) {
@@ -721,8 +614,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             }
         }
     }
-
-    // ======================== 通用 UI 辅助方法 ========================
 
     internal fun dip(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
 
@@ -762,24 +653,18 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     internal fun addClickRow(label: String, value: String, valueColor: Int = R.color.text_secondary, iconRes: Int = 0, onClick: () -> Unit) {
         val row = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 16, 0, 16)
+            orientation = LinearLayout.VERTICAL; setPadding(0, 16, 0, 16)
             isClickable = true; isFocusable = true
             setBackgroundResource(getSelectableItemBackground())
             setOnClickListener { onClick() }
         }
-        // 标签行：图标 + 文字
         if (iconRes != 0) {
             val labelRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(0, 0, 0, 6)
+                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, 6)
             }
             labelRow.addView(android.widget.ImageView(this).apply {
                 setImageResource(iconRes)
-                layoutParams = LinearLayout.LayoutParams(20, 20).apply {
-                    marginEnd = 8
-                }
+                layoutParams = LinearLayout.LayoutParams(20, 20).apply { marginEnd = 8 }
                 setColorFilter(ContextCompat.getColor(context, R.color.primary))
             })
             labelRow.addView(TextView(this).apply {
@@ -792,11 +677,9 @@ class SettingsDetailActivity : AppCompatActivity() {
             row.addView(TextView(this).apply {
                 text = label; textSize = 18f
                 setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-                paint.isFakeBoldText = true
-                setPadding(0, 0, 0, 6)
+                paint.isFakeBoldText = true; setPadding(0, 0, 0, 6)
             })
         }
-        // 预览值：灰色小字
         row.addView(TextView(this).apply {
             text = value; textSize = 14f
             setTextColor(ContextCompat.getColor(context, valueColor))
@@ -804,25 +687,15 @@ class SettingsDetailActivity : AppCompatActivity() {
         contentLayout.addView(row)
     }
 
-    internal fun addDivider() {
-        contentLayout.addView(createDividerView())
-    }
+    internal fun addDivider() { contentLayout.addView(createDividerView()) }
 
     internal fun createDividerView(): View = View(this).apply {
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            resources.getDimensionPixelSize(R.dimen.divider_thickness)
-        )
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, resources.getDimensionPixelSize(R.dimen.divider_thickness))
         setBackgroundColor(ContextCompat.getColor(context, R.color.glass_border))
     }
 
-    private fun showSliderDialog(
-        title: String, subtitle: String, labels: Array<String>, descs: Array<String>,
-        currentIdx: Int, max: Int, onSelected: (Int) -> Unit,
-    ) {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
+    private fun showSliderDialog(title: String, subtitle: String, labels: Array<String>, descs: Array<String>, currentIdx: Int, max: Int, onSelected: (Int) -> Unit) {
+        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0) }
         layout.addView(TextView(this).apply {
             text = subtitle; textSize = 13f
             setTextColor(ContextCompat.getColor(context, R.color.darker_gray)); setPadding(0, 0, 0, 16)
@@ -836,17 +709,13 @@ class SettingsDetailActivity : AppCompatActivity() {
         val seekBar = SeekBar(this).apply {
             this.max = max; progress = currentIdx; setPadding(8, 0, 8, 0)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    tvValue.text = "${labels[progress]} — ${descs[progress]}"
-                }
+                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) { tvValue.text = "${labels[progress]} — ${descs[progress]}" }
                 override fun onStartTrackingTouch(sb: SeekBar) {}
                 override fun onStopTrackingTouch(sb: SeekBar) {}
             })
         }
         layout.addView(seekBar)
-        val labelRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; setPadding(8, 4, 8, 0)
-        }
+        val labelRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(8, 4, 8, 0) }
         for (i in 0..max) {
             labelRow.addView(TextView(this).apply {
                 text = descs[i]; textSize = 11f
@@ -860,8 +729,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setPositiveButton("确定") { _, _ -> onSelected(seekBar.progress) }
             .setNegativeButton("取消", null).show()
     }
-
-    // ======================== 参数应用 ========================
 
     private fun applyAllParams() {
         lifecycleScope.launch(Dispatchers.IO) {
