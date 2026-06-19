@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 插件内置标签背景（淡樱粉主题） -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="#1AFFB7C5" />
     <corners android:radius="8dp" />

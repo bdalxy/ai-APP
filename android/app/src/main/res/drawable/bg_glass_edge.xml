@@ -1,12 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    玻璃糖纸边缘高光描边 (Glassmorphism Edge Highlight)
+    效果：天使白 → 淡天蓝渐变描边，模拟玻璃边缘的光线折射
+
+    使用 layer-list 实现渐变描边：
+    - 底层：对角线渐变（天使白→淡天蓝），作为"描边"色
+    - 顶层：略小的纯色填充，露出底层边缘形成 1dp 描边视觉效果
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 底层：渐变描边色（天使白 → 淡天蓝，135度对角线） -->
     <item>
         <shape android:shape="rectangle">
-            <gradient android:startColor="@color/glass_edge_white" android:endColor="@color/glass_edge_blue" android:angle="135" android:type="linear" />
+            <gradient
+                android:startColor="@color/glass_edge_white"
+                android:endColor="@color/glass_edge_blue"
+                android:angle="135"
+                android:type="linear" />
             <corners android:radius="12dp" />
         </shape>
     </item>
-    <item android:top="1dp" android:bottom="1dp" android:left="1dp" android:right="1dp">
+
+    <!-- 顶层：填充色（比底层缩进 1dp，形成描边效果） -->
+    <item
+        android:top="1dp"
+        android:bottom="1dp"
+        android:left="1dp"
+        android:right="1dp">
         <shape android:shape="rectangle">
             <solid android:color="@color/glass_fill_white" />
             <corners android:radius="11dp" />

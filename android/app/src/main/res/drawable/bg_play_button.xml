@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+<!-- 播放按钮圆形背景：淡樱粉色半透明 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
     <solid android:color="#33F0B0C0" />
     <size android:width="36dp" android:height="36dp" />
 </shape>
