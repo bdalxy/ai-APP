@@ -17,6 +17,15 @@
     <!-- 录音权限（语音识别/语音消息） -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- ─────────────────────────────────────────────────────────────
+    屏幕适配：明确声明支持所有屏幕尺寸，避免 Google Play 过滤
+    - smallScreens: 小屏手机（320dp 宽，如 3.5" 设备）
+    - normalScreens: 标准手机（360dp-400dp 宽）
+    - largeScreens: 小平板 / 大屏手机（600dp+ 宽）
+    - xlargeScreens: 大平板 / 折叠屏展开态（720dp+ 宽）
+    - anyDensity: 支持所有屏幕密度（mdpi ~ xxxhdpi）
+    - 不设置 compatibleWidthLimitDp / largestWidthLimitDp，表示无宽度限制
+    ───────────────────────────────────────────────────────────── -->
     <supports-screens
         android:smallScreens="true"
         android:normalScreens="true"
@@ -124,6 +133,7 @@
             android:label="崩溃日志"
             android:theme="@style/Theme.AICompanion" />
 
+        <!-- FileProvider：用于分享导出的对话文件 -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
