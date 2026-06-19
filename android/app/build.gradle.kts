@@ -56,7 +56,6 @@ android {
 chaquopy {
     defaultConfig {
         version = "3.10"
-
         pip {
             options("--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple")
             options("--trusted-host", "pypi.tuna.tsinghua.edu.cn")
