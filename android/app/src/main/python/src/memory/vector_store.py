@@ -1131,6 +1131,26 @@ class VectorStore:
         except sqlite3.Error as e:
             self._log.error(f"关闭数据库连接失败: {e}")
 
+    def reopen(self) -> None:
+        """重新打开数据库连接（在 close() 或 restore 后调用）。
+
+        恢复数据库连接并重建索引，使 VectorStore 恢复可用状态。
+        """
+        if not self._closed:
+            self._log.warning("VectorStore 连接已打开，无需 reopen")
+            return
+        try:
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA foreign_keys=ON")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+            self._create_indexes()
+            self._closed = False
+            self._log.info("VectorStore 数据库连接已重新打开")
+        except sqlite3.Error as e:
+            self._log.error(f"重新打开数据库连接失败: {e}")
+            raise MemoryStorageError(f"无法重新打开数据库: {e}") from e
+
     def _checkpoint(self) -> None:
         """执行 WAL checkpoint，将 WAL 日志合并到主数据库。"""
         try:

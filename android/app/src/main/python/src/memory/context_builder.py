@@ -34,6 +34,7 @@ from src.memory.decay import get_weight
 from src.memory.retriever import MemoryRetriever
 from src.memory.vector_store import MemoryEntry, VectorStore
 from src.utils.logger import get_logger
+from src.utils.text_utils import text_similarity
 
 
 # =============================================================================
@@ -339,7 +340,7 @@ class ContextBuilder:
         for entry in entries:
             is_dup = False
             for existing in kept:
-                sim = self._text_similarity(entry.content, existing.content)
+                sim = text_similarity(entry.content, existing.content)
                 if sim >= self._config.dedup_threshold:
                     # 保留重要性更高的
                     if entry.importance > existing.importance:
@@ -351,23 +352,6 @@ class ContextBuilder:
                 kept.append(entry)
 
         return kept
-
-    @staticmethod
-    def _text_similarity(text1: str, text2: str) -> float:
-        """计算两个文本的 bigram Jaccard 相似度。"""
-        import re
-
-        def _bigrams(s: str) -> set[str]:
-            cleaned = re.sub(r"[^\w\u4e00-\u9fff]", "", s)
-            return {cleaned[i:i + 2] for i in range(len(cleaned) - 1)}
-
-        bg1 = _bigrams(text1)
-        bg2 = _bigrams(text2)
-        if not bg1 or not bg2:
-            return 0.0
-        intersection = len(bg1 & bg2)
-        union = len(bg1 | bg2)
-        return intersection / union if union > 0 else 0.0
 
     # =========================================================================
     # 排序

@@ -20,7 +20,15 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
     _state.py     — 共享全局状态（_ctx/CARD_PATH）
 """
 
-# ---- 核心聊天引擎 ----
+# ---- 子模块命名空间（推荐用于新代码） ----
+from . import _core as core
+from . import _memory as memory
+from . import _character as character
+from . import _proactive as proactive
+from . import _world_book as world_book
+from . import _plugins as plugins
+
+# ---- 核心聊天引擎（向后兼容的平铺导出） ----
 from ._core import (
     init,
     chat,
@@ -28,6 +36,7 @@ from ._core import (
     chat_stream_start,
     chat_stream_poll,
     chat_stream_cancel,
+    cleanup_all_streams,
     reset,
     get_card_info,
     set_api_key,
@@ -126,11 +135,21 @@ from ._plugins import (
 
 # 保持向后兼容的 __all__
 __all__ = [
+    # 子模块命名空间
+    "core",
+    "memory",
+    "character",
+    "proactive",
+    "world_book",
+    "plugins",
+    # 核心聊天引擎
     "init",
     "chat",
     "chat_stream",
     "chat_stream_start",
     "chat_stream_poll",
+    "chat_stream_cancel",
+    "cleanup_all_streams",
     "reset",
     "get_card_info",
     "set_api_key",

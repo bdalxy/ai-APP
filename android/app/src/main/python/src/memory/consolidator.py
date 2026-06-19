@@ -27,6 +27,8 @@ import math
 from collections import defaultdict
 from typing import Any
 
+from src.utils.text_utils import text_similarity
+
 from src.memory.memory_types import (
     ConflictResult,
     MemoryRelation,
@@ -127,9 +129,9 @@ class MemoryConsolidator:
                         try:
                             sim = cosine_similarity(a.embedding, b.embedding)
                         except (ValueError, TypeError):
-                            sim = self._text_similarity(a.content, b.content)
+                            sim = text_similarity(a.content, b.content)
                     else:
-                        sim = self._text_similarity(a.content, b.content)
+                        sim = text_similarity(a.content, b.content)
 
                     if sim >= threshold:
                         similar_pairs.append((a, b, sim))
@@ -137,23 +139,6 @@ class MemoryConsolidator:
         # 按相似度降序排列
         similar_pairs.sort(key=lambda x: x[2], reverse=True)
         return similar_pairs
-
-    @staticmethod
-    def _text_similarity(text1: str, text2: str) -> float:
-        """计算两个文本的字符级相似度（基于 bigram Jaccard）。"""
-        import re
-
-        def _bigrams(s: str) -> set[str]:
-            cleaned = re.sub(r"[^\w\u4e00-\u9fff]", "", s)
-            return {cleaned[i:i + 2] for i in range(len(cleaned) - 1)}
-
-        bg1 = _bigrams(text1)
-        bg2 = _bigrams(text2)
-        if not bg1 or not bg2:
-            return 0.0
-        intersection = len(bg1 & bg2)
-        union = len(bg1 | bg2)
-        return intersection / union if union > 0 else 0.0
 
     # =========================================================================
     # 合并策略
@@ -235,7 +220,7 @@ class MemoryConsolidator:
             return content_b
 
         # 文本相似度 > 0.9 时返回较长的
-        if self._text_similarity(content_a, content_b) > 0.9:
+        if text_similarity(content_a, content_b) > 0.9:
             return content_a if len(content_a) >= len(content_b) else content_b
 
         # 用分号连接

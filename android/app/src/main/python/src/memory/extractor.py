@@ -29,6 +29,7 @@ from src.memory.memory_types import (
 )
 from src.memory.vector_store import MemoryEntry, VectorStore, cosine_similarity
 from src.utils.logger import get_logger
+from src.utils.text_utils import text_similarity
 from src.utils.time_utils import format_timestamp_iso
 
 
@@ -802,10 +803,10 @@ class MemoryExtractor:
                     try:
                         sim = cosine_similarity(new_entry.embedding, existing.embedding)
                     except (ValueError, TypeError):
-                        sim = self._text_similarity(new_entry.content, existing.content)
+                        sim = text_similarity(new_entry.content, existing.content)
                 else:
                     # 回退到字符级 bigram Jaccard
-                    sim = self._text_similarity(new_entry.content, existing.content)
+                    sim = text_similarity(new_entry.content, existing.content)
 
                 if sim >= self._DEDUP_SIMILARITY_THRESHOLD:
                     self._log.debug(
@@ -825,33 +826,4 @@ class MemoryExtractor:
         return kept
 
     @staticmethod
-    def _text_similarity(text1: str, text2: str) -> float:
-        """计算两个文本的字符级相似度（基于公共子串）。
-
-        使用字符级 bigram 的 Jaccard 相似度，简单高效。
-
-        Args:
-            text1: 第一个文本。
-            text2: 第二个文本。
-
-        Returns:
-            相似度值（0.0 ~ 1.0）。
-        """
-        if not text1 or not text2:
-            return 0.0
-
-        # 提取 bigrams
-        def get_bigrams(s: str) -> set[str]:
-            cleaned = re.sub(r"[^\w\u4e00-\u9fff]", "", s)
-            return {cleaned[i : i + 2] for i in range(len(cleaned) - 1)}
-
-        bg1 = get_bigrams(text1)
-        bg2 = get_bigrams(text2)
-
-        if not bg1 or not bg2:
-            return 0.0
-
-        intersection = len(bg1 & bg2)
-        union = len(bg1 | bg2)
-
-        return intersection / union if union > 0 else 0.0
+    

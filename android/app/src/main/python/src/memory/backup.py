@@ -480,6 +480,9 @@ class MemoryBackup:
             except Exception:
                 pass
 
+            # 6. 重新打开 VectorStore 连接
+            self._store.reopen()
+
             self._log.info(f"[恢复] 恢复成功: {backup_path}")
             return True
 
