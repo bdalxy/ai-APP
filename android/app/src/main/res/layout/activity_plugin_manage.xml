@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 插件管理主页面 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -8,15 +7,12 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bg_main_gradient">
-
-    <!-- ===== 顶栏 ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="@dimen/topbar_height_alt"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="@dimen/spacing_page">
-
         <TextView
             android:id="@+id/btnBack"
             android:layout_width="@dimen/button_medium"
@@ -29,7 +25,6 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackground"
             android:contentDescription="@string/cd_back" />
-
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -39,13 +34,10 @@
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:gravity="center" />
-
         <View
             android:layout_width="@dimen/button_medium"
             android:layout_height="@dimen/button_medium" />
     </LinearLayout>
-
-    <!-- ===== 分类 Tab ===== -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabCategories"
         android:layout_width="match_parent"
@@ -54,12 +46,10 @@
         android:background="@android:color/transparent"
         app:tabMode="scrollable"
         app:tabIndicatorHeight="3dp"
-        app:tabIndicatorColor="@color/elysian_pink"
+        app:tabIndicatorColor="@color/secondary"
         app:tabTextColor="@color/text_secondary"
-        app:tabSelectedTextColor="@color/elysian_purple"
+        app:tabSelectedTextColor="@color/primary"
         app:tabRippleColor="@color/glass_border" />
-
-    <!-- ===== 摘要行 ===== -->
     <TextView
         android:id="@+id/tvPluginSummary"
         android:layout_width="match_parent"
@@ -69,8 +59,6 @@
         android:text="@string/value_loading_ellipsis"
         android:textColor="@color/text_secondary"
         android:textSize="@dimen/text_caption" />
-
-    <!-- ===== 插件列表 ===== -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvPlugins"
         android:layout_width="match_parent"
@@ -80,8 +68,6 @@
         android:paddingHorizontal="@dimen/spacing_page"
         android:paddingTop="8dp"
         android:paddingBottom="@dimen/bottom_spacer" />
-
-    <!-- ===== 空状态 ===== -->
     <TextView
         android:id="@+id/tvPluginEmpty"
         android:layout_width="match_parent"
@@ -92,5 +78,4 @@
         android:textSize="@dimen/text_body"
         android:gravity="center"
         android:visibility="gone" />
-
 </LinearLayout>
