@@ -8,12 +8,13 @@ data class PluginItem(
     val name: String,
     val version: String,
     val description: String,
-    val category: String,       // chat / appearance / script
+    val category: String,
     val enabled: Boolean,
     val author: String,
     val icon: String,
-    val dependencies: List<String>,   // 预留
-    val conflicts: List<String>,      // 预留
+    val isBuiltIn: Boolean = false,
+    val dependencies: List<String>,
+    val conflicts: List<String>,
     val hooks: List<String>,
     val callCount: Int,
     val errorCount: Int,
@@ -21,7 +22,6 @@ data class PluginItem(
     val lastCallTime: Long,
     val lastError: String
 ) {
-    /** 活跃度等级 1-5，基于调用次数 */
     val activityLevel: Int
         get() = when {
             callCount >= 1000 -> 5
@@ -31,7 +31,6 @@ data class PluginItem(
             else              -> 1
         }
 
-    /** 分类的中文显示名 */
     val categoryLabel: String
         get() = when (category) {
             "chat"       -> "对话增强"
@@ -40,7 +39,6 @@ data class PluginItem(
             else         -> category
         }
 
-    /** 状态文字 */
     val statusLabel: String
         get() = if (enabled) "已启用" else "已禁用"
 }

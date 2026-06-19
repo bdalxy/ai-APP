@@ -41,6 +41,7 @@ class PluginAdapter(
         private val nameTv: TextView = itemView.findViewById(R.id.tvPluginName)
         private val descTv: TextView = itemView.findViewById(R.id.tvPluginDesc)
         private val categoryLabel: TextView = itemView.findViewById(R.id.tvCategoryLabel)
+        private val builtInLabel: TextView = itemView.findViewById(R.id.tvBuiltInLabel)
         private val statusLabel: TextView = itemView.findViewById(R.id.tvStatusLabel)
         private val callCountTv: TextView = itemView.findViewById(R.id.tvCallCount)
         private val switchView: SwitchCompat = itemView.findViewById(R.id.switchPlugin)
@@ -50,22 +51,25 @@ class PluginAdapter(
             nameTv.text = plugin.name
             descTv.text = plugin.description
             categoryLabel.text = plugin.categoryLabel
+
+            if (plugin.isBuiltIn) {
+                builtInLabel.visibility = View.VISIBLE
+            } else {
+                builtInLabel.visibility = View.GONE
+            }
+
             statusLabel.text = plugin.statusLabel
 
-            // 状态颜色
             val statusColor = if (plugin.enabled) R.color.elysian_purple else R.color.text_tertiary
             statusLabel.setTextColor(ContextCompat.getColor(context, statusColor))
 
-            // 调用次数
             callCountTv.text = "调用 ${plugin.callCount} 次"
 
-            // 开关状态 + 点击
             switchView.isChecked = plugin.enabled
             switchView.setOnClickListener {
                 onToggle(plugin, !plugin.enabled)
             }
 
-            // 整卡点击查看详情
             itemView.setOnClickListener {
                 onDetailClick(plugin)
             }
