@@ -4,12 +4,7 @@
 
 # 核心依赖（纯 Python，平台无关）
 requests>=2.32.0          # HTTP 客户端
-loguru>=0.7.0              # 日志（因 Android 环境限制，可能降级为标准 logging）
 idna==2.10                 # 国际化域名（2.10 版本避免 Windows 脚本路径冲突）
 certifi>=2025.0.0          # SSL 证书
 charset_normalizer>=3.4.0  # 字符编码检测
 urllib3>=2.0.0             # HTTP 连接池
-
-# loguru 依赖
-colorama>=0.4.0            # 终端颜色
-win32_setctime>=1.0.0      # Windows 文件时间
