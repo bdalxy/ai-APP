@@ -145,6 +145,11 @@ object ConversationSessionManager {
                     obj.put("isUser", msg.isUser)
                     obj.put("isTyping", msg.isTyping)
                     obj.put("timestamp", msg.timestamp)
+                    // 语音字段
+                    obj.put("msgType", msg.msgType.name)
+                    obj.put("voiceFilePath", msg.voiceFilePath)
+                    obj.put("voiceDurationMs", msg.voiceDurationMs)
+                    obj.put("voicePlayed", msg.voicePlayed)
                     jsonArray.put(obj)
                 }
                 val jsonStr = jsonArray.toString()
@@ -195,7 +200,16 @@ object ConversationSessionManager {
                     content = obj.getString("content"),
                     isUser = obj.getBoolean("isUser"),
                     isTyping = obj.optBoolean("isTyping", false),
-                    timestamp = obj.optLong("timestamp", System.currentTimeMillis())
+                    timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                    // 语音字段（向后兼容：旧数据无此字段则默认 TEXT）
+                    msgType = try {
+                        Message.MsgType.valueOf(obj.optString("msgType", "TEXT"))
+                    } catch (_: Exception) {
+                        Message.MsgType.TEXT
+                    },
+                    voiceFilePath = obj.optString("voiceFilePath", ""),
+                    voiceDurationMs = obj.optLong("voiceDurationMs", 0L),
+                    voicePlayed = obj.optBoolean("voicePlayed", false)
                 ))
             }
             Log.d(TAG, "会话 $sessionId 消息已加载，共 ${messages.size} 条")
@@ -336,6 +350,10 @@ object ConversationSessionManager {
                     newObj.put("isUser", oldObj.getBoolean("isUser"))
                     newObj.put("isTyping", oldObj.optBoolean("isTyping", false))
                     newObj.put("timestamp", oldObj.optLong("timestamp", System.currentTimeMillis()))
+                    newObj.put("msgType", "TEXT")
+                    newObj.put("voiceFilePath", "")
+                    newObj.put("voiceDurationMs", 0L)
+                    newObj.put("voicePlayed", false)
                     newArr.put(newObj)
                 }
                 sessionFile.writeText(newArr.toString(), Charsets.UTF_8)

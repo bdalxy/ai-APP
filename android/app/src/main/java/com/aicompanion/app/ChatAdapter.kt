@@ -1,15 +1,22 @@
 package com.aicompanion.app
 
+import android.animation.ValueAnimator
+import android.graphics.Color
+import android.text.SpannableString
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.aicompanion.app.speech.VoicePlayer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -21,17 +28,31 @@ import java.util.Locale
  */
 class ChatAdapter(
     private val messages: MutableList<Message>,
-    private val onMessageLongClick: ((Message, Int) -> Unit)? = null
+    private val onMessageLongClick: ((Message, Int) -> Unit)? = null,
+    /** 语音播放回调：(voiceFilePath, play) -> 播放/暂停 */
+    private val onVoiceClick: ((String, Boolean) -> Unit)? = null
 ) : RecyclerView.Adapter<ChatAdapter.BaseViewHolder>() {
 
     companion object {
         private const val VIEW_TYPE_TYPING = 0
         private const val VIEW_TYPE_AI = 1
         private const val VIEW_TYPE_USER = 2
-        private const val MAX_MESSAGES = 500
+        /** 语音消息 viewType */
+        private const val VIEW_TYPE_AI_VOICE = 3
+        private const val VIEW_TYPE_USER_VOICE = 4
+        private const val MAX_MESSAGES = 50
 
         private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         private val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+
+        /** 格式化语音时长（毫秒 -> MM:SS） */
+        fun formatVoiceDuration(durationMs: Long): String {
+            if (durationMs <= 0) return "0:00"
+            val totalSeconds = durationMs / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return "$minutes:${seconds.toString().padStart(2, '0')}"
+        }
     }
 
     // ======================== ViewHolder ========================
@@ -69,12 +90,93 @@ class ChatAdapter(
         override fun bind(message: Message) { /* 无动态内容 */ }
     }
 
+    /** AI 语音消息 ViewHolder */
+    class VoiceAiViewHolder(view: View) : BaseViewHolder(view) {
+        val ivAvatar: ImageView = view.findViewById(R.id.ivAvatar)
+        val ivPlayPause: ImageView = view.findViewById(R.id.ivPlayPause)
+        val ivWaveform: ImageView = view.findViewById(R.id.ivWaveform)
+        val tvDuration: TextView = view.findViewById(R.id.tvDuration)
+        val vUnreadDot: View = view.findViewById(R.id.vUnreadDot)
+
+        override fun bind(message: Message) {
+            tvDuration.text = formatVoiceDuration(message.voiceDurationMs)
+        }
+    }
+
+    /** 用户语音消息 ViewHolder */
+    class VoiceUserViewHolder(view: View) : BaseViewHolder(view) {
+        val ivPlayPause: ImageView = view.findViewById(R.id.ivPlayPause)
+        val ivWaveform: ImageView = view.findViewById(R.id.ivWaveform)
+        val tvDuration: TextView = view.findViewById(R.id.tvDuration)
+        val vUnreadDot: View = view.findViewById(R.id.vUnreadDot)
+
+        override fun bind(message: Message) {
+            tvDuration.text = formatVoiceDuration(message.voiceDurationMs)
+        }
+    }
+
     // ======================== Adapter 方法 ========================
 
+    /** 当前正在播放的语音消息 position（用于 UI 更新），-1 表示无 */
+    @Volatile
+    var playingPosition: Int = -1
+
+    // ======================== 搜索高亮 ========================
+
+    /** 搜索关键词（用于高亮显示），为空时不进行高亮。设置时自动刷新列表 */
+    @Volatile
+    var highlightKeyword: String = ""
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+
+    /** 判断指定消息是否匹配搜索关键词 */
+    fun isMessageMatch(message: Message, keyword: String): Boolean {
+        if (keyword.isBlank() || message.isTyping) return false
+        return message.content.lowercase(Locale.getDefault())
+            .contains(keyword.lowercase(Locale.getDefault()))
+    }
+
+    /**
+     * 对文本内容应用搜索关键词高亮。
+     * 使用淡樱粉色背景 + 深色文字，不区分大小写。
+     */
+    private fun applyHighlight(text: String): CharSequence {
+        if (highlightKeyword.isBlank()) return text
+        val keywordLower = highlightKeyword.lowercase(Locale.getDefault())
+        val textLower = text.lowercase(Locale.getDefault())
+        val spannable = SpannableString(text)
+
+        var startIndex = 0
+        while (startIndex < textLower.length) {
+            val matchIndex = textLower.indexOf(keywordLower, startIndex)
+            if (matchIndex == -1) break
+            // 淡樱粉色背景 + 深色文字
+            spannable.setSpan(
+                BackgroundColorSpan(Color.parseColor("#FFD0D9")),
+                matchIndex,
+                matchIndex + highlightKeyword.length,
+                SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            spannable.setSpan(
+                ForegroundColorSpan(Color.parseColor("#2D1B3A")),
+                matchIndex,
+                matchIndex + highlightKeyword.length,
+                SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            startIndex = matchIndex + highlightKeyword.length
+        }
+        return spannable
+    }
+
     override fun getItemViewType(position: Int): Int {
+        val msg = messages[position]
         return when {
-            messages[position].isTyping -> VIEW_TYPE_TYPING
-            messages[position].isUser -> VIEW_TYPE_USER
+            msg.isTyping -> VIEW_TYPE_TYPING
+            msg.msgType == Message.MsgType.VOICE && msg.isUser -> VIEW_TYPE_USER_VOICE
+            msg.msgType == Message.MsgType.VOICE && !msg.isUser -> VIEW_TYPE_AI_VOICE
+            msg.isUser -> VIEW_TYPE_USER
             else -> VIEW_TYPE_AI
         }
     }
@@ -102,6 +204,16 @@ class ChatAdapter(
                     .inflate(R.layout.item_message_self, parent, false)
                 UserViewHolder(view)
             }
+            VIEW_TYPE_AI_VOICE -> {
+                val view = LayoutInflater.from(context)
+                    .inflate(R.layout.item_message_voice_ai, parent, false)
+                VoiceAiViewHolder(view)
+            }
+            VIEW_TYPE_USER_VOICE -> {
+                val view = LayoutInflater.from(context)
+                    .inflate(R.layout.item_message_voice_self, parent, false)
+                VoiceUserViewHolder(view)
+            }
             else -> throw IllegalArgumentException("Unknown viewType: $viewType")
         }
     }
@@ -120,12 +232,21 @@ class ChatAdapter(
             is AiViewHolder -> bindAiMessage(holder, message, position)
             is UserViewHolder -> bindUserMessage(holder, message, position)
             is TypingViewHolder -> { /* 无动态内容 */ }
+            is VoiceAiViewHolder -> bindVoiceAiMessage(holder, message, position)
+            is VoiceUserViewHolder -> bindVoiceUserMessage(holder, message, position)
         }
     }
 
     /** 绑定 AI 消息 */
     private fun bindAiMessage(holder: AiViewHolder, message: Message, position: Int) {
         val context = holder.itemView.context
+
+        // 消息内容（应用搜索高亮）
+        holder.tvContent.text = if (highlightKeyword.isNotBlank()) {
+            applyHighlight(message.content)
+        } else {
+            message.content
+        }
 
         // 头像可见性：组首显示
         holder.ivAvatar.visibility = if (message.isGroupStart) View.VISIBLE else View.INVISIBLE
@@ -159,6 +280,13 @@ class ChatAdapter(
     /** 绑定用户消息 */
     private fun bindUserMessage(holder: UserViewHolder, message: Message, position: Int) {
         val context = holder.itemView.context
+
+        // 消息内容（应用搜索高亮）
+        holder.tvContent.text = if (highlightKeyword.isNotBlank()) {
+            applyHighlight(message.content)
+        } else {
+            message.content
+        }
 
         // 时间戳和状态：组尾显示
         if (message.isGroupEnd) {
@@ -201,6 +329,84 @@ class ChatAdapter(
             else -> R.drawable.bg_bubble_user
         }
         holder.tvContent.setBackgroundResource(bubbleRes)
+    }
+
+    /** 绑定 AI 语音消息 */
+    private fun bindVoiceAiMessage(holder: VoiceAiViewHolder, message: Message, position: Int) {
+        val isPlaying = playingPosition == position
+
+        // 头像（始终显示）
+        holder.ivAvatar.visibility = View.VISIBLE
+
+        // 播放/暂停按钮图标
+        holder.ivPlayPause.setImageResource(
+            if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+        )
+
+        // 波形动画：播放中时脉冲缩放
+        animateWaveform(holder.ivWaveform, isPlaying)
+
+        // 未读红点：未播放时显示
+        holder.vUnreadDot.visibility = if (!message.voicePlayed && !isPlaying) View.VISIBLE else View.GONE
+
+        // 点击播放按钮
+        holder.ivPlayPause.setOnClickListener {
+            onVoiceClick?.invoke(message.voiceFilePath, !isPlaying)
+        }
+
+        // 设置时长
+        holder.tvDuration.text = formatVoiceDuration(message.voiceDurationMs)
+    }
+
+    /** 绑定用户语音消息 */
+    private fun bindVoiceUserMessage(holder: VoiceUserViewHolder, message: Message, position: Int) {
+        val isPlaying = playingPosition == position
+
+        // 播放/暂停按钮图标
+        holder.ivPlayPause.setImageResource(
+            if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+        )
+
+        // 波形动画：播放中时脉冲缩放
+        animateWaveform(holder.ivWaveform, isPlaying)
+
+        // 未读红点：未播放时显示
+        holder.vUnreadDot.visibility = if (!message.voicePlayed && !isPlaying) View.VISIBLE else View.GONE
+
+        // 点击播放按钮
+        holder.ivPlayPause.setOnClickListener {
+            onVoiceClick?.invoke(message.voiceFilePath, !isPlaying)
+        }
+
+        // 设置时长
+        holder.tvDuration.text = formatVoiceDuration(message.voiceDurationMs)
+    }
+
+    /** 波形动画：播放中时脉冲缩放 */
+    private fun animateWaveform(imageView: ImageView, isPlaying: Boolean) {
+        imageView.clearAnimation()
+        val tagKey = 0x7F090001  // 使用固定 int 值作为 tag key
+        if (isPlaying) {
+            val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 600
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.REVERSE
+                interpolator = LinearInterpolator()
+                addUpdateListener { animation ->
+                    val scale = 1f + (animation.animatedValue as Float) * 0.15f
+                    imageView.scaleX = scale
+                    imageView.scaleY = scale
+                }
+            }
+            animator.start()
+            imageView.setTag(tagKey, animator)
+        } else {
+            imageView.scaleX = 1f
+            imageView.scaleY = 1f
+            val existingAnimator = imageView.getTag(tagKey) as? ValueAnimator
+            existingAnimator?.cancel()
+            imageView.setTag(tagKey, null)
+        }
     }
 
     override fun getItemCount(): Int = messages.size
@@ -312,7 +518,11 @@ class ChatAdapter(
             return old.content == new.content &&
                 old.status == new.status &&
                 old.isGroupStart == new.isGroupStart &&
-                old.isGroupEnd == new.isGroupEnd
+                old.isGroupEnd == new.isGroupEnd &&
+                old.msgType == new.msgType &&
+                old.voiceFilePath == new.voiceFilePath &&
+                old.voiceDurationMs == new.voiceDurationMs &&
+                old.voicePlayed == new.voicePlayed
         }
     }
 }

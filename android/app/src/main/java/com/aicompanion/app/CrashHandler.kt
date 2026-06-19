@@ -11,43 +11,79 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * 全局未捕获异常处理器。
+ *
+ * 功能：
+ * - 捕获所有未处理的崩溃异常
+ * - 记录堆栈信息、设备信息、时间戳
+ * - 写入 filesDir/crash_logs/ 目录
+ * - 写入后调用原 DefaultUncaughtExceptionHandler，确保系统正常处理
+ */
 class CrashHandler private constructor(
     private val context: Context
 ) : Thread.UncaughtExceptionHandler {
 
     companion object {
         private const val TAG = "CrashHandler"
+        /** 崩溃日志目录名 */
         private const val CRASH_LOG_DIR = "crash_logs"
+        /** 崩溃日志文件名前缀 */
         private const val FILE_PREFIX = "crash_"
+        /** 文件名日期格式 */
         private val FILE_DATE_FORMAT = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+        /** 日志内日期格式 */
         private val LOG_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        /** 崩溃日志标记文件（用于下次启动检测） */
         private const val MARKER_FILE = "has_crash_log"
+
+        /** 单例实例 */
         @Volatile
         private var instance: CrashHandler? = null
 
+        /**
+         * 初始化崩溃处理器，设置到当前线程的默认异常处理器上。
+         *
+         * @param context Application Context
+         */
         fun init(context: Context) {
             if (instance != null) {
                 Log.w(TAG, "CrashHandler 已初始化，跳过重复初始化")
                 return
             }
             instance = CrashHandler(context.applicationContext)
+            // 保存原默认处理器
             val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+            // 设置自定义处理器
             Thread.setDefaultUncaughtExceptionHandler(instance)
-            Log.d(TAG, "CrashHandler 初始化完成")
+            Log.d(TAG, "CrashHandler 初始化完成，原处理器: ${defaultHandler?.javaClass?.simpleName}")
         }
 
+        /**
+         * 获取崩溃日志目录。
+         */
         fun getCrashLogDir(context: Context): File {
             return File(context.filesDir, CRASH_LOG_DIR)
         }
 
+        /**
+         * 获取标记文件路径。
+         */
         fun getMarkerFile(context: Context): File {
             return File(context.filesDir, MARKER_FILE)
         }
 
+        /**
+         * 检查是否存在崩溃日志。
+         */
         fun hasCrashLogs(context: Context): Boolean {
             return getMarkerFile(context).exists()
         }
 
+        /**
+         * 获取所有崩溃日志文件，按时间倒序排列。
+         */
         fun getCrashLogFiles(context: Context): List<File> {
             val dir = getCrashLogDir(context)
             if (!dir.exists() || !dir.isDirectory) return emptyList()
@@ -57,37 +93,63 @@ class CrashHandler private constructor(
                 ?: emptyList()
         }
 
+        /**
+         * 清除崩溃标记（用户已查看后调用）。
+         */
         fun clearMarker(context: Context) {
             getMarkerFile(context).delete()
         }
     }
 
+    /** 系统默认的未捕获异常处理器 */
     private val defaultHandler: Thread.UncaughtExceptionHandler? =
         Thread.getDefaultUncaughtExceptionHandler()
 
+    /**
+     * 当未捕获异常发生时调用。
+     *
+     * 流程：
+     * 1. 记录崩溃日志到文件
+     * 2. 创建标记文件，供下次启动检测
+     * 3. 调用原 DefaultUncaughtExceptionHandler
+     */
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
         Log.e(TAG, "捕获到未处理异常: ${throwable.message}", throwable)
+
         try {
             writeCrashLog(thread, throwable)
         } catch (e: Exception) {
+            // 写入日志失败时，至少打印到 Logcat
             Log.e(TAG, "写入崩溃日志失败: ${e.message}", e)
         }
+
+        // 传递给原默认处理器（让系统显示崩溃对话框或重启应用）
         defaultHandler?.uncaughtException(thread, throwable)
     }
 
-    private fun writeCrashLog(thread: Thread, throwable: Throwable) {
+    /**
+     * 将崩溃信息写入日志文件。
+     */
+    private fun writeCrashLog(thread: ThrowableThread, throwable: Throwable) {
+        // 确保目录存在
         val logDir = getCrashLogDir(context)
         if (!logDir.exists()) {
             logDir.mkdirs()
         }
+
+        // 生成文件名
         val timestamp = FILE_DATE_FORMAT.format(Date())
         val fileName = "${FILE_PREFIX}${timestamp}.log"
         val logFile = File(logDir, fileName)
+
         Log.d(TAG, "写入崩溃日志: ${logFile.absolutePath}")
+
         FileWriter(logFile).use { writer ->
             writer.write(buildCrashReport(thread, throwable))
             writer.flush()
         }
+
+        // 创建标记文件
         try {
             getMarkerFile(context).createNewFile()
         } catch (e: Exception) {
@@ -95,31 +157,56 @@ class CrashHandler private constructor(
         }
     }
 
-    private fun buildCrashReport(thread: Thread, throwable: Throwable): String {
+    /**
+     * 构建崩溃报告内容。
+     */
+    private fun buildCrashReport(thread: ThrowableThread, throwable: Throwable): String {
         val sb = StringBuilder()
+
+        // 标题
         sb.appendLine("========== 崩溃报告 ==========")
+
+        // 时间
         sb.appendLine("时间: ${LOG_DATE_FORMAT.format(Date())}")
+
+        // 设备信息
         val deviceInfo = collectDeviceInfo()
         sb.appendLine("设备: ${deviceInfo.first} (Android ${deviceInfo.second})")
+
+        // APP 版本
         try {
             val pkgInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             sb.appendLine("APP版本: ${pkgInfo.versionName ?: "未知"}")
         } catch (e: Exception) {
             sb.appendLine("APP版本: 未知")
         }
+
+        // 内存信息
         val runtime = Runtime.getRuntime()
         val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
         val maxMemory = runtime.maxMemory() / (1024 * 1024)
         sb.appendLine("内存: 已用${usedMemory}MB / 最大${maxMemory}MB")
+
+        // 崩溃线程
         sb.appendLine("线程: ${thread.name}")
+
+        // 堆栈信息
         sb.appendLine("--- 堆栈信息 ---")
         val sw = StringWriter()
         throwable.printStackTrace(PrintWriter(sw))
         sb.append(sw.toString())
+
+        // 结束标记
         sb.appendLine("===============================")
+
         return sb.toString()
     }
 
+    /**
+     * 收集设备信息。
+     *
+     * @return Pair(设备型号, Android版本)
+     */
     private fun collectDeviceInfo(): Pair<String, String> {
         val model = try {
             Build.MODEL ?: "未知"
@@ -134,3 +221,8 @@ class CrashHandler private constructor(
         return Pair(model, androidVersion)
     }
 }
+
+/**
+ * 类型别名，增强代码可读性。
+ */
+private typealias ThrowableThread = Thread
