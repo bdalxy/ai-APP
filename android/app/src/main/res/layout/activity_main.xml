@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 聊天主页面布局：玻璃态顶栏 + 消息列表 + 毛玻璃输入区 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -8,20 +7,14 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_main_gradient"
     android:clipToPadding="false">
-
-    <!-- 背景粒子层 -->
     <com.aicompanion.app.ui.ParticleView
         android:id="@+id/particleView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
-    <!-- 主内容区 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
-
-        <!-- 顶栏：玻璃态 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="@dimen/topbar_height"
@@ -29,23 +22,18 @@
             android:orientation="horizontal"
             android:paddingHorizontal="@dimen/spacing_page"
             android:background="@drawable/bg_glass_top">
-
-            <!-- 头像占位 -->
             <ImageView
                 android:id="@+id/ivAvatar"
                 android:layout_width="@dimen/avatar_size_small"
                 android:layout_height="@dimen/avatar_size_small"
                 android:src="@drawable/ic_avatar_placeholder"
                 android:contentDescription="@string/cd_avatar" />
-
-            <!-- 角色名 + 在线状态 -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:paddingHorizontal="@dimen/spacing_lg">
-
                 <TextView
                     android:id="@+id/tvTitle"
                     android:layout_width="wrap_content"
@@ -54,7 +42,6 @@
                     android:textSize="@dimen/text_title_small"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary" />
-
                 <TextView
                     android:id="@+id/tvStatus"
                     android:layout_width="wrap_content"
@@ -63,8 +50,6 @@
                     android:textSize="@dimen/text_small"
                     android:textColor="@color/accent_green" />
             </LinearLayout>
-
-            <!-- 搜索按钮 -->
             <ImageView
                 android:id="@+id/btnSearch"
                 android:layout_width="@dimen/icon_size_small"
@@ -75,8 +60,6 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/cd_search"
                 android:tint="@color/text_primary" />
-
-            <!-- 新对话按钮 -->
             <TextView
                 android:id="@+id/btnNewChat"
                 android:layout_width="wrap_content"
@@ -90,8 +73,6 @@
                 android:paddingHorizontal="@dimen/spacing_sm"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/btn_new_chat" />
-
-            <!-- 设置按钮 -->
             <TextView
                 android:id="@+id/btnSettings"
                 android:layout_width="@dimen/avatar_size_small"
@@ -105,40 +86,49 @@
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/cd_settings" />
         </LinearLayout>
-
-        <!-- 搜索栏（默认隐藏） -->
         <LinearLayout
             android:id="@+id/layoutSearch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingHorizontal="@dimen/search_padding_horizontal"
+            android:paddingHorizontal="@dimen/spacing_page"
             android:paddingVertical="@dimen/search_padding_vertical"
             android:background="@color/bg_mid"
             android:visibility="gone">
-
             <EditText
                 android:id="@+id/etSearch"
-                style="@style/AppInput.Search"
                 android:layout_width="0dp"
+                android:layout_height="40dp"
                 android:layout_weight="1"
+                android:background="@drawable/bg_search_field"
+                android:drawableStart="@drawable/ic_search"
+                android:drawablePadding="8dp"
                 android:hint="@string/hint_search_conversation"
                 android:inputType="text"
-                android:imeOptions="actionSearch" />
-
-            <ImageButton
-                android:id="@+id/btnClearSearch"
-                android:layout_width="@dimen/button_small"
-                android:layout_height="@dimen/button_small"
+                android:imeOptions="actionSearch"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_tertiary"
+                android:textSize="@dimen/text_body"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/btnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
                 android:layout_marginStart="@dimen/spacing_md"
-                android:src="@drawable/ic_close"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/cd_clear_search"
-                android:tint="@color/text_secondary" />
+                android:text="取消"
+                android:textSize="@dimen/text_body"
+                android:textColor="@color/primary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="@dimen/spacing_sm"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/btn_cancel" />
         </LinearLayout>
-
-        <!-- 搜索结果计数 -->
         <TextView
             android:id="@+id/tvSearchResultCount"
             android:layout_width="match_parent"
@@ -149,8 +139,6 @@
             android:textColor="@color/text_secondary"
             android:gravity="center"
             android:visibility="gone" />
-
-        <!-- 消息列表 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMessages"
             android:layout_width="match_parent"
@@ -158,10 +146,7 @@
             android:layout_weight="1"
             android:padding="@dimen/message_list_padding"
             android:clipToPadding="false"
-            android:overScrollMode="never"
-            />
-
-        <!-- 输入栏：毛玻璃背景 -->
+            android:overScrollMode="never" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -169,7 +154,6 @@
             android:orientation="horizontal"
             android:padding="@dimen/input_padding"
             android:background="@drawable/bg_glass_bottom">
-
             <EditText
                 android:id="@+id/etInput"
                 android:layout_width="0dp"
@@ -186,7 +170,17 @@
                 android:background="@drawable/bg_input_field_selector"
                 android:inputType="textMultiLine"
                 android:imeOptions="actionSend" />
-
+            <ImageButton
+                android:id="@+id/btnVoice"
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small"
+                android:layout_marginStart="@dimen/spacing_md"
+                android:src="@drawable/ic_mic"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_voice_input"
+                android:tint="@color/sakura_border"
+                android:scaleType="centerInside"
+                android:padding="6dp" />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSend"
                 style="@style/AppButton.Primary"
@@ -202,21 +196,19 @@
                 android:contentDescription="@string/btn_send" />
         </LinearLayout>
     </LinearLayout>
-
-        <!-- 滚动到底部按钮（浮动在消息列表右下角） -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btnScrollBottom"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_gravity="bottom|end"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="8dp"
-            android:src="@drawable/ic_arrow_down"
-            android:contentDescription="滚动到底部"
-            android:visibility="gone"
-            android:elevation="4dp"
-            app:fabSize="mini"
-            app:backgroundTint="@color/elysian_purple"
-            app:tint="@color/text_primary"
-            android:scaleType="center" />
-    </FrameLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnScrollBottom"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:src="@drawable/ic_arrow_down"
+        android:contentDescription="滚动到底部"
+        android:visibility="gone"
+        android:elevation="4dp"
+        app:fabSize="mini"
+        app:backgroundTint="@color/primary"
+        app:tint="@color/text_primary"
+        android:scaleType="center" />
+</FrameLayout>
