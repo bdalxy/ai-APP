@@ -1,21 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 记忆档案馆页面布局 -->
-<!-- 核心交互：向上滑动色温渐变（淡樱粉→淡天蓝→浅灰），长按卡片破碎删除 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/archiveRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/elysian_pink_light">
-
-    <!-- 主内容区域 -->
+    android:background="@color/bg_dark">
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
-
-        <!-- 标题栏 — 玻璃态顶部 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="@dimen/topbar_height_alt"
@@ -23,7 +17,6 @@
             android:paddingHorizontal="@dimen/spacing_page"
             android:background="@drawable/bg_glass_top"
             android:elevation="@dimen/topbar_elevation">
-
             <TextView
                 android:id="@+id/btnBack"
                 android:layout_width="@dimen/button_medium"
@@ -36,7 +29,6 @@
                 android:focusable="true"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@string/cd_back" />
-
             <TextView
                 android:id="@+id/tvArchiveTitle"
                 android:layout_width="0dp"
@@ -47,14 +39,10 @@
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:gravity="center" />
-
-            <!-- 占位，保持标题居中 -->
             <View
                 android:layout_width="@dimen/button_medium"
                 android:layout_height="@dimen/button_medium" />
         </LinearLayout>
-
-        <!-- 记忆统计副标题 -->
         <TextView
             android:id="@+id/tvSubtitle"
             android:layout_width="match_parent"
@@ -66,8 +54,6 @@
             android:paddingTop="6dp"
             android:paddingBottom="2dp"
             android:alpha="0.8" />
-
-        <!-- 瀑布流 RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvArchive"
             android:layout_width="match_parent"
@@ -78,81 +64,13 @@
             android:paddingTop="4dp"
             android:paddingBottom="80dp"
             android:scrollbars="none" />
-
-        <!-- 空状态提示 -->
         <FrameLayout
             android:id="@+id/layoutEmpty"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:visibility="gone">
-
             <include layout="@layout/layout_app_empty_state" />
         </FrameLayout>
-
-        <!-- 加载更多提示 -->
-        <TextView
-            android:id="@+id/tvLoadMore"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/action_load_more"
-            android:textSize="@dimen/text_caption"
-            android:textColor="@color/text_tertiary"
-            android:gravity="center"
-            android:paddingVertical="@dimen/spacing_md"
-            android:visibility="gone" />
     </LinearLayout>
-
-    <!-- 长按删除确认按钮层 — 悬浮在底部 -->
-    <LinearLayout
-        android:id="@+id/layoutDeleteConfirm"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingHorizontal="@dimen/spacing_page"
-        android:paddingVertical="12dp"
-        android:background="@drawable/bg_glass_bottom"
-        android:visibility="gone"
-        android:elevation="8dp">
-
-        <TextView
-            android:id="@+id/tvDeleteHint"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/hint_delete_memory_confirm"
-            android:textSize="@dimen/text_body_small"
-            android:textColor="@color/text_secondary" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnConfirmDelete"
-            style="@style/AppButton.Primary"
-            android:layout_width="wrap_content"
-            android:layout_height="@dimen/button_default"
-            android:text="@string/btn_confirm_shatter"
-            android:textSize="@dimen/text_body_small"
-            android:paddingHorizontal="20dp"
-            app:backgroundTint="@color/accent_red" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCancelDelete"
-            style="@style/AppButton.Text"
-            android:layout_width="wrap_content"
-            android:layout_height="@dimen/button_default"
-            android:text="@string/btn_cancel"
-            android:textColor="@color/text_secondary"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
-
-    <!-- 裂纹动画覆盖层 -->
-    <View
-        android:id="@+id/crackOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/transparent"
-        android:visibility="gone"
-        android:clickable="false" />
-
 </FrameLayout>
