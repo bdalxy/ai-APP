@@ -85,6 +85,7 @@ class Settings:
         # 日志配置
         self.LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
         # Android Release 构建默认 WARNING，避免 logcat 泄露用户对话
+        # 优先使用显式设置的 build_type（由 Kotlin 侧调用 set_build_type() 传入）
         if os.getenv("ANDROID_BUILD_TYPE", "").lower() == "release":
             self.LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
@@ -103,6 +104,20 @@ class Settings:
         self.CHARACTER_PERSONALITY: str = "温柔、活泼、善解人意"
         self.CHARACTER_SPEAKING_STYLE: str = "语气轻柔，喜欢使用可爱的语气词"
         self.CHARACTER_BACKSTORY: str = "来自往世乐土的AI少女，喜欢分享生活中的小确幸"
+
+    def set_build_type(self, build_type: str) -> None:
+        """由 Kotlin 侧调用，显式设置构建类型以控制日志级别。
+
+        Release 构建时应传入 "release"，将日志级别降为 WARNING，
+        避免 logcat 泄露用户对话内容。
+
+        Args:
+            build_type: "debug" 或 "release"
+        """
+        if build_type.lower() == "release":
+            current = self.LOG_LEVEL
+            self.LOG_LEVEL = "WARNING"
+            logger.info(f"构建类型设为 release，日志级别: {current} → WARNING")
 
     def validate(self) -> bool:
         """验证必要配置是否完整。

@@ -477,8 +477,17 @@ class WorldBookValidator:
             if "regex_keys" in entry:
                 for j, pattern in enumerate(entry["regex_keys"]):
                     try:
+                        # ReDoS 防护：拒绝过长或包含连续量词的正则
+                        if len(pattern) > 200:
+                            raise ValueError(
+                                f"正则表达式过长（{len(pattern)}字符），最大200字符"
+                            )
+                        if re.search(r'[\+\*\{][\s]*[\+\*\{]', pattern):
+                            raise ValueError(
+                                f"正则表达式包含连续量词，可能导致 ReDoS"
+                            )
                         re.compile(pattern)
-                    except re.error as e:
+                    except (re.error, ValueError) as e:
                         errors.append(f"{prefix}.regex_keys[{j}] 正则表达式无效: {e}")
 
         return errors

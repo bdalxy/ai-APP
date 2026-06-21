@@ -1,6 +1,8 @@
 """
 记忆系统桥接模块 — 记忆存储、检索、CRUD、导出/导入等。
 """
+from __future__ import annotations
+
 import base64
 import hashlib
 import json
@@ -17,7 +19,7 @@ from . import _state
 _log = get_logger()
 
 
-def init_memory(db_path: str) -> dict:
+def init_memory(db_path: str) -> str:
     """初始化记忆系统。
 
     从 Android 端接收 filesDir 路径（如 /data/data/xxx/files），
@@ -45,7 +47,7 @@ def init_memory(db_path: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def get_memory_stats() -> dict:
+def get_memory_stats() -> str:
     """获取记忆统计信息。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -58,7 +60,7 @@ def get_memory_stats() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def reset_memories() -> dict:
+def reset_memories() -> str:
     """清除所有记忆（调试用）。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -73,7 +75,7 @@ def reset_memories() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def set_extract_interval(n: int) -> dict:
+def set_extract_interval(n: int) -> str:
     """设置 LLM 提取的间隔轮数。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -86,7 +88,7 @@ def set_extract_interval(n: int) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def set_memory_extract_mode(mode: str = "rule") -> dict:
+def set_memory_extract_mode(mode: str = "rule") -> str:
     """设置记忆提取模式。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -112,7 +114,7 @@ def set_memory_extract_mode(mode: str = "rule") -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def inject_memories(query_text: str = "") -> dict:
+def inject_memories(query_text: str = "") -> str:
     """检索相关记忆并注入到 RolePlayer 的 System Prompt。"""
     orchestrator = _ctx.orchestrator
     player = _ctx.player
@@ -134,7 +136,7 @@ def inject_memories(query_text: str = "") -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> dict:
+def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> str:
     """手动存储一轮对话的记忆。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -159,7 +161,7 @@ def remember_turn(turn_id: str = "", user_msg: str = "", ai_reply: str = "") -> 
 # =============================================================================
 
 
-def list_memories(type_filter: str = "", page: int = 1, page_size: int = 50) -> dict:
+def list_memories(type_filter: str = "", page: int = 1, page_size: int = 50) -> str:
     """分页列出记忆，支持按类型筛选。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -186,7 +188,7 @@ def list_memories(type_filter: str = "", page: int = 1, page_size: int = 50) -> 
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def get_memory(memory_id: int) -> dict:
+def get_memory(memory_id: int) -> str:
     """获取单条记忆详情。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -205,7 +207,7 @@ def get_memory(memory_id: int) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def update_memory(memory_id: int, content: str) -> dict:
+def update_memory(memory_id: int, content: str) -> str:
     """更新记忆内容，重新生成 embedding。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -236,7 +238,7 @@ def update_memory(memory_id: int, content: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def delete_memory(memory_id: int) -> dict:
+def delete_memory(memory_id: int) -> str:
     """删除单条记忆。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -259,7 +261,7 @@ def delete_memory(memory_id: int) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def clear_memories() -> dict:
+def clear_memories() -> str:
     """清空全部记忆（不重置 _turn_counter）。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -275,7 +277,7 @@ def clear_memories() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def search_memories(keyword: str) -> dict:
+def search_memories(keyword: str) -> str:
     """按关键字模糊搜索记忆（在 content 字段中不区分大小写搜索）。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -296,7 +298,7 @@ def search_memories(keyword: str) -> dict:
 # =============================================================================
 
 
-def run_maintenance() -> dict:
+def run_maintenance() -> str:
     """执行记忆库维护任务（衰减更新 + 合并 + 清理 + 健康检查）。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -314,7 +316,7 @@ def run_maintenance() -> dict:
 # =============================================================================
 
 
-def analyze_trends(days: int = 30) -> dict:
+def analyze_trends(days: int = 30) -> str:
     """分析记忆变化趋势。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -327,7 +329,7 @@ def analyze_trends(days: int = 30) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def analyze_topics(num_clusters: int = 5) -> dict:
+def analyze_topics(num_clusters: int = 5) -> str:
     """主题聚类分析。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -340,7 +342,7 @@ def analyze_topics(num_clusters: int = 5) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def generate_user_profile() -> dict:
+def generate_user_profile() -> str:
     """生成用户画像。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -353,7 +355,7 @@ def generate_user_profile() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def analyze_quality() -> dict:
+def analyze_quality() -> str:
     """分析记忆库质量。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -371,7 +373,7 @@ def analyze_quality() -> dict:
 # =============================================================================
 
 
-def add_tag(name: str, color: str = "#9B59B6") -> dict:
+def add_tag(name: str, color: str = "#9B59B6") -> str:
     """添加标签。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -384,7 +386,7 @@ def add_tag(name: str, color: str = "#9B59B6") -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def tag_memory(memory_id: str, tag_name: str) -> dict:
+def tag_memory(memory_id: str, tag_name: str) -> str:
     """为记忆添加标签。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -397,7 +399,7 @@ def tag_memory(memory_id: str, tag_name: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def untag_memory(memory_id: str, tag_name: str) -> dict:
+def untag_memory(memory_id: str, tag_name: str) -> str:
     """移除记忆的标签。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -410,7 +412,7 @@ def untag_memory(memory_id: str, tag_name: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def get_memory_tags(memory_id: str) -> dict:
+def get_memory_tags(memory_id: str) -> str:
     """获取记忆的标签列表。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -423,7 +425,7 @@ def get_memory_tags(memory_id: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def list_all_tags() -> dict:
+def list_all_tags() -> str:
     """列出所有标签。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -441,7 +443,7 @@ def list_all_tags() -> dict:
 # =============================================================================
 
 
-def add_relation(source_id: str, target_id: str, relation_type: str = "related_to", confidence: float = 0.5) -> dict:
+def add_relation(source_id: str, target_id: str, relation_type: str = "related_to", confidence: float = 0.5) -> str:
     """添加记忆关系。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -454,7 +456,7 @@ def add_relation(source_id: str, target_id: str, relation_type: str = "related_t
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def get_relations(memory_id: str) -> dict:
+def get_relations(memory_id: str) -> str:
     """获取记忆的关系列表。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -472,7 +474,7 @@ def get_relations(memory_id: str) -> dict:
 # =============================================================================
 
 
-def get_changelog(memory_id: str = "", limit: int = 50) -> dict:
+def get_changelog(memory_id: str = "", limit: int = 50) -> str:
     """获取变更日志。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -490,7 +492,7 @@ def get_changelog(memory_id: str = "", limit: int = 50) -> dict:
 # =============================================================================
 
 
-def export_memories(password: str = "") -> dict:
+def export_memories(password: str = "") -> str:
     """导出所有记忆为 JSON 格式。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -557,7 +559,7 @@ def export_memories(password: str = "") -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def import_memories(memories_json: str) -> dict:
+def import_memories(memories_json: str) -> str:
     """从 JSON 字符串导入记忆。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:
@@ -613,7 +615,7 @@ def import_memories(memories_json: str) -> dict:
 # =============================================================================
 
 
-def build_context(query_text: str, conversation_history_json: str = "", user_profile_json: str = "") -> dict:
+def build_context(query_text: str, conversation_history_json: str = "", user_profile_json: str = "") -> str:
     """构建优化的记忆上下文窗口。
 
     在有限 Token 预算内，分层注入最相关的记忆信息。
@@ -663,7 +665,7 @@ def build_context(query_text: str, conversation_history_json: str = "", user_pro
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def build_context_compact(query_text: str, max_memories: int = 5) -> dict:
+def build_context_compact(query_text: str, max_memories: int = 5) -> str:
     """快速构建紧凑的记忆上下文。
 
     Args:
@@ -692,7 +694,7 @@ def build_context_compact(query_text: str, max_memories: int = 5) -> dict:
 # =============================================================================
 
 
-def backup_full() -> dict:
+def backup_full() -> str:
     """执行完整备份（SQLite 数据库文件备份）。
 
     Returns:
@@ -711,7 +713,7 @@ def backup_full() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def backup_json() -> dict:
+def backup_json() -> str:
     """执行 JSON 格式备份（记忆导出为 JSON 文件）。
 
     Returns:
@@ -730,7 +732,7 @@ def backup_json() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def restore_backup(backup_id: str) -> dict:
+def restore_backup(backup_id: str) -> str:
     """从备份恢复记忆库。
 
     Args:
@@ -752,7 +754,7 @@ def restore_backup(backup_id: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def list_backups() -> dict:
+def list_backups() -> str:
     """列出所有备份。
 
     Returns:
@@ -769,7 +771,7 @@ def list_backups() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def delete_backup(backup_id: str) -> dict:
+def delete_backup(backup_id: str) -> str:
     """删除指定备份。
 
     Args:
@@ -791,7 +793,7 @@ def delete_backup(backup_id: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def verify_backup(backup_id: str) -> dict:
+def verify_backup(backup_id: str) -> str:
     """验证备份文件的完整性。
 
     Args:
@@ -811,7 +813,7 @@ def verify_backup(backup_id: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def get_backup_stats() -> dict:
+def get_backup_stats() -> str:
     """获取备份管理器统计信息。
 
     Returns:
@@ -833,7 +835,7 @@ def get_backup_stats() -> dict:
 # =============================================================================
 
 
-def get_cache_stats() -> dict:
+def get_cache_stats() -> str:
     """获取所有缓存的统计信息。
 
     Returns:
@@ -850,7 +852,7 @@ def get_cache_stats() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def invalidate_cache() -> dict:
+def invalidate_cache() -> str:
     """使检索和统计缓存失效（记忆库发生变化时调用）。
 
     Returns:
@@ -867,7 +869,7 @@ def invalidate_cache() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def invalidate_cache_all() -> dict:
+def invalidate_cache_all() -> str:
     """使所有缓存失效。
 
     Returns:
@@ -884,7 +886,7 @@ def invalidate_cache_all() -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
-def cache_cleanup() -> dict:
+def cache_cleanup() -> str:
     """执行缓存定期清理（清理过期 TTL 条目）。
 
     Returns:

@@ -19,9 +19,11 @@ from src.app_context import AppContext
 _ctx = AppContext.get_instance()
 
 # 全局线程池，用于异步记忆存储等后台任务
-# max_workers=2 足够（同时最多一个记忆存储 + 一个主动消息）
+# 可通过环境变量 CHAT_BRIDGE_MAX_WORKERS 配置，默认 2
+_DEFAULT_MAX_WORKERS = 2
+_MAX_WORKERS = int(os.environ.get("CHAT_BRIDGE_MAX_WORKERS", str(_DEFAULT_MAX_WORKERS)))
 # 注意：shutdown_executor() 关闭后立即重建，确保后续对话可用
-_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat_bridge")
+_executor = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="chat_bridge")
 
 
 def shutdown_executor() -> None:
@@ -37,7 +39,7 @@ def shutdown_executor() -> None:
     except Exception:
         pass  # 忽略关闭异常，不影响清理流程
     finally:
-        _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat_bridge")
+        _executor = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="chat_bridge")
 
 # 线程锁，保护共享状态（_cached_memories、_current_params、_turn_since_last_inject 等）
 _lock = threading.Lock()

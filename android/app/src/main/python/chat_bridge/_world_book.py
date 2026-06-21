@@ -20,6 +20,35 @@ from src.utils.logger import get_logger
 # 世界书名称安全校验正则：仅允许中文、字母、数字、中划线、下划线、空格，1-64字符
 _WB_NAME_PATTERN = re.compile(r'^[\w\u4e00-\u9fff\- ]{1,64}$')
 
+# ReDoS 防护：限制正则表达式最大长度和复杂度
+_MAX_REGEX_LENGTH = 200
+# 检测嵌套量词（如 (a+)+, (a*)* 等经典 ReDoS 模式）
+_REDOS_NESTED_PATTERN = re.compile(
+    r'\([^)]*\)[\s]*[\+\*\{]|'    # 分组后直接跟量词（如 (a)+）
+    r'\[[^\]]*\][\s]*[\+\*\{]'     # 字符类后直接跟量词
+)
+# 检测重复量词（如 a++ 或 a**）
+_REDOS_DOUBLE_QUANTIFIER = re.compile(r'[\+\*\{][\s]*[\+\*\{]')
+
+
+def _validate_regex_safe(pattern: str) -> None:
+    """校验正则表达式是否安全，防止 ReDoS 攻击。
+
+    Args:
+        pattern: 用户提供的正则表达式字符串
+
+    Raises:
+        ValueError: 正则表达式存在安全风险
+    """
+    if len(pattern) > _MAX_REGEX_LENGTH:
+        raise ValueError(
+            f"正则表达式过长（{len(pattern)}字符），最大允许 {_MAX_REGEX_LENGTH} 字符"
+        )
+    if _REDOS_DOUBLE_QUANTIFIER.search(pattern):
+        raise ValueError(
+            f"正则表达式包含连续量词（如 ++ 或 **），可能导致 ReDoS: {pattern}"
+        )
+
 
 def _sanitize_world_book_name(name: str) -> str:
     """校验世界书名称是否安全，防止路径遍历攻击。
@@ -707,9 +736,9 @@ def validate_world_book(name: str) -> str:
         for e in entries:
             for pattern in e.regex_keys:
                 try:
-                    import re
+                    _validate_regex_safe(pattern)  # ReDoS 防护
                     re.compile(pattern)
-                except re.error as err:
+                except (re.error, ValueError) as err:
                     match_issues.append({
                         "level": "error",
                         "message": f"条目 [{e.id}] 正则表达式无效: {pattern} → {err}"

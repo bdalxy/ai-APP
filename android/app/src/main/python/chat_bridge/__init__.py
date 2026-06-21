@@ -133,6 +133,25 @@ from ._plugins import (
     get_plugin_count,
 )
 
+# ---- 构建类型设置（日志级别控制） ----
+from src.config.settings import settings
+
+
+def set_build_type(build_type: str) -> str:
+    """由 Kotlin 侧调用，设置构建类型以控制日志级别。
+
+    Release 构建时应传入 "release"，将日志级别降为 WARNING，
+    避免 logcat 泄露用户对话内容。
+
+    Args:
+        build_type: "debug" 或 "release"
+
+    Returns:
+        "ok"
+    """
+    settings.set_build_type(build_type)
+    return "ok"
+
 # 保持向后兼容的 __all__
 __all__ = [
     # 子模块命名空间
@@ -220,5 +239,6 @@ __all__ = [
     "toggle_plugin",
     "get_plugin_detail",
     "get_plugin_count",
+    "set_build_type",
     "_plugin_manager",
 ]

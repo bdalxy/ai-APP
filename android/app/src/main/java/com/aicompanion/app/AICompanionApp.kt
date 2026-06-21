@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.util.Log
+import androidx.appcompat.app.AppCompatDelegate
 import com.aicompanion.app.plugin.BuiltinPlugins
 import com.aicompanion.app.plugin.PluginRegistry
 import com.chaquo.python.android.PyApplication
@@ -78,8 +79,16 @@ class AICompanionApp : PyApplication() {
     }
 
     override fun onCreate() {
+        // 设置主题模式（必须在 super.onCreate() 之前）
+        val themeMode = getSharedPreferences("app_prefs", MODE_PRIVATE)
+            .getString("theme_mode", AppConfig.THEME_LIGHT) ?: AppConfig.THEME_LIGHT
+        AppCompatDelegate.setDefaultNightMode(
+            if (themeMode == AppConfig.THEME_DARK) AppCompatDelegate.MODE_NIGHT_YES
+            else AppCompatDelegate.MODE_NIGHT_NO
+        )
+
         // 记录启动耗时起点
-        PerformanceMonitor.markAppCreateStart()
+        
 
         // Chaquopy 初始化必须在主线程（PyApplication.onCreate() 内部初始化 AndroidPlatform）
         super.onCreate()
@@ -129,7 +138,7 @@ class AICompanionApp : PyApplication() {
         }
 
         // 记录启动耗时终点
-        PerformanceMonitor.markAppCreateEnd()
+        
         Log.d(TAG, "Application.onCreate 完成")
     }
 
@@ -143,11 +152,14 @@ class AICompanionApp : PyApplication() {
             val warmUpStart = System.currentTimeMillis()
             val python = com.chaquo.python.Python.getInstance()
             // 预加载 chat_bridge 模块（触发 .py→.pyc 编译）
-            python.getModule("chat_bridge")
+            val module = python.getModule("chat_bridge")
+            // 显式设置构建类型，确保 Release 构建日志级别降为 WARNING
+            val buildType = if (BuildConfig.DEBUG) "debug" else "release"
+            module.callAttr("set_build_type", buildType)
             isPythonWarmedUp = true
             val warmUpTime = System.currentTimeMillis() - warmUpStart
-            Log.d(TAG, "Python 预热完成，耗时: ${warmUpTime}ms")
-            PerformanceMonitor.recordMemory()
+            Log.d(TAG, "Python 预热完成，buildType=$buildType，耗时: ${warmUpTime}ms")
+            
         } catch (e: Exception) {
             Log.w(TAG, "Python 预热失败: ${e.message}")
         }
@@ -158,7 +170,7 @@ class AICompanionApp : PyApplication() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
 
-        Log.d(TAG, "onTrimMemory: level=$level, ${PerformanceMonitor.getMemorySummary()}")
+        Log.d(TAG, "onTrimMemory: level=$level")
 
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
@@ -215,7 +227,7 @@ class AICompanionApp : PyApplication() {
 
     override fun onLowMemory() {
         super.onLowMemory()
-        Log.w(TAG, "onLowMemory: ${PerformanceMonitor.getMemorySummary()}")
+        Log.w(TAG, "onLowMemory")
         clearPythonCache()
         System.gc()
     }
