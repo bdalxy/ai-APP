@@ -19,6 +19,14 @@
 
     <!-- ===== 通用 Content Description ===== -->
     <string name="cd_back">返回</string>
+    <string name="cd_display">显示</string>
+    <string name="cd_dark_mode">深色模式</string>
+    <string name="section_display">显示设置</string>
+    <string name="section_display_settings">显示设置</string>
+    <string name="theme_light">浅色模式</string>
+    <string name="theme_dark">深色模式</string>
+    <string name="theme_light_desc">使用浅色樱羽主题</string>
+    <string name="theme_dark_desc">使用深色主题，护眼省电</string>
     <string name="cd_settings">设置</string>
     <string name="cd_search">搜索</string>
     <string name="cd_clear_search">清除搜索</string>
@@ -203,7 +211,9 @@
     <string name="error_init_failed">初始化失败：%s</string>
     <string name="toast_message_too_long">消息过长，请限制在2000字以内</string>
     <string name="toast_conversation_failed">对话失败: %s</string>
+    <string name="toast_timeout">请求超时，请检查网络后重试</string>
     <string name="toast_save_failed">对话保存失败</string>
+    <string name="toast_load_session_failed">加载会话失败</string>
     <string name="toast_search_failed">搜索失败: %s</string>
     <string name="toast_export_failed">导出失败: %s</string>
     <string name="toast_engine_not_init_export">引擎未初始化，无法导出</string>

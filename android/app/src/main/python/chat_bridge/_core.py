@@ -139,6 +139,7 @@ def _inject_context(player, user_input: str, orchestrator) -> None:
     """注入记忆和世界书上下文到 Player 实例。
 
     提取 chat() 和 chat_stream() 共用的注入逻辑，避免重复代码。
+    使用 ContextBuilder 构建紧凑记忆上下文（多策略检索 + 排序 + Token 预算管理）。
 
     Args:
         player: RolePlayer 实例
@@ -154,13 +155,22 @@ def _inject_context(player, user_input: str, orchestrator) -> None:
         )
     if need_inject:
         try:
-            new_memories = orchestrator.recall(user_input)
+            # 使用 ContextBuilder 构建紧凑记忆上下文（多策略检索 + 排序 + Token 预算）
+            context_text = orchestrator.build_context_compact(user_input, max_memories=5)
+            if context_text:
+                # 解析格式化文本（每行 "- 记忆内容"）为纯文本列表
+                new_memories = [
+                    line[2:] for line in context_text.split("\n")
+                    if line.startswith("- ")
+                ]
+            else:
+                new_memories = []
             with _state._lock:
                 _state._cached_memories = new_memories
                 _state._turn_since_last_inject = 0
-            _log.debug(f"[记忆注入] 检索到 {len(_state._cached_memories)} 条相关记忆")
+            _log.debug(f"[记忆注入] ContextBuilder 检索到 {len(new_memories)} 条相关记忆")
         except Exception as e:
-            _log.warning(f"[记忆注入] 检索失败: {e}")
+            _log.warning(f"[记忆注入] ContextBuilder 检索失败（不影响对话）: {e}")
 
     with _state._lock:
         memories = list(_state._cached_memories)
@@ -201,8 +211,11 @@ def chat(user_input: str) -> dict:
         # 插件管道：预处理用户输入
         user_input = _get_plugin_manager().pre_process(user_input)
 
-        # 注入记忆和世界书上下文
-        _inject_context(player, user_input, orchestrator)
+        # 注入记忆和世界书上下文（加保护，防止阻塞对话）
+        try:
+            _inject_context(player, user_input, orchestrator)
+        except Exception as e:
+            _log.warning(f"[chat] 上下文注入失败（不影响对话）: {e}")
 
         reply = player.chat(user_input)
 
@@ -248,8 +261,11 @@ def chat_stream_start(user_input: str) -> str:
     # 插件管道：预处理用户输入
     user_input = _get_plugin_manager().pre_process(user_input)
 
-    # 注入记忆和世界书上下文
-    _inject_context(player, user_input, orchestrator)
+    # 注入记忆和世界书上下文（加保护，防止阻塞对话）
+    try:
+        _inject_context(player, user_input, orchestrator)
+    except Exception as e:
+        _log.warning(f"[chat] 上下文注入失败（不影响对话）: {e}")
 
     stream_id = str(uuid.uuid4())
     token_queue = queue.Queue()
@@ -434,6 +450,35 @@ def reset() -> dict:
         _log.warning(f"[世界书] 重置轮次计数失败: {e}")
 
     return json.dumps({"status": "ok"})
+
+
+def restore_history(conversation_json: str) -> dict:
+    """从持久化存储恢复对话历史到 Python 引擎。
+
+    通常用于 APP 重启后，将 Kotlin 侧加载的对话历史同步到
+    Python 侧的 ContextManager，确保 AI 能看到之前的对话。
+
+    Args:
+        conversation_json: 对话历史的 JSON 字符串，格式：
+            [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+
+    Returns:
+        {"status": "ok", "count": N} 或 {"status": "error", "message": "..."}
+    """
+    player = _ctx.player
+    if player is None:
+        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+
+    try:
+        messages = json.loads(conversation_json)
+        if not isinstance(messages, list):
+            return json.dumps({"status": "error", "message": "conversation_json 必须是 JSON 数组"})
+        player.restore_history(messages)
+        return json.dumps({"status": "ok", "count": len(messages)})
+    except json.JSONDecodeError as e:
+        return json.dumps({"status": "error", "message": f"JSON 解析失败: {e}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
 
 
 def get_card_info() -> dict:
@@ -625,3 +670,25 @@ def chat_stream_cancel(stream_id: str) -> str:
         return json.dumps({"status": "ok", "cleared": cleared})
     _log.debug(f"[流式对话] stream_id={stream_id} 不存在或已清理")
     return json.dumps({"status": "ok", "cleared": 0})
+
+
+def cleanup_all_streams() -> dict:
+    """清理所有活跃的流式对话，释放资源。
+
+    供 Kotlin 端在 Activity 销毁或应用退出时调用。
+
+    Returns:
+        JSON: {"status": "ok", "cleaned": N}
+    """
+    with _streams_lock:
+        count = len(_streams)
+        for stream_id, stream in list(_streams.items()):
+            stream["done"] = True
+            while not stream["queue"].empty():
+                try:
+                    stream["queue"].get_nowait()
+                except queue.Empty:
+                    break
+        _streams.clear()
+    _log.info(f"[流式对话] 清理了全部 {count} 个活跃流")
+    return json.dumps({"status": "ok", "cleaned": count})

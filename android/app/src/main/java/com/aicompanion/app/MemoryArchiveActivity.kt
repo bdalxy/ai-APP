@@ -267,7 +267,7 @@ class MemoryArchiveActivity : AppCompatActivity() {
             hideDeleteConfirm()
         }
 
-        // 确认删除（破碎动画）
+        // 确认删除
         binding.btnConfirmDelete.setOnClickListener {
             pendingDeleteCard?.let { card ->
                 pendingDeleteView?.let { view ->
@@ -285,7 +285,7 @@ class MemoryArchiveActivity : AppCompatActivity() {
         isLoading = true
 
         if (page > 1) {
-            binding.tvLoadMore.visibility = View.VISIBLE
+            // binding.tvLoadMore.visibility = View.VISIBLE
         }
 
         lifecycleScope.launch {
@@ -301,7 +301,7 @@ class MemoryArchiveActivity : AppCompatActivity() {
             }
 
             isLoading = false
-            binding.tvLoadMore.visibility = View.GONE
+            // binding.tvLoadMore.visibility = View.GONE
 
             if (result != null) {
                 try {
@@ -600,8 +600,8 @@ class MemoryArchiveActivity : AppCompatActivity() {
         for (i in 0 until 4) {
             val fragment = View(this).apply {
                 layoutParams = ViewGroup.LayoutParams(fragmentWidth, fragmentHeight)
-                x = cardX + offsets[i].first
-                y = cardY + offsets[i].second
+                x = cardX + offsets[i].first.toFloat()
+                y = cardY + offsets[i].second.toFloat()
                 setBackgroundColor(fragmentColors[i])
                 alpha = 0.9f
                 // 设置圆角（通过 clipToOutline）

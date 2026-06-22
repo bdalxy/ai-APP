@@ -12,10 +12,10 @@ import java.util.UUID
  */
 data class CharacterData(
     val id: String = UUID.randomUUID().toString(),
-    val name: String = "小美",
+    val name: String = "小星",
     val personality: String = "温柔、活泼、善解人意",
     val speakingStyle: String = "语气轻柔，喜欢使用可爱的语气词",
-    val backstory: String = "来自神秘花园的AI少女，喜欢分享生活中的小确幸",
+    val backstory: String = "乐于助人的AI助手，喜欢聊天和分享日常趣事",
     val greeting: String = "你好呀~今天过得怎么样？",
     val avatarUri: String = "",  // 头像路径，空串表示使用默认
     val coreTraits: String = "",  // 核心特质（逗号分隔）
@@ -43,10 +43,10 @@ object CharacterStorage {
             val defaults = listOf(
                 CharacterData(
                     isDefault = true,
-                    name = "小美",
+                    name = "小星",
                     personality = "温柔、活泼、善解人意、乐于倾听",
                     speakingStyle = "语气轻柔，喜欢说\"呢\"\"呀\"\"哦\"等可爱的语气词",
-                    backstory = "来自往世乐土的AI少女，喜欢分享生活中的小确幸",
+                    backstory = "乐于助人的AI助手，喜欢聊天和分享日常趣事",
                     greeting = "你好呀~今天心情怎么样？"
                 ),
                 CharacterData(

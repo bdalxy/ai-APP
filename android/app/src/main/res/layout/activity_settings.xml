@@ -290,7 +290,61 @@
             </LinearLayout>
         </com.aicompanion.app.ui.GlassCard>
 
-        <!-- ===== 五、通知设置卡片 ===== -->
+        <!-- ===== 显示设置卡片（主题切换） ===== -->
+        <com.aicompanion.app.ui.GlassCard
+            android:id="@+id/cardDisplay"
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_3xl"
+            app:contentPadding="@dimen/card_padding">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_settings_display"
+                    android:layout_marginEnd="12dp"
+                    android:contentDescription="@string/cd_display" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_display"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvDisplaySummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="浅色模式"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchTheme"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="@string/cd_dark_mode" />
+            </LinearLayout>
+        </com.aicompanion.app.ui.GlassCard>
+
+        <!-- ===== 六、通知设置卡片 ===== -->
         <com.aicompanion.app.ui.GlassCard
             android:id="@+id/cardNotification"
             style="@style/GlassCard"

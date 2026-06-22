@@ -52,7 +52,8 @@ _current_params: dict[str, object] = {}
 _current_character: dict[str, object] = {}
 
 # 记忆自动注入相关
-_memory_inject_interval: int = 3  # 每 N 轮对话更新一次记忆注入
+# 每轮都检索记忆（ContextBuilder 内部有缓存，不会重复调用 embedding API）
+_memory_inject_interval: int = 1  # 每 N 轮对话更新一次记忆注入
 _turn_since_last_inject: int = 0  # 自上次注入以来的轮数
 _cached_memories: list[str] = []  # 缓存的记忆文本
 

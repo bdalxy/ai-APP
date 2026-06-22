@@ -44,6 +44,18 @@
     public <init>(android.content.Context, android.util.AttributeSet);
 }
 
+# ── Sherpa-ONNX JNI 保护 ──
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-keep class com.k2fsa.sherpa.onnx.OfflineTts { *; }
+-keep class com.k2fsa.sherpa.onnx.OfflineTtsConfig { *; }
+-keep class com.k2fsa.sherpa.onnx.OfflineTtsModelConfig { *; }
+-keep class com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig { *; }
+-keep class com.k2fsa.sherpa.onnx.GeneratedAudio { *; }
+-keep class com.k2fsa.sherpa.onnx.GenerationConfig { *; }
+-keepclasseswithmembernames class com.k2fsa.sherpa.onnx.** {
+    native <methods>;
+}
+
 # ── 移除调试日志（Release 构建）──
 -assumenosideeffects class android.util.Log {
     public static *** d(...);

@@ -22,23 +22,20 @@
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:editTextColor">@color/text_primary</item>
-        <!-- 字体 -->
-        <item name="android:fontFamily">@font/quicksand</item>
-        <item name="fontFamily">@font/quicksand</item>
-    </style>
+        </style>
 
     <!-- 设置项标题 -->
     <style name="SettingsItemTitle" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">15sp</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
     </style>
 
     <!-- 设置项副标题 -->
     <style name="SettingsItemSubtitle" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">13sp</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
     </style>
 
     <!-- 毛玻璃卡片 -->
@@ -54,7 +51,7 @@
     <!-- 主按钮：粉蓝渐变填充 -->
     <style name="AppButton.Primary" parent="Widget.MaterialComponents.Button">
         <item name="android:textColor">@color/onPrimary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="backgroundTint">@null</item>
         <item name="android:background">@drawable/bg_btn_primary</item>
         <item name="cornerRadius">24dp</item>
@@ -65,7 +62,7 @@
     <!-- 次要按钮：透明底 + 淡天蓝描边 -->
     <style name="AppButton.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="android:textColor">@color/primary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="strokeColor">@color/primary</item>
         <item name="cornerRadius">24dp</item>
         <item name="android:minHeight">@dimen/button_default</item>
@@ -74,7 +71,7 @@
     <!-- 文字按钮 -->
     <style name="AppButton.Text" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">@color/primary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="android:textSize">@dimen/text_body_small</item>
         <item name="android:minHeight">@dimen/button_medium</item>
     </style>
@@ -89,7 +86,7 @@
     <style name="AppInput" parent="Widget.AppCompat.EditText">
         <item name="android:background">@drawable/bg_input_field</item>
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:textSize">@dimen/text_body</item>
         <item name="android:paddingStart">12dp</item>
@@ -112,7 +109,7 @@
     <style name="AppChip">
         <item name="android:textSize">11sp</item>
         <item name="android:textColor">@color/onPrimary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="android:paddingHorizontal">8dp</item>
         <item name="android:paddingVertical">2dp</item>
         <item name="android:background">@drawable/bg_type_label</item>
@@ -121,7 +118,7 @@
     <!-- ===== AppText 文本样式 ===== -->
     <style name="AppText" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="android:textSize">@dimen/text_body</item>
     </style>
 
@@ -129,25 +126,25 @@
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">@dimen/text_heading</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">@font/caveat</item>
+        
     </style>
 
     <style name="AppText.CardTitle">
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">@dimen/text_body</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">@font/caveat</item>
+        
     </style>
 
     <style name="AppText.CardSubtitle">
         <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="android:textSize">13sp</item>
     </style>
 
     <style name="AppText.Caption">
         <item name="android:textColor">@color/text_tertiary</item>
-        <item name="android:fontFamily">@font/quicksand</item>
+        
         <item name="android:textSize">@dimen/text_caption</item>
     </style>
 </resources>

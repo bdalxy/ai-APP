@@ -100,10 +100,10 @@ class Settings:
             pass
 
         # 角色卡默认配置（可通过 set_character_card 运行时修改）
-        self.CHARACTER_NAME: str = "小美"
+        self.CHARACTER_NAME: str = "小星"
         self.CHARACTER_PERSONALITY: str = "温柔、活泼、善解人意"
         self.CHARACTER_SPEAKING_STYLE: str = "语气轻柔，喜欢使用可爱的语气词"
-        self.CHARACTER_BACKSTORY: str = "来自往世乐土的AI少女，喜欢分享生活中的小确幸"
+        self.CHARACTER_BACKSTORY: str = "乐于助人的AI助手，喜欢聊天和分享日常趣事"
 
     def set_build_type(self, build_type: str) -> None:
         """由 Kotlin 侧调用，显式设置构建类型以控制日志级别。

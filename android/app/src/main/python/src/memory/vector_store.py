@@ -27,7 +27,8 @@ import sqlite3
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from threading import Lock
+from contextlib import contextmanager
+from threading import Lock, RLock
 
 from src.exceptions import MemoryException, MemoryNotFoundError, MemoryStorageError
 from src.utils.logger import get_logger
@@ -361,7 +362,7 @@ class VectorStore:
     def __init__(self, db_path: str | Path = ":memory:") -> None:
         self.db_path = str(db_path)
         self._log = get_logger()
-        self._lock = Lock()
+        self._lock = RLock()
         self._closed = False
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -374,10 +375,41 @@ class VectorStore:
         self._add_count = 0  # WAL checkpoint 计数器
         self._log.info(f"VectorStore 初始化完成: db_path={self.db_path}, 记忆数={self.count()}, 索引关键词数={self.inverted_index.size()}")
 
+    @property
+    def lock(self) -> RLock:
+        """公开锁，供 KnowledgeGraph / Summarizer 等外部模块安全访问数据库。"""
+        return self._lock
+
     def _check_closed(self) -> None:
         """检查连接是否已关闭。"""
         if self._closed:
             raise MemoryStorageError("VectorStore 已关闭，无法执行操作")
+
+    @contextmanager
+    def transaction(self):
+        """SQLite 事务上下文管理器，确保原子性操作。
+
+        在事务块内执行的所有数据库操作（通过 _no_commit 方法）
+        要么全部提交，要么全部回滚。
+
+        使用示例:
+            >>> with store.transaction():
+            ...     store._mark_archived_no_commit([id1, id2])
+            ...     store._add_no_commit(merged_entry)
+
+        注意:
+            - 事务期间持有 self._lock（RLock），其他线程将被阻塞。
+            - 不要在事务块内调用会自行 commit 的公开方法（如 add()、mark_archived()）。
+        """
+        self._check_closed()
+        with self._lock:
+            self._conn.execute("BEGIN")
+            try:
+                yield
+                self._conn.commit()
+            except Exception:
+                self._conn.rollback()
+                raise
 
     def _create_table(self) -> None:
         try:
@@ -451,8 +483,15 @@ class VectorStore:
         except sqlite3.Error as e:
             self._log.error(f"加载倒排索引失败: {e}")
 
-    def add(self, entry: MemoryEntry) -> str:
-        self._check_closed()
+    def _prepare_entry_for_insert(self, entry: MemoryEntry) -> None:
+        """准备记忆条目：设置默认值、提取关键词、加密内容。
+
+        在调用 _add_no_commit() 之前调用，确保条目已准备好插入。
+        此方法不涉及数据库操作，无需持有锁。
+
+        Args:
+            entry: 要准备的记忆条目（原地修改）。
+        """
         if not entry.keywords and entry.content:
             entry.keywords = extract_keywords(entry.content)
         if not entry.id:
@@ -463,25 +502,78 @@ class VectorStore:
         if not entry.last_accessed:
             entry.last_accessed = entry.created_at
         # T-FIX-04: 加密 content 后再存储
-        encrypted_content = _encrypt(entry.content)
-        sql = f"INSERT OR REPLACE INTO {self._TABLE_NAME} (id, type, content, keywords, embedding, importance, created_at, last_accessed, access_count, decay_factor, source_turn_id, archived, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        params = (entry.id, entry.memory_type, encrypted_content, json.dumps(entry.keywords, ensure_ascii=False), json.dumps(entry.embedding), entry.importance, entry.created_at, entry.last_accessed, entry.access_count, entry.decay_factor, entry.source_turn_id, int(entry.archived), entry.source)
+        entry._encrypted_content = _encrypt(entry.content)
+
+    def _add_no_commit(self, entry: MemoryEntry) -> str:
+        """内部方法：添加记忆但不提交事务。
+
+        调用者必须持有 self._lock 并负责事务管理（BEGIN/COMMIT/ROLLBACK）。
+        通常与 transaction() 上下文管理器配合使用。
+
+        Args:
+            entry: 已通过 _prepare_entry_for_insert() 准备好的条目。
+
+        Returns:
+            记忆 ID。
+
+        Raises:
+            MemoryStorageError: 数据库操作失败。
+        """
+        encrypted_content = getattr(entry, "_encrypted_content", _encrypt(entry.content))
+        sql = (
+            f"INSERT OR REPLACE INTO {self._TABLE_NAME} "
+            f"(id, type, content, keywords, embedding, importance, "
+            f"created_at, last_accessed, access_count, decay_factor, "
+            f"source_turn_id, archived, source) "
+            f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        params = (
+            entry.id, entry.memory_type, encrypted_content,
+            json.dumps(entry.keywords, ensure_ascii=False),
+            json.dumps(entry.embedding), entry.importance,
+            entry.created_at, entry.last_accessed, entry.access_count,
+            entry.decay_factor, entry.source_turn_id, int(entry.archived),
+            entry.source,
+        )
+        try:
+            self._conn.execute(sql, params)
+            if entry.keywords:
+                self.inverted_index.add(entry.id, entry.keywords)
+        except sqlite3.Error as e:
+            raise MemoryStorageError(
+                f"添加记忆失败: {e}", detail=f"id={entry.id}"
+            ) from e
+        self._add_count += 1
+        self._log.debug(
+            f"记忆已添加: id={entry.id}, type={entry.memory_type}, "
+            f"content={entry.content[:50]}..."
+        )
+        return entry.id
+
+    def add(self, entry: MemoryEntry) -> str:
+        """添加记忆条目（公开方法，自行管理事务和锁）。
+
+        Args:
+            entry: 记忆条目。
+
+        Returns:
+            记忆 ID。
+        """
+        self._check_closed()
+        self._prepare_entry_for_insert(entry)
         try:
             with self._lock:
-                self._conn.execute(sql, params)
+                result = self._add_no_commit(entry)
                 self._conn.commit()
-                if entry.keywords:
-                    self.inverted_index.add(entry.id, entry.keywords)
+                should_checkpoint = (self._add_count % 100 == 0)
         except sqlite3.Error as e:
-            raise MemoryStorageError(f"添加记忆失败: {e}", detail=f"id={entry.id}") from e
-        with self._lock:
-            self._add_count += 1
-            should_checkpoint = (self._add_count % 100 == 0)
+            raise MemoryStorageError(
+                f"添加记忆失败: {e}", detail=f"id={entry.id}"
+            ) from e
         # 每 100 次写入触发一次 WAL checkpoint，防止 wal 文件无限增长
         if should_checkpoint:
             self._checkpoint()
-        self._log.debug(f"记忆已添加: id={entry.id}, type={entry.memory_type}, content={entry.content[:50]}...")
-        return entry.id
+        return result
 
     def get(self, mem_id: str) -> MemoryEntry:
         self._check_closed()
@@ -794,8 +886,31 @@ class VectorStore:
             raise MemoryStorageError(f"获取最旧未归档记忆失败: {e}") from e
         return [self._row_to_entry(row) for row in rows]
 
+    def _mark_archived_no_commit(self, mem_ids: list[str]) -> int:
+        """内部方法：批量标记记忆为已归档，不提交事务。
+
+        调用者必须持有 self._lock 并负责事务管理（BEGIN/COMMIT/ROLLBACK）。
+        通常与 transaction() 上下文管理器配合使用。
+
+        Args:
+            mem_ids: 要标记的记忆 ID 列表。
+
+        Returns:
+            成功标记的记忆条数。
+        """
+        placeholders = ",".join("?" for _ in mem_ids)
+        sql = (
+            f"UPDATE {self._TABLE_NAME} SET archived = 1 "
+            f"WHERE id IN ({placeholders})"
+        )
+        cursor = self._conn.execute(sql, mem_ids)
+        self._log.info(
+            f"[归档标记] 已标记 {cursor.rowcount} 条记忆为已归档"
+        )
+        return cursor.rowcount
+
     def mark_archived(self, mem_ids: list[str]) -> int:
-        """批量标记记忆为已归档。
+        """批量标记记忆为已归档（公开方法，自行管理事务和锁）。
 
         Args:
             mem_ids: 要标记的记忆 ID 列表。
@@ -806,22 +921,36 @@ class VectorStore:
         if not mem_ids:
             return 0
         self._check_closed()
-        placeholders = ",".join("?" for _ in mem_ids)
-        sql = (
-            f"UPDATE {self._TABLE_NAME} SET archived = 1 "
-            f"WHERE id IN ({placeholders})"
-        )
         try:
             with self._lock:
-                cursor = self._conn.execute(sql, mem_ids)
+                result = self._mark_archived_no_commit(mem_ids)
                 self._conn.commit()
-                self._log.info(
-                    f"[归档标记] 已标记 {cursor.rowcount} 条记忆为已归档"
-                )
-                return cursor.rowcount
+                return result
         except sqlite3.Error as e:
             self._log.error(f"标记归档失败: {e}")
             raise MemoryStorageError(f"标记归档失败: {e}") from e
+
+    def update_importance(self, memory_id: str, new_importance: float) -> bool:
+        """更新记忆的重要性评分。
+
+        Args:
+            memory_id: 记忆 UUID。
+            new_importance: 新重要性评分（0.0~1.0）。
+
+        Returns:
+            True 如果更新成功。
+        """
+        self._check_closed()
+        new_importance = max(0.0, min(1.0, new_importance))
+        sql = f"UPDATE {self._TABLE_NAME} SET importance = ? WHERE id = ?"
+        try:
+            with self._lock:
+                cursor = self._conn.execute(sql, (new_importance, memory_id))
+                self._conn.commit()
+                return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            self._log.debug(f"更新重要性失败: {e}")
+            return False
 
     def clear(self) -> None:
         self._check_closed()
@@ -1215,16 +1344,17 @@ class VectorStore:
     def _ensure_relations_table(self) -> None:
         """确保记忆关系表存在。"""
         try:
-            self._conn.execute(self._CREATE_RELATIONS_TABLE_SQL)
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_relations_source "
-                f"ON {self._RELATIONS_TABLE}(source_id)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_relations_target "
-                f"ON {self._RELATIONS_TABLE}(target_id)"
-            )
-            self._conn.commit()
+            with self._lock:
+                self._conn.execute(self._CREATE_RELATIONS_TABLE_SQL)
+                self._conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_relations_source "
+                    f"ON {self._RELATIONS_TABLE}(source_id)"
+                )
+                self._conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_relations_target "
+                    f"ON {self._RELATIONS_TABLE}(target_id)"
+                )
+                self._conn.commit()
         except sqlite3.Error as e:
             self._log.warning(f"创建关系表失败: {e}")
 

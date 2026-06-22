@@ -32,6 +32,12 @@ class ProactiveWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
+            // 0. 重试次数限制（最多 3 次）
+            if (runAttemptCount > 3) {
+                Log.e(TAG, "超过最大重试次数 ($runAttemptCount)，放弃")
+                return@withContext Result.failure()
+            }
+
             // 1. 检查主动消息是否开启（统一使用 AppConfig 读取）
             if (!AppConfig.getProactiveEnabled(applicationContext)) {
                 Log.d(TAG, "主动消息未开启，跳过")

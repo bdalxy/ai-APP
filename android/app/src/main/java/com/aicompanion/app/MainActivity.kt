@@ -26,6 +26,7 @@ import com.aicompanion.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -87,7 +88,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        PerformanceMonitor.markActivityCreateStart()
+        
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -139,12 +140,9 @@ class MainActivity : AppCompatActivity() {
         // 异步初始化 Python
         initializePythonAsync()
 
-        PerformanceMonitor.markActivityCreateEnd()
+        
 
-        binding.root.post {
-            PerformanceMonitor.markFirstFrameRendered()
-            PerformanceMonitor.printReport()
-        }
+        // 初始化完成
     }
 
     override fun onDestroy() {
@@ -152,6 +150,40 @@ class MainActivity : AppCompatActivity() {
         chatViewModel.destroy()
         voiceController.destroy()
         hideRecordingOverlay()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // 进入后台时保存当前会话并取消活跃流
+        if (::conversationCoordinator.isInitialized) {
+            conversationCoordinator.saveConversation()
+        }
+        if (::chatViewModel.isInitialized && chatViewModel.isStreaming) {
+            chatViewModel.cancelActiveStream()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 从其他页面返回时刷新：确保 Python 缓存和会话列表是最新的
+        if (::pythonModule.isInitialized && !chatViewModel.isStreaming) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    pythonModule.callAttr("invalidate_cache")
+                } catch (_: Exception) {
+                    // 缓存失效失败不影响主流程
+                }
+            }
+        }
+        // 只在消息列表为空时从磁盘加载（避免覆盖当前对话）
+        if (::conversationCoordinator.isInitialized && ::chatViewModel.isInitialized) {
+            if (chatViewModel.getMessageCount() == 0) {
+                conversationCoordinator.loadConversation()
+            } else {
+                // 已显示消息，仅刷新会话列表元数据
+                conversationCoordinator.refreshSessionMeta()
+            }
+        }
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
@@ -204,6 +236,8 @@ class MainActivity : AppCompatActivity() {
                 if (messages.isNotEmpty()) {
                     binding.rvMessages.scrollToPosition(messages.size - 1)
                 }
+                // 同步对话历史到 Python 引擎
+                syncHistoryToPython(messages)
             }
 
             override fun onSessionCreated(name: String) {
@@ -341,76 +375,103 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     binding.tvStatus.text = getString(R.string.status_initializing)
                 }
-
                 val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
 
-                // 1. 注入 API Key
-                val apiKey = AppConfig.getApiKey(this@MainActivity)
-                if (apiKey.isNullOrBlank()) {
-                    withContext(Dispatchers.Main) {
-                        binding.tvStatus.text = getString(R.string.error_init_api_key)
-                    }
-                    return@launch
-                }
-                module.callAttr("set_api_key", apiKey)
-
-                // 2. 初始化聊天引擎
-                val ctxSize = AppConfig.getContextSize(this@MainActivity)
-                val temp = AppConfig.getTemperature(this@MainActivity).toDouble()
-                val maxTk = AppConfig.getMaxTokens(this@MainActivity)
-                val dialogues = AppConfig.getExampleDialogues(this@MainActivity)
-                val model = AppConfig.getModel(this@MainActivity).let {
-                    if (it.isBlank()) "" else it
-                }
-                module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
-
-                // 3. 初始化记忆系统
-                module.callAttr("init_memory", filesDir.absolutePath)
-
-                // 4. 加载角色卡
-                val character = CharacterStorage.getCurrent(this@MainActivity)
-                val charJson = JSONObject().apply {
-                    put("name", character.name)
-                    put("personality", character.personality)
-                    put("speaking_style", character.speakingStyle)
-                    put("backstory", character.backstory)
-                    put("greeting", character.greeting)
-                }.toString()
-                module.callAttr("set_character_card", charJson)
-
-                // 5. 恢复已启用的世界书
-                val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-                val savedBooks = prefs.getString("enabled_world_books", "") ?: ""
-                if (savedBooks.isNotBlank()) {
-                    savedBooks.split(",").filter { it.isNotBlank() }.forEach { name ->
-                        module.callAttr("enable_world_book", name.trim())
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    pythonModule = module
-                    chatViewModel.pythonModule = module
-                    binding.tvStatus.text = ""
-                    binding.tvTitle.text = character.name
-
-                    // 初始化语音管理器
-                    voiceController.init()
-
-                    // 初始化通知
-                    NotificationHelper.createChannel(this@MainActivity)
-                    ProactiveService.schedule(this@MainActivity)
-
-                    // 恢复上次对话历史
-                    conversationCoordinator.loadConversation()
-
-                    PerformanceMonitor.markPythonInitComplete()
-                }
+                if (!injectApiKey(module)) return@launch
+                initChatEngine(module)
+                initMemorySystem(module)
+                val character = loadCharacterCard(module)
+                restoreWorldBooks(module)
+                completeInit(module, character)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
                 withContext(Dispatchers.Main) {
                     binding.tvStatus.text = getString(R.string.error_init_failed, e.message)
                 }
             }
+        }
+    }
+
+    /**
+     * 注入 API Key 到 Python 模块
+     * @return true 成功，false 失败（API Key 为空）
+     */
+    private suspend fun injectApiKey(module: com.chaquo.python.PyObject): Boolean {
+        val apiKey = AppConfig.getApiKey(this)
+        if (apiKey.isNullOrBlank()) {
+            withContext(Dispatchers.Main) {
+                binding.tvStatus.text = getString(R.string.error_init_api_key)
+            }
+            return false
+        }
+        module.callAttr("set_api_key", apiKey)
+        return true
+    }
+
+    /**
+     * 初始化聊天引擎参数
+     */
+    private fun initChatEngine(module: com.chaquo.python.PyObject) {
+        val ctxSize = AppConfig.getContextSize(this)
+        val temp = AppConfig.getTemperature(this).toDouble()
+        val maxTk = AppConfig.getMaxTokens(this)
+        val dialogues = AppConfig.getExampleDialogues(this)
+        val model = AppConfig.getModel(this).let {
+            if (it.isBlank()) "" else it
+        }
+        module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
+    }
+
+    /**
+     * 初始化记忆系统
+     */
+    private fun initMemorySystem(module: com.chaquo.python.PyObject) {
+        module.callAttr("init_memory", filesDir.absolutePath)
+    }
+
+    /**
+     * 加载角色卡到 Python 模块
+     * @return 当前角色对象
+     */
+    private fun loadCharacterCard(module: com.chaquo.python.PyObject): CharacterData {
+        val character = CharacterStorage.getCurrent(this)
+        val charJson = JSONObject().apply {
+            put("name", character.name)
+            put("personality", character.personality)
+            put("speaking_style", character.speakingStyle)
+            put("backstory", character.backstory)
+            put("greeting", character.greeting)
+        }.toString()
+        module.callAttr("set_character_card", charJson)
+        return character
+    }
+
+    /**
+     * 恢复已启用的世界书
+     */
+    private fun restoreWorldBooks(module: com.chaquo.python.PyObject) {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val savedBooks = prefs.getString("enabled_world_books", "") ?: ""
+        if (savedBooks.isNotBlank()) {
+            savedBooks.split(",").filter { it.isNotBlank() }.forEach { name ->
+                module.callAttr("enable_world_book", name.trim())
+            }
+        }
+    }
+
+    /**
+     * 完成初始化：设置 Python 模块、更新 UI、初始化语音、通知、加载会话
+     */
+    private suspend fun completeInit(module: com.chaquo.python.PyObject, character: CharacterData) {
+        withContext(Dispatchers.Main) {
+            pythonModule = module
+            chatViewModel.pythonModule = module
+            binding.tvStatus.text = ""
+            binding.tvTitle.text = character.name
+            voiceController.init()
+            NotificationHelper.createChannel(this@MainActivity)
+            ProactiveService.schedule(this@MainActivity)
+            conversationCoordinator.loadConversation()
         }
     }
 
@@ -442,6 +503,29 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "角色卡同步失败", e)
+            }
+        }
+    }
+
+    /**
+     * 将已加载的对话历史同步到 Python 引擎的 ContextManager。
+     * 确保 APP 重启后 AI 能看到之前的对话。
+     */
+    private fun syncHistoryToPython(messages: List<Message>) {
+        if (!::pythonModule.isInitialized || messages.isEmpty()) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val jsonArray = JSONArray()
+                for (msg in messages) {
+                    val obj = JSONObject()
+                    obj.put("role", if (msg.isUser) "user" else "assistant")
+                    obj.put("content", msg.content)
+                    jsonArray.put(obj)
+                }
+                pythonModule.callAttr("restore_history", jsonArray.toString())
+                Log.d("MainActivity", "对话历史已同步到 Python 引擎，共 ${messages.size} 条")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "同步对话历史到 Python 失败: ${e.message}")
             }
         }
     }

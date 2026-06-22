@@ -14,14 +14,18 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -63,6 +67,9 @@ class ChatViewModel(
     @Volatile
     var isStreaming = false
         private set
+
+    /** 上次用户输入（用于网络中断后重试） */
+    private var lastUserInput: String = ""
 
     /** 流式输出滚动节流时间戳 */
     private var lastScrollTime = 0L
@@ -142,6 +149,7 @@ class ChatViewModel(
     private fun sendMessageStream(userInput: String) {
         val module = pythonModule ?: return
         isStreaming = true
+        lastUserInput = userInput  // 保存用于重试
         updateSendButton(false)
         disableInput()
 
@@ -156,8 +164,10 @@ class ChatViewModel(
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // 启动流式对话
-                val streamId = module.callAttr("chat_stream_start", userInput).toString()
+                // 启动流式对话（30秒超时保护）
+                val streamId = withTimeout(30_000L) {
+                    module.callAttr("chat_stream_start", userInput)?.toString() ?: "{}"
+                }
                 activeStreamId = streamId
 
                 // 检查是否返回了错误
@@ -177,7 +187,9 @@ class ChatViewModel(
                 var shouldContinueLoop = true
 
                 while (!isDone && isStreaming && shouldContinueLoop) {
-                    val pollResult = module.callAttr("chat_stream_poll", streamId).toString()
+                    val pollResult = withTimeout(30_000L) {
+                        module.callAttr("chat_stream_poll", streamId)?.toString() ?: "{}"
+                    }
                     val pollJson = JSONObject(pollResult)
                     val status = pollJson.optString("status", "error")
 
@@ -207,7 +219,7 @@ class ChatViewModel(
                             // 拆分多条消息
                             val parts = finalContent
                                 .replace("\r\n", "\n")
-                                .split("\\n\\s*\\n".toRegex())
+                                .split("\n\\s*\n".toRegex())
                                 .map { it.trim() }
                                 .filter { it.isNotEmpty() }
                             if (parts.size > 1) {
@@ -256,6 +268,15 @@ class ChatViewModel(
                         }
                     }
                 }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Python调用超时", e)
+                runOnUiThread {
+                    adapter.updateMessage(
+                        aiMsgIndex,
+                        aiMsg.copy(content = "[超时] 请求超时，请检查网络后重试")
+                    )
+                    showRetrySnackbar("请求超时")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "流式对话失败", e)
                 runOnUiThread {
@@ -263,11 +284,7 @@ class ChatViewModel(
                         aiMsgIndex,
                         aiMsg.copy(content = "[错误] ${e.message}")
                     )
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.toast_conversation_failed, e.message),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showRetrySnackbar("发送失败")
                 }
             } finally {
                 isStreaming = false
@@ -326,7 +343,7 @@ class ChatViewModel(
         val items = mutableListOf("复制")
         if (message.isUser) items.add("删除")
 
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setItems(items.toTypedArray()) { _, which ->
                 when (items[which]) {
                     "复制" -> {
@@ -335,12 +352,10 @@ class ChatViewModel(
                         Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
                     }
                     "删除" -> {
-                        adapter.removeTypingAt(position)
-                        adapter.notifyItemRemoved(position)
-                        adapter.getMessages().toMutableList().apply {
-                            removeAt(position)
-                        }.let {
-                            adapter.replaceAll(it)
+                        val messages = adapter.getMessages().toMutableList()
+                        if (position in messages.indices) {
+                            messages.removeAt(position)
+                            adapter.replaceAll(messages)
                         }
                     }
                 }
@@ -400,9 +415,11 @@ class ChatViewModel(
                     jsonArray.put(obj)
                 }
 
-                val result = module.callAttr(
-                    "search_conversation", keyword, jsonArray.toString()
-                ).toString()
+                val result = withTimeout(30_000L) {
+                    module.callAttr(
+                        "search_conversation", keyword, jsonArray.toString()
+                    ).toString()
+                }
                 val resultJson = JSONObject(result)
 
                 if (resultJson.optString("status") == "ok") {
@@ -438,6 +455,15 @@ class ChatViewModel(
                             Toast.LENGTH_SHORT
                         ).show()
                     }
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "搜索对话超时", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.toast_timeout),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "搜索对话失败", e)
@@ -556,20 +582,53 @@ class ChatViewModel(
     fun destroy() {
         isStreaming = false
         searchHandler.removeCallbacksAndMessages(null)
+        cancelActiveStream()
+        callback = null
+    }
+
+    /** 取消当前活跃的流式对话（用于 onStop 等场景） */
+    fun cancelActiveStream() {
         val sid = activeStreamId
         if (sid != null) {
             try {
                 com.chaquo.python.Python.getInstance()
                     .getModule("chat_bridge")
-                    .callAttr("chat_stream_cancel", sid)
-                Log.d(TAG, "destroy: 已取消流 $sid")
+                    ?.callAttr("chat_stream_cancel", sid)
+                Log.d(TAG, "cancelActiveStream: 已取消流 $sid")
             } catch (e: Exception) {
-                Log.w(TAG, "destroy: 取消流失败 ${e.message}")
+                Log.w(TAG, "cancelActiveStream: 取消流失败 ${e.message}")
             } finally {
                 activeStreamId = null
+                isStreaming = false
             }
         }
-        callback = null
+    }
+
+    /** 获取当前消息数量 */
+    fun getMessageCount(): Int = adapter.itemCount
+
+    /**
+     * 重试发送上一条消息（网络中断恢复）。
+     * 可在流式失败后通过 Snackbar 或外部调用触发。
+     */
+    fun retryLastMessage() {
+        val input = lastUserInput
+        if (input.isNotEmpty() && !isStreaming && pythonModule != null) {
+            // 移除最后一条 AI 错误消息
+            val messages = adapter.getMessages().toMutableList()
+            if (messages.isNotEmpty() && !messages.last().isUser) {
+                messages.removeAt(messages.lastIndex)
+                adapter.replaceAll(messages)
+            }
+            sendMessageStream(input)
+        }
+    }
+
+    /** 显示带重试按钮的 Snackbar */
+    private fun showRetrySnackbar(message: String) {
+        Snackbar.make(binding.root, "$message，点击重试", Snackbar.LENGTH_LONG)
+            .setAction("重试") { retryLastMessage() }
+            .show()
     }
 
     // ======================== 便捷方法 ========================

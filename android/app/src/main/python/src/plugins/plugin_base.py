@@ -49,6 +49,24 @@ class BasePlugin(ABC):
 
     # ---- 统计字段（由 PluginManager 维护，实例级别避免多实例共享） ----
 
+    def __init_subclass__(cls, **kwargs):
+        """自动为子类初始化统计属性，防止子类忘记调用 super().__init__()。"""
+        super().__init_subclass__(**kwargs)
+        original_init = cls.__init__
+
+        def new_init(self, *args, **kwargs_inner):
+            # 先初始化统计属性（防止子类未调用 super().__init__）
+            if not hasattr(self, '_call_count'):
+                self._call_count = 0
+                self._error_count = 0
+                self._install_time = time.time()
+                self._last_call_time = 0.0
+                self._last_error = ""
+            # 再调用原始 __init__
+            original_init(self, *args, **kwargs_inner)
+
+        cls.__init__ = new_init
+
     def __init__(self):
         self._call_count: int = 0
         self._error_count: int = 0

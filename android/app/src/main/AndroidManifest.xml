@@ -59,77 +59,77 @@
 
         <activity
             android:name=".MemoryManageActivity"
-            android:exported="false"
+            android:exported="true"
             android:parentActivityName=".MainActivity" />
 
         <activity
             android:name=".MemoryArchiveActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="记忆档案馆"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".SettingsActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="设置"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".SettingsDetailActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="设置详情"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterManageActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="角色管理"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterSelectActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="选择角色"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="角色详情"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterEditActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="编辑角色"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterPreviewActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="角色预览"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".OnboardingActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".PluginManageActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="插件管理"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".WorldBookActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="世界书"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CrashLogViewerActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="崩溃日志"
             android:theme="@style/Theme.AICompanion" />
 

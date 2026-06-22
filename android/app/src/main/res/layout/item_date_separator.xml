@@ -12,13 +12,13 @@
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:layout_weight="1"
-        android:background="#B0C4DE" />
+        android:background="@color/sakura_border" />
     <TextView
         android:id="@+id/tvDateLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="12sp"
-        android:textColor="#B0C4DE"
+        android:textColor="@color/sakura_border"
         android:paddingHorizontal="12dp"
         android:gravity="center"
         tools:text="今天" />
@@ -26,5 +26,5 @@
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:layout_weight="1"
-        android:background="#B0C4DE" />
+        android:background="@color/sakura_border" />
 </LinearLayout>

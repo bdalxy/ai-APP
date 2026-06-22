@@ -80,6 +80,12 @@
     <color name="memory_user_fact">#FFA726</color>     <!-- 柔和橙 -->
     <color name="memory_default">#757575</color>       <!-- 柔和灰 -->
 
+    <!-- ===== 玻璃糖纸边缘高光（暗色模式） ===== -->
+    <color name="glass_edge_white">#2A1E35</color>
+    <color name="glass_edge_blue">#7B6B8A</color>
+    <color name="glass_fill_white">#1A0E1F</color>
+    <color name="glass_edge_glow">#33B0C4DE</color>
+
     <!-- ===== 世界书配色（深色模式） ===== -->
     <color name="wb_sakura_start">#2A1A1F</color>
     <color name="wb_sakura_mid">#25181C</color>

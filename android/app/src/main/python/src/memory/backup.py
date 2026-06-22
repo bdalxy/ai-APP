@@ -440,7 +440,11 @@ class MemoryBackup:
             return False
 
     def _restore_from_db(self, backup_path: Path) -> bool:
-        """从 SQLite 备份文件恢复。"""
+        """从 SQLite 备份文件恢复。
+
+        修复要点：先完成数据恢复，再关闭 VectorStore 连接。如果恢复失败，
+        确保 VectorStore 连接不会被遗留在关闭状态。
+        """
         db_path = self._store.db_path
         if db_path == ":memory:":
             self._log.error("[恢复] 内存数据库不支持从文件恢复")
@@ -454,16 +458,13 @@ class MemoryBackup:
                 self._log.error("[恢复] 备份文件校验失败")
                 return False
 
-            # 2. 关闭当前数据库连接
-            self._store.close()
-
-            # 3. 备份当前数据库（以防万一）
+            # 2. 备份当前数据库（以防万一）
             safety_backup = db_path.with_suffix(".db.before_restore")
             shutil.copy2(str(db_path), str(safety_backup))
             self._log.info(f"[恢复] 已创建恢复前备份: {safety_backup}")
 
-            # 4. 恢复
-            # 重新打开目标数据库并恢复
+            # 3. 先执行恢复，再关闭 VectorStore 连接
+            #    使用独立的 sqlite3 连接操作，不依赖 VectorStore 的连接状态
             dest_conn = sqlite3.connect(str(db_path))
             source_conn = sqlite3.connect(str(backup_path))
 
@@ -474,20 +475,26 @@ class MemoryBackup:
                 dest_conn.close()
                 source_conn.close()
 
+            # 4. 恢复成功后才关闭并重新打开 VectorStore 连接
+            self._store.close()
+            self._store.reopen()
+
             # 5. 清理安全备份
             try:
                 safety_backup.unlink()
             except Exception:
                 pass
 
-            # 6. 重新打开 VectorStore 连接
-            self._store.reopen()
-
             self._log.info(f"[恢复] 恢复成功: {backup_path}")
             return True
 
         except Exception as e:
             self._log.error(f"[恢复] 数据库恢复失败: {e}")
+            # 尝试重新打开连接，确保 VectorStore 不会被遗留在关闭状态
+            try:
+                self._store.reopen()
+            except Exception:
+                pass
             return False
 
     def _restore_from_json(self, backup_path: Path) -> bool:

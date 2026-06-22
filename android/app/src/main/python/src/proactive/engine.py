@@ -38,6 +38,8 @@ class ProactiveEngine:
     整合决策逻辑和消息生成，提供 decide_and_generate() 一站式方法。
     """
 
+    _last_sent_time: datetime | None = None  # 类级别，跨实例共享
+
     _SKIP_DISABLED = "主动消息功能未开启"
     _SKIP_NOT_ACTIVE_TIME = "当前不在活跃时段"
     _SKIP_INTERVAL_NOT_MET = "距离上次发送时间未满间隔"
@@ -45,7 +47,6 @@ class ProactiveEngine:
 
     def __init__(self) -> None:
         self._log = get_logger()
-        self._last_sent_time: datetime | None = None
         self._log.info("ProactiveEngine 初始化完成")
 
     def decide_and_generate(
@@ -65,6 +66,8 @@ class ProactiveEngine:
         if not self.should_send_message(now, last_sent_time):
             return None
         message = self.generate_proactive_message(role_player, retriever, api_client, now)
+        if message is not None:
+            ProactiveEngine._last_sent_time = now
         return message
 
     def should_send_message(self, current_time: datetime | None = None, last_sent_time: datetime | None = None) -> bool:
@@ -76,6 +79,8 @@ class ProactiveEngine:
             if not is_within_time_range(wake_time, sleep_time, current_time):
                 self._log.info(f"[主动消息] 跳过: {self._SKIP_NOT_ACTIVE_TIME} ({wake_time} ~ {sleep_time})")
                 return False
+        if last_sent_time is None:
+            last_sent_time = ProactiveEngine._last_sent_time
         if last_sent_time is not None:
             interval_minutes = user_settings.get("proactive_interval_minutes")
             if isinstance(interval_minutes, (int, float)):

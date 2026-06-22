@@ -535,8 +535,10 @@ class MemoryCache:
     def on_memory_change(self) -> None:
         """记忆库发生变化时调用。
 
-        使检索缓存和统计缓存失效（热点缓存和画像缓存保留）。
+        使所有检索相关缓存失效（热点缓存、检索缓存、统计缓存、标签缓存）。
+        画像缓存保留（用户画像不随单条记忆变化而改变）。
         """
+        self._hot_cache.clear()
         self._query_cache.clear()
         self._stats_cache.remove("memory_stats")
         self._tags_cache.remove("all_tags")

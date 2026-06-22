@@ -22,8 +22,5 @@
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:editTextColor">@color/text_primary</item>
-        <!-- 字体 -->
-        <item name="android:fontFamily">@font/quicksand</item>
-        <item name="fontFamily">@font/quicksand</item>
-    </style>
+        </style>
 </resources>

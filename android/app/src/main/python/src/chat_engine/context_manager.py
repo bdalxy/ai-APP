@@ -109,6 +109,27 @@ class ContextManager:
         self._total_chars = 0
         self._log.info(f"上下文已清空，共移除 {count} 条消息")
 
+    def restore_history(self, messages: list[dict[str, str]]) -> None:
+        """从持久化存储恢复对话历史。
+
+        通常用于 APP 重启后恢复之前的对话上下文，确保 AI 能看到
+        之前的对话历史。
+
+        Args:
+            messages: 消息列表，每项为 {"role": str, "content": str}。
+        """
+        self._history.clear()
+        self._total_chars = 0
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if not content:
+                continue
+            self._history.append({"role": role, "content": content})
+            self._total_chars += len(content)
+        self._auto_trim()
+        self._log.info(f"对话历史已恢复，共 {len(self._history)} 条消息")
+
     def get_token_estimate(self) -> int:
         """估算当前对话历史的 token 数。
 

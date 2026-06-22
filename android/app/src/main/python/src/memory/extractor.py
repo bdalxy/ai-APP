@@ -162,16 +162,28 @@ def _is_valid_memory_content(content: str) -> bool:
 # LLM 提取的额外质量过滤规则
 _LLM_INVALID_CATEGORIES: set[str] = {
     "greeting", "farewell", "small_talk", "backchannel", "acknowledgment",
+    "question", "request", "functional", "casual_chat",
 }
 
 _LLM_TRIVIAL_PATTERNS: list[re.Pattern] = [
     re.compile(r"^(用户|AI角色)(说了|回复了|表示|说)[\u4e00-\u9fff]{1,5}$"),  # "用户说了你好"
     re.compile(r"^(用户|AI角色)(打了个|咳嗽了|打了个喷嚏|伸了个懒腰)$"),  # 过于琐碎
     re.compile(r"^对话中(用户|AI角色)使用了[\u4e00-\u9fff]{1,3}语气$"),  # "对话中用户使用了友好语气"
-    # 注意：^[^。，；]{1,6}$ 已移除，会误杀"用户27岁"等5-6字符的重要短信息
-    # 改为更精确的过滤：仅过滤纯语气/动作描述，保留含数字、年龄、姓名等关键信息的短内容
     re.compile(r"^(用户|AI角色)(笑|哭|叹气|点头|摇头|沉默|停顿|犹豫)了?$"),  # 纯动作描述
     re.compile(r"^(用户|AI角色)(很|非常|有点|稍微)(高兴|难过|生气|开心|紧张|焦虑|兴奋)$"),  # 过于宽泛的情绪
+]
+
+# 提问/功能请求检测模式：这些是用户对AI的功能性提问，不是个人信息
+_QUESTION_PATTERNS: list[re.Pattern] = [
+    re.compile(r"能(不能|否|够?)(帮|为|给|让|告诉|解释|说明|介绍|回答|展示|教我|连续|同时|并行|多)"),  # 功能请求
+    re.compile(r"(怎么|如何|怎样|能不能|可以|可否|是否|有没有|会不会|知不知道|懂不懂|明白)"),  # 疑问句式
+    re.compile(r"(什么|啥|谁|哪|几|多少|多长|多久|多远|多大|多高|多重)[\u4e00-\u9fff]*[?？吗呢啊]?"),  # 疑问词
+    re.compile(r"^[^。！!？?]*[?？]$"),  # 以问号结尾的句子
+    re.compile(r"(帮我|给我|替我|麻烦|请帮|帮忙|帮我个忙|拜托)"),  # 请求句式
+    re.compile(r"(测试|试试|试一下|看下|看看|查下|查查|检查|验证|确认一下)"),  # 测试/验证请求
+    re.compile(r"(你是什么|你是谁|你叫什么|你的名字|你多大|你几岁|你会什么|你能做什么)"),  # 对AI的提问
+    re.compile(r"(今天|明天|昨天|现在|最近|目前)(天气|新闻|热点|发生|情况|状态)"),  # 实时信息询问
+    re.compile(r"(告诉我|讲一下|说说|聊聊|聊聊看|讨论一下|分析一下)"),  # 信息请求
 ]
 
 
@@ -220,32 +232,96 @@ def _is_valid_llm_memory(content: str, mem_type: str, importance: float) -> bool
 # LLM 提取 Prompt
 # =============================================================================
 
-_MEMORY_EXTRACTION_PROMPT = """你是一个记忆提取助手。请从以下对话中提取值得长期记忆的信息。
+_MEMORY_EXTRACTION_PROMPT = """你是一个记忆提取助手。请从以下对话中提取**真正值得长期记忆**的信息。
 
-提取规则：
-1. **user_fact（用户事实）**：关于用户明确表达的个人信息，如姓名、喜好、住址、职业等。
-2. **semantic（语义知识）**：对话中涉及的重要知识、概念、观点。
-3. **episodic（事件记忆）**：对话中提到的重要事件、经历、活动。
+## 核心原则：只记忆"事实"，不记忆"提问"
 
-**来源分类（source）**——每条记忆必须标注来源：
-- **ai_related**：关于AI角色自身的信息（AI角色的立场、经历、偏好、设定等）
-- **user_related**：关于用户的信息（用户的个人信息、经历、偏好等）
-- **other**：关于第三方人物、环境、世界设定的信息，或不明确归属于AI或用户的信息
+**绝对不要记忆的内容（反面示例）：**
+- ❌ 用户对AI的功能性提问："能连续发几条消息吗？" → 这不是用户事实，是功能请求
+- ❌ 用户对AI的询问："你叫什么名字？"、"今天天气怎么样？" → 对AI的提问
+- ❌ 用户的请求："帮我查一下"、"告诉我怎么做" → 功能请求
+- ❌ 纯寒暄："你好"、"在吗"、"哈哈"、"晚安" → 无长期价值
+- ❌ 测试/验证："测试一下"、"看看能不能用" → 测试行为
+- ❌ 对AI的反馈："你回复太快了"、"这个回答不对" → 对AI的反馈，不是用户信息
 
-**重要**：content 必须使用第三人称描述，如"用户叫李明"而非"我叫李明"，"AI角色喜欢猫"而非"我喜欢猫"。
+**应该记忆的内容（正面示例）：**
+- ✅ 用户的身份信息："我叫李明"、"我27岁"、"我是程序员"
+- ✅ 用户的偏好："我喜欢猫"、"我不吃辣"、"我最爱听周杰伦的歌"
+- ✅ 用户的属性："我的生日是1月1日"、"我住在北京"
+- ✅ 用户的人际关系："我有个妹妹叫小红"、"我妈妈是老师"
+- ✅ 用户的重要经历："我昨天去了长城"、"我上周刚搬到上海"
+- ✅ 用户表达的观点/态度："我觉得AI应该被监管"、"我相信努力会有回报"
+- ✅ AI角色表现出的稳定特征："AI角色自称喜欢星空"、"AI角色提到自己擅长解数学题"
 
-输出格式：JSON 数组，每个元素包含：
-- "memory_type": "user_fact" | "semantic" | "episodic"
+## 细粒度记忆分类（memory_type）
+
+**用户事实类（user_fact）：**
+- **user_identity**：身份信息 — "用户叫李明"、"用户是程序员"
+- **user_preference**：偏好 — "用户喜欢猫"、"用户讨厌排队"
+- **user_attribute**：属性 — "用户生日是1月1日"、"用户身高180cm"
+- **user_relationship**：人际关系 — "用户有个妹妹叫小红"
+- **user_status**：当前状态 — "用户目前在北京工作"、"用户最近在学Python"
+
+**语义知识类（semantic）：**
+- **semantic_knowledge**：用户掌握的知识 — "用户知道Python是编程语言"
+- **semantic_opinion**：用户观点态度 — "用户认为AI应该被监管"
+- **semantic_concept**：用户理解的抽象概念
+
+**事件记忆类（episodic）：**
+- **episodic_event**：具体事件 — "用户昨天去了公园"
+- **episodic_experience**：经历体验 — "用户第一次坐飞机很紧张"
+- **episodic_activity**：活动记录 — "用户每周三去健身房"
+
+**情感记忆类（emotional）：**
+- **emotional_mood**：情绪状态 — "用户今天心情很好"
+- **emotional_sentiment**：情感倾向 — "用户对这部电影感到失望"
+
+## 来源分类（source）
+- **ai_related**：关于AI角色自身的信息
+- **user_related**：关于用户的信息
+- **other**：关于第三方人物、环境、世界设定的信息
+
+## 实体提取
+- **entities**：从记忆内容中提取的实体列表，每项包含 name（实体名称）和 type（PERSON/LOCATION/ORG/EVENT/CONCEPT/TIME）
+
+## 输出格式
+JSON 数组，每个元素包含：
+- "memory_type": 细粒度类型（见上方分类，如 "user_identity"、"user_preference"、"episodic_event" 等）
 - "source": "ai_related" | "user_related" | "other"
 - "content": 记忆文本（简洁、完整的句子，第三人称）
-- "importance": 重要性评分（0.0~1.0），用户事实 > 0.8，语义知识 > 0.5，事件 > 0.4
+- "importance": 重要性评分（0.0~1.0）
+  - user_identity/user_attribute/user_relationship > 0.8
+  - user_preference/user_status > 0.7
+  - semantic_opinion > 0.5
+  - episodic_event/episodic_experience > 0.4
+  - emotional_mood/emotional_sentiment > 0.3
+- "entities": [{"name": "实体名", "type": "PERSON/LOCATION/ORG/EVENT/CONCEPT/TIME"}]
 
-如果没有值得长期记忆的信息，返回空数组：[]。
+**重要：content 必须使用第三人称描述，如"用户叫李明"而非"我叫李明"。**
+
+**如果对话中没有值得长期记忆的信息（全是提问、寒暄、功能请求），请返回空数组：[]。**
 
 对话内容：
 {conversation}
 
 请只输出 JSON 数组，不要包含其他内容。"""
+
+
+# LLM 重要性评估 Prompt
+_IMPORTANCE_ESTIMATION_PROMPT = """你是一个记忆重要性评估助手。请评估以下记忆的重要性。
+
+评估维度：
+1. 信息密度：内容是否包含多个关键信息点
+2. 长期价值：这条信息在未来对话中是否可能被引用
+3. 唯一性：是否包含独特信息（非通用寒暄）
+4. 情感强度：是否包含强烈的情感色彩
+5. 实体丰富度：是否包含人名、地点、组织等具体实体
+
+记忆内容：
+- 类型: {memory_type}
+- 内容: {content}
+
+请只输出一个 0.0~1.0 之间的数字，表示重要性评分。不要包含其他内容。"""
 
 
 # =============================================================================
@@ -272,6 +348,75 @@ _HIGH_INFO_SHORT_PATTERNS: list[re.Pattern] = [
     re.compile(r"\d{4}年"),        # 年份
     re.compile(r"\d{1,2}月\d{1,2}日"),  # 具体日期
 ]
+
+
+def _is_question_or_request(text: str) -> bool:
+    """检测用户消息是否为功能性提问/请求，而非个人信息。
+
+    这类消息不应被提取为长期记忆。例如：
+    - "能连续发几条消息吗？" → 功能请求，不是用户事实
+    - "今天天气怎么样？" → 实时信息询问
+    - "帮我查一下快递" → 请求
+
+    Args:
+        text: 用户消息文本。
+
+    Returns:
+        True 如果这是提问/请求而非个人信息。
+    """
+    if not text or not text.strip():
+        return False
+
+    text = text.strip()
+
+    # 检查所有提问/请求模式
+    for pattern in _QUESTION_PATTERNS:
+        if pattern.search(text):
+            return True
+
+    return False
+
+
+def _is_user_fact_statement(text: str) -> bool:
+    """判断用户消息是否为个人信息陈述（而非提问/请求）。
+
+    个人信息陈述的特征：
+    - "我叫..."、"我是..."、"我喜欢..."、"我住在..."等
+    - 不包含疑问词
+    - 不以问号结尾
+
+    Args:
+        text: 用户消息文本。
+
+    Returns:
+        True 如果这是个人信息陈述。
+    """
+    if not text or not text.strip():
+        return False
+
+    text = text.strip()
+
+    # 排除提问
+    if _is_question_or_request(text):
+        return False
+
+    # 检查是否包含个人信息陈述模式
+    fact_patterns = [
+        r"我是[\u4e00-\u9fff\w]{1,20}",
+        r"我叫[\u4e00-\u9fff\w]{1,20}",
+        r"我(喜欢|不喜欢|讨厌|爱|恨|想|希望|打算|准备|计划)",
+        r"我(在|住在|家在|来自|出生于)",
+        r"我(有|养了|养过|养了一只|养了只)",
+        r"我的[\u4e00-\u9fff]",
+        r"我(今年|现在|目前|已经|刚|刚刚|最近)",
+        r"我(是|做|当|从事|干)",
+        r"我(觉得|认为|感觉|以为|相信)",
+    ]
+    for pat in fact_patterns:
+        if re.search(pat, text):
+            return True
+
+    return False
 
 
 def _is_low_info_conversation(messages: list[dict[str, str]]) -> bool:
@@ -443,12 +588,17 @@ class MemoryExtractor:
             if not text:
                 continue
 
+            # 跳过用户的提问/功能请求（这些不是个人信息）
+            if role == "user" and _is_question_or_request(text):
+                self._log.debug(f"[规则提取] 跳过提问/请求: '{text[:40]}...'")
+                continue
+
             # 确定来源分类：基于内容语义推断，而非简单按说话者角色
             # 规则：如果内容包含"用户"→user_related，包含"AI"→ai_related
             # 回退时按说话者角色判断
             source = _infer_source(text, role)
 
-            self._log.info(f"[规则提取] 处理消息: role={role}, repr={repr(text[:80])}, len={len(text)}")
+            self._log.debug(f"[规则提取] 处理消息: role={role}, len={len(text)}")
 
             # 提取用户事实
             for pattern, mem_type in _USER_FACT_PATTERNS:
@@ -599,9 +749,32 @@ class MemoryExtractor:
             importance = float(item.get("importance", 0.5))
             source = item.get("source", "user_related")
 
-            # 类型校验
-            if mem_type not in ("user_fact", "semantic", "episodic"):
-                mem_type = "semantic"
+            # 类型校验：支持细粒度分类 + 向后兼容旧类型
+            _VALID_TYPES = {
+                # 用户事实
+                "user_fact", "user_identity", "user_preference", "user_attribute",
+                "user_relationship", "user_status",
+                # 语义知识
+                "semantic", "semantic_knowledge", "semantic_opinion", "semantic_concept",
+                # 事件记忆
+                "episodic", "episodic_event", "episodic_experience", "episodic_activity",
+                # 情感记忆
+                "emotional", "emotional_mood", "emotional_sentiment",
+                # 摘要
+                "summary",
+            }
+            if mem_type not in _VALID_TYPES:
+                # 尝试映射到父类型
+                if mem_type.startswith("user_"):
+                    mem_type = "user_fact"
+                elif mem_type.startswith("semantic_"):
+                    mem_type = "semantic"
+                elif mem_type.startswith("episodic_"):
+                    mem_type = "episodic"
+                elif mem_type.startswith("emotional_"):
+                    mem_type = "emotional"
+                else:
+                    mem_type = "semantic"
 
             # 来源校验
             if source not in ("ai_related", "user_related", "other"):
@@ -763,14 +936,63 @@ class MemoryExtractor:
         return entries
 
     # -------------------------------------------------------------------------
+    # LLM 重要性评估
+    # -------------------------------------------------------------------------
+
+    def _estimate_importance_llm(
+        self,
+        content: str,
+        memory_type: str,
+    ) -> float | None:
+        """使用 LLM 评估记忆重要性（比规则评估更准确）。
+
+        当 LLM 不可用或评估失败时返回 None，由调用方回退到规则评估。
+
+        Args:
+            content: 记忆内容。
+            memory_type: 记忆类型。
+
+        Returns:
+            重要性评分（0.0~1.0），失败时返回 None。
+        """
+        if not self.client:
+            return None
+        try:
+            prompt = _IMPORTANCE_ESTIMATION_PROMPT.format(
+                memory_type=memory_type,
+                content=content[:300],  # 限制长度，避免超 token
+            )
+            response = self.client.chat(
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=50,
+            )
+            raw = response.content.strip()
+            # 提取数字
+            import re as _re
+            match = _re.search(r"(\d+\.?\d*)", raw)
+            if match:
+                score = float(match.group(1))
+                return max(0.0, min(1.0, score))
+            return None
+        except Exception as e:
+            self._log.debug(f"[LLM重要性] 评估失败（回退规则）: {e}")
+            return None
+
+    # -------------------------------------------------------------------------
     # 去重逻辑
     # -------------------------------------------------------------------------
 
     def _deduplicate(self, new_entries: list[MemoryEntry]) -> list[MemoryEntry]:
-        """去除与已有记忆高度相似的新条目。
+        """去除与已有记忆高度相似的新条目，并做批次内去重。
 
         优先使用 embedding 余弦相似度进行语义去重（当新旧记忆都有 embedding 时），
         回退到 bigram Jaccard 相似度进行字符级去重。
+
+        去重策略：
+        1. 先对已有记忆去重（跨批次）
+        2. 再对新批次内部去重（同批次内）
+        3. 对同类型记忆做更严格的去重（阈值提高）
 
         Args:
             new_entries: 新提取的记忆条目列表。
@@ -778,13 +1000,41 @@ class MemoryExtractor:
         Returns:
             去重后的记忆条目列表。
         """
+        if not new_entries:
+            return []
+
+        # 第一步：批次内去重（同批次内相同类型记忆降低阈值）
+        deduped_within: list[MemoryEntry] = []
+        for entry in new_entries:
+            is_dup = False
+            for kept in deduped_within:
+                if kept.memory_type == entry.memory_type:
+                    sim = text_similarity(entry.content, kept.content)
+                    # 同类型+同批次：更严格（0.7 阈值）
+                    if sim >= 0.7:
+                        self._log.debug(
+                            f"[批次内去重] 跳过: '{entry.content[:30]}...' "
+                            f"与 '{kept.content[:30]}...' 相似度={sim:.2f}"
+                        )
+                        is_dup = True
+                        break
+            if not is_dup:
+                deduped_within.append(entry)
+
+        if len(deduped_within) < len(new_entries):
+            self._log.info(
+                f"[批次内去重] 移除 {len(new_entries) - len(deduped_within)} 条，"
+                f"保留 {len(deduped_within)} 条"
+            )
+
+        # 第二步：跨批次去重（与已有记忆比较）
         if not self.vector_store:
-            return new_entries
+            return deduped_within
 
         # 只用最近 500 条记忆做去重，避免全量加载导致性能下降
         existing_entries = self.vector_store.get_recent_entries(500)
         if not existing_entries:
-            return new_entries
+            return deduped_within
 
         # 按类型分组已有记忆，减少 O(n*m) 中的 n
         existing_by_type: dict[str, list[MemoryEntry]] = {}
@@ -793,9 +1043,14 @@ class MemoryExtractor:
 
         kept: list[MemoryEntry] = []
 
-        for new_entry in new_entries:
+        for new_entry in deduped_within:
             is_duplicate = False
+            # 同类型优先匹配
             candidates = existing_by_type.get(new_entry.memory_type, [])
+            # 如果同类型没找到，也查父类型
+            parent_type = new_entry.memory_type.split("_")[0]
+            if parent_type != new_entry.memory_type:
+                candidates.extend(existing_by_type.get(parent_type, []))
 
             for existing in candidates:
                 # 优先使用语义向量去重（如果双方都有 embedding）
@@ -810,7 +1065,7 @@ class MemoryExtractor:
 
                 if sim >= self._DEDUP_SIMILARITY_THRESHOLD:
                     self._log.debug(
-                        f"[去重] 跳过重复记忆: '{new_entry.content[:30]}...' "
+                        f"[跨批次去重] 跳过重复记忆: '{new_entry.content[:30]}...' "
                         f"与已有记忆相似度={sim:.2f}"
                     )
                     is_duplicate = True
@@ -819,11 +1074,11 @@ class MemoryExtractor:
             if not is_duplicate:
                 kept.append(new_entry)
 
-        removed_count = len(new_entries) - len(kept)
+        removed_count = len(deduped_within) - len(kept)
         if removed_count > 0:
-            self._log.info(f"[去重] 移除 {removed_count} 条重复记忆，保留 {len(kept)} 条")
+            self._log.info(f"[跨批次去重] 移除 {removed_count} 条重复记忆，保留 {len(kept)} 条")
 
         return kept
 
-    @staticmethod
+    
     

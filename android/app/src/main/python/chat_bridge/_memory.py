@@ -227,6 +227,9 @@ def update_memory(memory_id: int, content: str) -> str:
         except Exception as e:
             _log.warning(f"[更新记忆] embedding 失败，保留旧向量: {e}")
         orchestrator.vector_store.update(memory_id, old_entry)
+        # 缓存失效：更新后立即使缓存失效，确保后续检索获取最新数据
+        orchestrator.invalidate_cache()
+        _state._cached_memories = []
         item = old_entry.to_dict()
         item["rowid"] = memory_id
         item["embedding_dim"] = len(old_entry.embedding)
@@ -247,6 +250,9 @@ def delete_memory(memory_id: int) -> str:
     try:
         deleted = orchestrator.vector_store.delete_by_rowid(memory_id)
         content_preview = deleted.content[:50] + "..." if len(deleted.content) > 50 else deleted.content
+        # 缓存失效：删除后立即使缓存失效，确保后续检索获取最新数据
+        orchestrator.invalidate_cache()
+        _state._cached_memories = []
         return json.dumps({
             "status": "ok",
             "deleted": {
@@ -271,6 +277,7 @@ def clear_memories() -> str:
         count = orchestrator.vector_store.count()
         orchestrator.vector_store.clear()
         _state._cached_memories = []  # 清除缓存，防止已删除记忆继续注入
+        orchestrator.invalidate_cache()  # 使所有缓存失效
         _log.info(f"[清空记忆] 已清空 {count} 条记忆，未重置 turn_counter")
         return json.dumps({"status": "ok", "deleted": count})
     except Exception as e:

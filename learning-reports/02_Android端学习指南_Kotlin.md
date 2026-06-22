@@ -1,6 +1,7 @@
 # 02 — Android 端学习指南 (Kotlin)
 
 > 适合 Android 开发者，了解 Kotlin 端架构和核心代码
+> 基于当前代码重新生成：2026-06-21
 
 ---
 
@@ -9,7 +10,7 @@
 ```
 入门: AICompanionApp.kt → MainActivity.kt → ChatViewModel.kt
 进阶: ChatAdapter.kt → ConversationSessionManager.kt → VoiceController.kt
-高级: 自定义UI组件 → 插件系统 → 性能优化
+高级: 自定义UI组件 → 插件系统 → 语音引擎 → 性能优化
 ```
 
 ---
@@ -23,20 +24,7 @@
 - 初始化顺序：CrashHandler → PluginRegistry → 后台任务（DeviceAdaptation / NotificationHelper）
 - Python 引擎在后台线程预热（`warmUpPython()`），减少首次对话等待
 - `onTrimMemory()` 分级处理内存压力，TRIM_MEMORY_RUNNING_CRITICAL 时触发 Python GC
-
-**核心代码片段**：
-```kotlin
-// 继承 PyApplication 是必须的
-class AICompanionApp : PyApplication() {
-    override fun onCreate() {
-        super.onCreate()  // ← 初始化 Chaquopy AndroidPlatform
-        CrashHandler.init(this)
-        PluginRegistry.init(this)
-        // 后台预热 Python
-        appScope.launch { warmUpPython() }
-    }
-}
-```
+- 预热时调用 `set_build_type()` 根据 `BuildConfig.DEBUG` 显式设置日志级别
 
 ---
 
@@ -72,14 +60,14 @@ MainActivity.onCreate()
 
 **核心方法**：
 
-| 方法 | 功能 | 关键行 |
-|------|------|--------|
-| `sendMessage(text)` | 发送消息，启动流式对话 | 约L140 |
-| `sendMessageStream()` | 轮询 Python 端的流式 token | 约L180 |
-| `initChatEngine()` | 初始化 Python 聊天引擎 | 约L80 |
-| `searchConversation()` | 搜索对话历史 | 约L350 |
-| `exportConversation()` | 导出对话 | 约L400 |
-| `destroy()` | 清理资源（取消流+关闭线程池） | 约L500 |
+| 方法 | 功能 |
+|------|------|
+| `sendMessage(text)` | 发送消息，启动流式对话 |
+| `sendMessageStream()` | 轮询 Python 端的流式 token |
+| `initChatEngine()` | 初始化 Python 聊天引擎 |
+| `searchConversation()` | 搜索对话历史 |
+| `exportConversation()` | 导出对话 |
+| `destroy()` | 清理资源（取消流+关闭线程池） |
 
 **流式对话的核心机制**：
 
@@ -100,11 +88,30 @@ sendMessage(text)
       }
 ```
 
-**注意**：`ChatViewModel` 目前是普通类，不是 `androidx.lifecycle.ViewModel`。它在配置变更时会被重建。
+**注意**：`ChatViewModel` 是普通类，不继承 `androidx.lifecycle.ViewModel`。在配置变更时会重建。
 
 ---
 
-## 五、加密配置管理
+## 五、语音系统
+
+### [VoiceController.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/VoiceController.kt)
+
+语音总控制器，管理语音识别、录制、播放、TTS。
+
+### 语音模块文件
+
+| 文件 | 功能 |
+|------|------|
+| [SpeechManager.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/SpeechManager.kt) | 语音识别管理 |
+| [SherpaTtsEngine.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/SherpaTtsEngine.kt) | Sherpa-ONNX TTS 引擎 |
+| [VoiceRecorder.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/VoiceRecorder.kt) | 录音器 |
+| [VoicePlayer.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/VoicePlayer.kt) | 播放器 |
+
+**TTS 模型**：`vocos-22khz-univ.onnx` (ONNX 格式，约50MB)，位于 `assets/` 目录。
+
+---
+
+## 六、加密配置管理
 
 ### [AppConfig.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/AppConfig.kt)
 
@@ -128,7 +135,7 @@ sendMessage(text)
 
 ---
 
-## 六、消息数据模型
+## 七、消息数据模型
 
 ### [Message.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/Message.kt)
 
@@ -149,7 +156,7 @@ data class Message(
 
 ---
 
-## 七、自定义 UI 组件
+## 八、自定义 UI 组件
 
 ### 玻璃态组件
 
@@ -178,23 +185,6 @@ data class Message(
 
 ---
 
-## 八、语音模块
-
-### 语音相关文件
-
-| 文件 | 功能 |
-|------|------|
-| [VoiceController.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/VoiceController.kt) | 语音总控制器 |
-| [SpeechManager.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/SpeechManager.kt) | 语音识别管理 |
-| [SherpaTtsEngine.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/SherpaTtsEngine.kt) | Sherpa-ONNX TTS 引擎 |
-| [VoiceRecorder.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/VoiceRecorder.kt) | 录音器 |
-| [VoicePlayer.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/speech/VoicePlayer.kt) | 播放器 |
-| [Tts.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/Tts.kt) | TTS JNI 接口 |
-
-**TTS 模型**：[vocos-22khz-univ.onnx](file:///f:/Trae%20AI/ai-APP/android/app/src/main/assets/vocos-22khz-univ.onnx) (ONNX 格式，约50MB)
-
----
-
 ## 九、插件系统
 
 ### 插件架构
@@ -205,7 +195,6 @@ IPlugin (接口)
         └─→ PluginRegistry (注册中心)
               └─→ BuiltinPlugins (内置插件注册)
                     └─→ PluginAdapter (列表适配器)
-                          └─→ PluginManageActivity (管理界面)
 ```
 
 ### 关键文件
@@ -216,25 +205,41 @@ IPlugin (接口)
 | [PluginInfo.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/plugin/PluginInfo.kt) | 插件元数据 |
 | [PluginRegistry.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/plugin/PluginRegistry.kt) | 插件注册中心 |
 | [BuiltinPlugins.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/plugin/BuiltinPlugins.kt) | 内置插件（日志、翻译等） |
+| [PluginAdapter.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/PluginAdapter.kt) | 插件列表适配器 |
+| [PluginItem.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/PluginItem.kt) | 插件项数据模型 |
+| [PluginViewModel.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/PluginViewModel.kt) | 插件状态管理 |
 
 ---
 
-## 十、崩溃处理
+## 十、世界书
+
+### 关键文件
+
+| 文件 | 功能 |
+|------|------|
+| [WorldBookActivity.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/WorldBookActivity.kt) | 世界书管理界面 |
+| [WorldBookAdapter.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/WorldBookAdapter.kt) | 世界书列表适配器 |
+| [WorldBookEntry.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/WorldBookEntry.kt) | 世界书条目模型 |
+| [WorldBookSection.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/WorldBookSection.kt) | 世界书分组模型 |
+
+---
+
+## 十一、崩溃处理
 
 ### [CrashHandler.kt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/java/com/aicompanion/app/CrashHandler.kt)
 
 - 捕获未处理异常，写入崩溃日志文件
 - 下次启动时通过 `AICompanionApp.checkAndShowCrashLogDialog()` 弹窗提示
 - 崩溃日志文件存储在应用私有目录，文件名含时间戳
-- 支持复制到剪贴板、查看详情、忽略
 
 ---
 
-## 十一、关键学习要点
+## 十二、关键学习要点
 
 1. **PyApplication 继承**：Chaquopy 要求 Application 继承 PyApplication
 2. **Python 调用必须在后台线程**：`chat_stream_start()` 内部使用 `ThreadPoolExecutor`
-3. **流式对话的轮询模式**：30ms 间隔轮询 Python 队列，非最优但可用
+3. **流式对话的轮询模式**：30ms 间隔轮询 Python 队列
 4. **EncryptedSharedPreferences**：API Key 必须加密存储
 5. **协程生命周期管理**：使用 `lifecycleScope` 和 `SupervisorJob`
 6. **内存管理**：`onTrimMemory()` 触发 Python GC，`destroy()` 清理流式资源
+7. **configChanges**：Manifest 中声明 `orientation|screenSize|...`，防止 Activity 重建

@@ -28,7 +28,7 @@ def set_character_card(char_json: str) -> str:
             "name": "小美",
             "personality": "温柔、活泼、善解人意",
             "speaking_style": "语气轻柔...",
-            "backstory": "来自往世乐土的AI少女...",
+            "backstory": "乐于助人的AI助手...",
             "greeting": "你好呀~今天过得怎么样？",
             "nickname": "美美",
             "age": "22",

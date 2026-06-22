@@ -2,8 +2,10 @@ package com.aicompanion.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.aicompanion.app.databinding.ActivitySettingsBinding
@@ -58,6 +60,17 @@ class SettingsActivity : AppCompatActivity() {
         }
         binding.cardExport.setOnClickListener {
             showExportDialog()
+        }
+
+        // 主题切换开关
+        val isDark = AppConfig.getThemeMode(this) == AppConfig.THEME_DARK
+        binding.switchTheme.isChecked = isDark
+        binding.tvDisplaySummary.text = if (isDark) getString(R.string.theme_dark) else getString(R.string.theme_light)
+        binding.switchTheme.setOnCheckedChangeListener { _, checked ->
+            val mode = if (checked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+            AppCompatDelegate.setDefaultNightMode(mode)
+            AppConfig.setThemeMode(this, if (checked) AppConfig.THEME_DARK else AppConfig.THEME_LIGHT)
+            binding.tvDisplaySummary.text = if (checked) getString(R.string.theme_dark) else getString(R.string.theme_light)
         }
 
         refreshUI()
@@ -176,7 +189,10 @@ class SettingsActivity : AppCompatActivity() {
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                         startActivity(Intent.createChooser(shareIntent, getString(R.string.chooser_share_conversation)))
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) {
+                        Log.w("SettingsActivity", "分享导出失败: ${e.message}", e)
+                        Toast.makeText(this@SettingsActivity, getString(R.string.toast_export_failed, "分享失败"), Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

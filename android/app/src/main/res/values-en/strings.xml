@@ -146,7 +146,9 @@
     <string name="error_init_failed">Initialization failed: %s</string>
     <string name="toast_message_too_long">Message too long, please limit to 2000 characters</string>
     <string name="toast_conversation_failed">Conversation failed: %s</string>
+    <string name="toast_timeout">Request timed out. Please check your network and try again.</string>
     <string name="toast_save_failed">Save failed</string>
+    <string name="toast_load_session_failed">Failed to load session</string>
     <string name="toast_search_failed">Search failed: %s</string>
     <string name="toast_export_failed">Export failed: %s</string>
     <string name="toast_engine_not_init_export">Engine not initialized, cannot export</string>

@@ -1,6 +1,7 @@
 # 03 — Python 端学习指南 (Chaquopy)
 
 > 适合 Python/后端开发者，了解 Python 端架构和核心模块
+> 基于当前代码重新生成：2026-06-21
 
 ---
 
@@ -45,7 +46,7 @@ Kotlin                           Python
   ├─ chat_stream_cancel(id) ─────→│ 设置取消标志
 ```
 
-> 关键文件：[chat_bridge/_core.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_core.py) (L224-L311)
+> 关键文件：[chat_bridge/_core.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_core.py)
 
 ---
 
@@ -53,7 +54,7 @@ Kotlin                           Python
 
 ```
 ┌─────────────────────────────────────┐
-│        chat_bridge/ (桥接层)         │  ← Kotlin 直接调用
+│        chat_bridge/ (桥接层，8文件)   │  ← Kotlin 直接调用
 │   __init__.py 导出 60+ 函数          │
 ├─────────────────────────────────────┤
 │        src/ (核心模块)               │
@@ -61,7 +62,7 @@ Kotlin                           Python
 │  │  app_context.py (全局上下文)    │  │  ← 单例，管理生命周期
 │  └───────────────────────────────┘  │
 │  ┌──────────┐ ┌──────────────────┐  │
-│  │ chat_engine│ │ memory/ (15文件)│  │  ← 核心业务
+│  │ chat_engine│ │ memory/ (17文件)│  │  ← 核心业务
 │  └──────────┘ └──────────────────┘  │
 │  ┌──────────┐ ┌──────────────────┐  │
 │  │ world_book│ │ proactive/       │  │  ← 功能模块
@@ -88,7 +89,7 @@ Kotlin                           Python
 
 | 子模块 | 文件 | 导出函数数 | 核心功能 |
 |--------|------|-----------|----------|
-| core | [_core.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_core.py) | 11 | 聊天引擎 init/chat/stream/reset |
+| core | [_core.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_core.py) | 15 | 聊天引擎 init/chat/stream/reset |
 | memory | [_memory.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_memory.py) | 30+ | 记忆 CRUD/检索/分析/备份/缓存 |
 | character | [_character.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_character.py) | 4 | 角色卡 set/get/reload |
 | proactive | [_proactive.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/chat_bridge/_proactive.py) | 1 | 主动消息生成 |
@@ -101,7 +102,7 @@ Kotlin                           Python
 
 ```python
 _ctx: AppContext | None = None      # 全局应用上下文
-_executor: ThreadPoolExecutor       # 线程池(max_workers=2)
+_executor: ThreadPoolExecutor       # 线程池（可配置max_workers，默认2）
 _lock: threading.Lock()             # 线程安全锁
 CARD_PATH: Path                     # 默认角色卡路径
 _cached_memories: str               # 记忆注入缓存
@@ -165,11 +166,6 @@ _cached_memories: str               # 记忆注入缓存
 | `set_model()` | 切换模型 | 运行时切换 |
 | `update_api_key()` | 更新 API Key | 同步更新 session header |
 
-**HTTP 连接池**：
-- 使用 `requests.Session()` 复用 TCP 连接
-- 连接超时 5s，读取超时 30s（流式 60s）
-- 自动重试：`APITimeoutError`, `APIServerError`, `APIRateLimitError`, `APIConnectionError`
-
 **安全措施**：
 - HTTPS 默认开启证书验证（`verify=True`）
 - API Key 延迟校验（`_ensure_auth()`）
@@ -209,7 +205,7 @@ class Settings:
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
     DEEPSEEK_MODEL: str = "deepseek-v4-flash"
     DEEPSEEK_EMBEDDING_MODEL: str = "deepseek-embedding-v2"
-    LOG_LEVEL: str = "INFO"            # Release 自动降级 WARNING
+    LOG_LEVEL: str = "INFO"            # Release 通过 set_build_type() 降为 WARNING
     MAX_RETRIES: int = 3
     REQUEST_TIMEOUT: int = 30
 ```
@@ -245,7 +241,7 @@ MemoryException
 
 | 文件 | 功能 |
 |------|------|
-| [logger.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/src/utils/logger.py) | loguru 日志封装 |
+| [logger.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/src/utils/logger.py) | 日志封装（含敏感信息脱敏过滤） |
 | [lru_cache.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/src/utils/lru_cache.py) | LRU 缓存实现 |
 | [retry.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/src/utils/retry.py) | @retry 装饰器（指数退避+抖动） |
 | [time_utils.py](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/src/utils/time_utils.py) | 时间格式化工具 |
@@ -265,16 +261,17 @@ MemoryException
 | colorama | >=0.4.0 | 终端颜色 |
 | idna | 2.10 | 国际化域名 |
 
-> 所有包通过手动解压 wheel 到源码目录，非 pip 在线安装。参见 [requirements.txt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/requirements.txt)
+> 所有包通过手动解压 wheel 到源码目录，参见 [requirements.txt](file:///f:/Trae%20AI/ai-APP/android/app/src/main/python/requirements.txt)
 
 ---
 
 ## 十一、关键学习要点
 
-1. **Chaquopy 限制**：无法迭代生成器，需队列中转；部分 C 扩展库（如 numpy）不可用
+1. **Chaquopy 限制**：无法迭代生成器，需队列中转；部分 C 扩展库不可用
 2. **门面模式**：`chat_bridge/__init__.py` 是 Kotlin 的唯一入口
 3. **全局状态**：`_state.py` 管理单例，`app_context.py` 管理生命周期
 4. **共享客户端**：`DeepSeekClient` 被 `RolePlayer` 和 `MemoryOrchestrator` 共享
 5. **懒加载**：记忆系统 6 个子组件按需初始化
 6. **重试机制**：`@retry` 装饰器，指数退避+随机抖动
 7. **Embedding 缓存**：LRU(500) 缓存，避免重复计算相同文本的向量
+8. **日志安全**：`SensitiveFilter` 自动脱敏 API Key/Token，`set_build_type()` 控制日志级别

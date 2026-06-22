@@ -26,22 +26,19 @@ class CrashLogViewerActivity : AppCompatActivity() {
     private fun loadCrashLogs() {
         crashFiles = CrashHandler.getCrashLogFiles(this)
         if (crashFiles.isEmpty()) {
-            binding.emptyState.visibility = View.VISIBLE
-            binding.llContent.visibility = View.GONE
+            binding.layoutEmpty.visibility = View.VISIBLE
             return
         }
-        binding.emptyState.visibility = View.GONE
-        binding.llContent.visibility = View.VISIBLE
-        val sb = StringBuilder()
-        for (file in crashFiles) {
+        binding.layoutEmpty.visibility = View.GONE
+        val logs = crashFiles.map { file ->
             try {
-                sb.appendLine(file.readText())
-                sb.appendLine()
+                file.readText()
             } catch (e: Exception) {
-                sb.appendLine("[读取失败] ${file.name}: ${e.message}")
+                "[读取失败] ${file.name}: ${e.message}"
             }
         }
-        binding.tvCrashLogs.text = sb.toString()
+        binding.rvCrashLogs.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        binding.rvCrashLogs.adapter = CrashLogAdapter(logs)
         CrashHandler.clearMarker(this)
     }
 
@@ -57,5 +54,26 @@ class CrashLogViewerActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    private inner class CrashLogAdapter(
+        private val logs: List<String>
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<CrashLogAdapter.ViewHolder>() {
+
+        inner class ViewHolder(view: android.view.View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvLog: android.widget.TextView = view.findViewById(android.R.id.text1)
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            val view = android.view.LayoutInflater.from(parent.context)
+                .inflate(android.R.layout.simple_list_item_1, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.tvLog.text = logs[position]
+        }
+
+        override fun getItemCount(): Int = logs.size
     }
 }

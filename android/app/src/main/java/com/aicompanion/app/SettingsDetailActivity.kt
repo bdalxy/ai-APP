@@ -103,16 +103,17 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setPositiveButton("保存") { _, _ ->
                 val key = edit.text.toString().trim()
                 AppConfig.setApiKey(this, key)
-                lifecycleScope.launch(Dispatchers.IO) {
+                // 使用独立线程同步 Python，避免 recreate() 取消协程
+                Thread {
                     try {
                         val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                         module?.callAttr("set_api_key", key)
                     } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
+                        runOnUiThread {
                             Toast.makeText(this@SettingsDetailActivity, "Python 同步失败: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }
+                }.start()
                 Toast.makeText(this, "API Key 已保存", Toast.LENGTH_SHORT).show()
                 recreate()
             }
@@ -167,7 +168,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
         layout.addView(TextView(this).apply {
             text = "保留多少对话历史给AI看（单位：token）"; textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray)); setPadding(0, 0, 0, 12)
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
         })
         val tvValue = TextView(this).apply {
             text = "${current} token"; textSize = 20f
@@ -199,7 +200,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         for ((i, label) in listOf("500", "4000", "8000").withIndex()) {
             labelRow.addView(TextView(this).apply {
                 text = label; textSize = 11f
-                setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
+                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
             })
@@ -210,14 +211,14 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
         inputRow.addView(TextView(this).apply {
             text = "自定义："; textSize = 14f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
         })
         inputRow.addView(etInput.apply {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         inputRow.addView(TextView(this).apply {
             text = " token"; textSize = 14f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
         })
         layout.addView(inputRow)
 
@@ -355,12 +356,18 @@ class SettingsDetailActivity : AppCompatActivity() {
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else "不设置"
 
         addSectionTitle("主动推送")
-        val toggleRow = LinearLayout(this).apply {
+        // 玻璃态开关卡片
+        val toggleCard = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(0, 12, 0, 12)
+            setBackgroundResource(R.drawable.bg_glass_card)
+            setPadding(dip(16), dip(14), dip(16), dip(14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dip(10) }
         }
-        toggleRow.addView(TextView(this).apply {
+        toggleCard.addView(TextView(this).apply {
             text = "开启主动消息"; textSize = 16f
             setTextColor(ContextCompat.getColor(context, R.color.text_primary))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -372,8 +379,8 @@ class SettingsDetailActivity : AppCompatActivity() {
                 if (isChecked) ProactiveService.schedule(this@SettingsDetailActivity) else ProactiveService.cancel(this@SettingsDetailActivity)
             }
         }
-        toggleRow.addView(sw)
-        contentLayout.addView(toggleRow)
+        toggleCard.addView(sw)
+        contentLayout.addView(toggleCard)
         addDivider()
 
         addClickRow("发送频率", intervalLabel, iconRes = R.drawable.ic_frequency) {
@@ -492,10 +499,17 @@ class SettingsDetailActivity : AppCompatActivity() {
         addClickRow("音调", "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) { showTtsPitchDialog() }
         addDivider()
 
-        val toggleRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, 12, 0, 12)
+        val toggleCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setBackgroundResource(R.drawable.bg_glass_card)
+            setPadding(dip(16), dip(14), dip(16), dip(14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dip(10) }
         }
-        toggleRow.addView(TextView(this).apply {
+        toggleCard.addView(TextView(this).apply {
             text = "自动朗读AI回复"; textSize = 16f
             setTextColor(ContextCompat.getColor(context, R.color.text_primary))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -504,8 +518,8 @@ class SettingsDetailActivity : AppCompatActivity() {
             isChecked = autoRead
             setOnCheckedChangeListener { _, isChecked -> AppConfig.setAutoReadAloud(this@SettingsDetailActivity, isChecked) }
         }
-        toggleRow.addView(sw)
-        contentLayout.addView(toggleRow)
+        toggleCard.addView(sw)
+        contentLayout.addView(toggleCard)
         addDivider()
 
         addSectionTitle("语音识别（ASR）")
@@ -629,7 +643,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         contentLayout.addView(TextView(this).apply {
             this.text = text; textSize = 14f
             setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
-            setPadding(0, 24, 0, 8)
+            setPadding(dip(4), dip(20), dip(4), dip(10))
             paint.isFakeBoldText = true
         })
     }
@@ -637,60 +651,81 @@ class SettingsDetailActivity : AppCompatActivity() {
     internal fun addHintText(text: String) {
         contentLayout.addView(TextView(this).apply {
             this.text = text; textSize = 12f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
-            setPadding(0, 0, 0, 8)
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
+            setPadding(dip(4), 0, dip(4), dip(8))
         })
     }
 
     internal fun addEmptyHint(text: String) {
         contentLayout.addView(TextView(this).apply {
             this.text = text; textSize = 14f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
-            setPadding(0, 8, 0, 8)
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
+            setPadding(0, dip(8), 0, dip(8))
             gravity = android.view.Gravity.CENTER
         })
     }
 
     internal fun addClickRow(label: String, value: String, valueColor: Int = R.color.text_secondary, iconRes: Int = 0, onClick: () -> Unit) {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(0, 16, 0, 16)
-            isClickable = true; isFocusable = true
-            setBackgroundResource(getSelectableItemBackground())
+        // 玻璃态卡片容器
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.bg_glass_card)
+            setPadding(dip(16), dip(14), dip(16), dip(14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dip(10)
+            }
+            isClickable = true
+            isFocusable = true
             setOnClickListener { onClick() }
         }
+
         if (iconRes != 0) {
             val labelRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, 6)
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, dip(6))
             }
             labelRow.addView(android.widget.ImageView(this).apply {
                 setImageResource(iconRes)
-                layoutParams = LinearLayout.LayoutParams(20, 20).apply { marginEnd = 8 }
+                layoutParams = LinearLayout.LayoutParams(dip(22), dip(22)).apply { marginEnd = dip(10) }
                 setColorFilter(ContextCompat.getColor(context, R.color.primary))
             })
             labelRow.addView(TextView(this).apply {
-                text = label; textSize = 18f
+                text = label; textSize = 16f
                 setTextColor(ContextCompat.getColor(context, R.color.text_primary))
                 paint.isFakeBoldText = true
             })
-            row.addView(labelRow)
+            card.addView(labelRow)
         } else {
-            row.addView(TextView(this).apply {
-                text = label; textSize = 18f
+            card.addView(TextView(this).apply {
+                text = label; textSize = 16f
                 setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-                paint.isFakeBoldText = true; setPadding(0, 0, 0, 6)
+                paint.isFakeBoldText = true
+                setPadding(0, 0, 0, dip(6))
             })
         }
-        row.addView(TextView(this).apply {
-            text = value; textSize = 14f
+        card.addView(TextView(this).apply {
+            text = value; textSize = 13f
             setTextColor(ContextCompat.getColor(context, valueColor))
         })
-        contentLayout.addView(row)
+        contentLayout.addView(card)
     }
 
-    internal fun addDivider() { contentLayout.addView(createDividerView()) }
+    internal fun addDivider() {
+        // 卡片之间已有间距，分隔线改为更细的留白
+        contentLayout.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dip(2)
+            )
+        })
+    }
 
     internal fun createDividerView(): View = View(this).apply {
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, resources.getDimensionPixelSize(R.dimen.divider_thickness))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dip(1))
         setBackgroundColor(ContextCompat.getColor(context, R.color.glass_border))
     }
 
@@ -698,7 +733,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0) }
         layout.addView(TextView(this).apply {
             text = subtitle; textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.darker_gray)); setPadding(0, 0, 0, 16)
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 16)
         })
         val tvValue = TextView(this).apply {
             text = "${labels[currentIdx]} — ${descs[currentIdx]}"; textSize = 18f
@@ -719,7 +754,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         for (i in 0..max) {
             labelRow.addView(TextView(this).apply {
                 text = descs[i]; textSize = 11f
-                setTextColor(ContextCompat.getColor(context, R.color.darker_gray))
+                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; max -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
             })

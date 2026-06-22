@@ -344,6 +344,10 @@ class RolePlayer:
 
             ai_reply = response.content
 
+            # 防止 response.content 为 None 时后续 len(None) 抛出 TypeError
+            if ai_reply is None:
+                ai_reply = ""
+
             # 5. 将 AI 回复添加到上下文
             self.context.add_message("assistant", ai_reply)
         finally:
@@ -438,6 +442,15 @@ class RolePlayer:
         """清空短期对话上下文，开始新对话。"""
         self.context.clear()
         self._log.info("对话上下文已重置")
+
+    def restore_history(self, messages: list[dict[str, str]]) -> None:
+        """从持久化存储恢复对话历史。
+
+        Args:
+            messages: 消息列表，每项为 {"role": str, "content": str}。
+        """
+        self.context.restore_history(messages)
+        self._log.info(f"对话历史已恢复，共 {len(messages)} 条消息")
 
     def get_context(self) -> list[dict[str, str]]:
         """获取当前对话上下文。

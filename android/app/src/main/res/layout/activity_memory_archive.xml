@@ -73,4 +73,38 @@
             <include layout="@layout/layout_app_empty_state" />
         </FrameLayout>
     </LinearLayout>
+
+    <!-- 删除确认面板 -->
+    <LinearLayout
+        android:id="@+id/layoutDeleteConfirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="@dimen/spacing_page"
+        android:paddingVertical="@dimen/spacing_md"
+        android:background="@drawable/bg_glass_bottom"
+        android:visibility="gone"
+        android:elevation="8dp">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancelDelete"
+            style="@style/AppButton.Secondary"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/button_wide"
+            android:layout_weight="1"
+            android:layout_marginEnd="@dimen/spacing_sm"
+            android:text="@string/btn_cancel"
+            android:textSize="@dimen/text_body" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnConfirmDelete"
+            style="@style/AppButton.Primary"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/button_wide"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:text="@string/btn_delete"
+            android:textSize="@dimen/text_body"
+            app:backgroundTint="@color/accent_red" />
+    </LinearLayout>
 </FrameLayout>

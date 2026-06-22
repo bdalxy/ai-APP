@@ -314,8 +314,8 @@ class BM25Scorer:
             return 0.0
 
         results = self.score(query, top_k=self._total_docs)
-        for _id, score in results:
-            if _id == doc_id:
+        for candidate_id, score in results:
+            if candidate_id == doc_id:
                 return score
         return 0.0
 

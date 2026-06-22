@@ -19,7 +19,7 @@ from datetime import datetime
 
 from src.api_client.deepseek import DeepSeekClient
 from src.memory.bm25 import BM25Scorer
-from src.memory.decay import get_weight
+from src.memory.decay import get_weight, get_temporal_context, TemporalWeight
 from src.memory.vector_store import (
     MemoryEntry,
     VectorStore,
@@ -129,12 +129,15 @@ class MemoryRetriever:
             self._log.info("[检索] 无匹配结果")
             return []
 
-        # 4. 时间衰减加权 + 精排
+        # 4. 时间衰减加权 + 时间感知权重 + 精排
         if apply_decay:
             now = datetime.now()
+            temporal_weight = TemporalWeight(now)
             combined: list[tuple[MemoryEntry, float]] = []
             for entry, sim in scored_candidates:
                 weight = get_weight(entry, now)
+                # 时间感知调整：在相似时间上下文中产生的记忆权重更高
+                weight = temporal_weight.adjust(entry, weight)
                 combined_score = sim * self.similarity_weight + weight * self.decay_weight
                 combined.append((entry, combined_score))
             combined.sort(key=lambda x: x[1], reverse=True)
@@ -311,7 +314,8 @@ class MemoryRetriever:
             try:
                 entry = self.vector_store.get(doc_id)
                 results.append((entry, score))
-            except Exception:
+            except Exception as e:
+                self._log.debug(f"[BM25] 单条加载失败（跳过）: id={doc_id}, err={e}")
                 continue
 
         self._log.info(
@@ -383,9 +387,10 @@ class MemoryRetriever:
         """多策略检索：优先 embedding，回退 BM25，最后回退规则。
 
         检索策略优先级:
-            1. 向量检索（embedding + 余弦相似度 + 时间衰减）
-            2. BM25 关键词检索（embedding API 不可用时）
-            3. 规则检索（倒排索引 + 关键词匹配）
+            1. 向量检索（embedding + 余弦相似度 + 时间衰减 + 时间感知）
+            2. 图谱增强检索（向量 + 图谱关系遍历）
+            3. BM25 关键词检索（embedding API 不可用时）
+            4. 规则检索（倒排索引 + 关键词匹配）
 
         Args:
             query_text: 查询文本。
@@ -398,9 +403,17 @@ class MemoryRetriever:
         try:
             return self.retrieve(query_text, top_k=top_k)
         except Exception as e:
-            self._log.info(f"[多策略] 向量检索失败，回退 BM25: {e}")
+            self._log.info(f"[多策略] 向量检索失败，回退图谱增强: {e}")
 
-        # 策略 2: BM25 检索
+        # 策略 2: 图谱增强检索
+        try:
+            graph_results = self.graph_enhanced_retrieve(query_text, top_k=top_k)
+            if graph_results:
+                return [entry for entry, _ in graph_results]
+        except Exception as e:
+            self._log.info(f"[多策略] 图谱增强检索失败，回退 BM25: {e}")
+
+        # 策略 3: BM25 检索
         try:
             bm25_results = self.bm25_retrieve_with_expansion(query_text, top_k=top_k)
             if bm25_results:
@@ -408,5 +421,95 @@ class MemoryRetriever:
         except Exception as e:
             self._log.info(f"[多策略] BM25 检索失败，回退规则: {e}")
 
-        # 策略 3: 规则检索（倒排索引 + 关键词匹配）
+        # 策略 4: 规则检索（倒排索引 + 关键词匹配）
         return self.get_recent(top_k)
+
+    # =========================================================================
+    # 图谱增强检索：向量检索 + 知识图谱关系遍历
+    # =========================================================================
+
+    def graph_enhanced_retrieve(
+        self,
+        query_text: str,
+        top_k: int = 5,
+        max_graph_memories: int = 10,
+    ) -> list[tuple[MemoryEntry, float]]:
+        """图谱增强检索。
+
+        流程：
+            1. 向量检索获取 top_k 条核心记忆
+            2. 遍历每条记忆的图谱关系（1-2跳），召回关联记忆
+            3. 合并核心记忆和关联记忆
+            4. 去重排序返回
+
+        通过知识图谱发现"间接相关"的记忆，提升检索的召回率。
+
+        Args:
+            query_text: 查询文本。
+            top_k: 返回的最大记忆数。
+            max_graph_memories: 图谱召回的最大关联记忆数。
+
+        Returns:
+            list[tuple[MemoryEntry, float]]: (记忆条目, 综合分数) 列表。
+        """
+        # 1. 向量检索获取核心记忆
+        try:
+            core_entries = self.retrieve(
+                query_text, top_k=top_k * 2, apply_decay=True
+            )
+        except Exception as e:
+            self._log.warning(f"[图谱增强] 向量检索失败: {e}")
+            return []
+
+        if not core_entries:
+            self._log.info("[图谱增强] 无核心记忆，跳过高阶检索")
+            return []
+
+        core_ids = [e.id for e in core_entries]
+        core_scores: dict[str, float] = {}
+        for i, entry in enumerate(core_entries):
+            # 核心记忆分数：按排名递减
+            core_scores[entry.id] = 1.0 - (i / max(len(core_entries) * 2, 1))
+
+        # 2. 通过知识图谱找到关联记忆
+        related_memories: list[dict] = []
+        try:
+            from src.memory.knowledge_graph import KnowledgeGraph
+            kg = KnowledgeGraph(self.vector_store, self.client)
+            related_memories = kg.find_related_memories(
+                core_ids, max_relations=max_graph_memories
+            )
+        except Exception as e:
+            self._log.debug(f"[图谱增强] 图谱查询失败（降级）: {e}")
+
+        if not related_memories:
+            self._log.info("[图谱增强] 无图谱关联记忆，返回核心检索结果")
+            return [(e, core_scores.get(e.id, 0.5)) for e in core_entries[:top_k]]
+
+        # 3. 加载关联记忆并计算分数
+        graph_entries: list[tuple[MemoryEntry, float]] = []
+        for rel in related_memories:
+            try:
+                entry = self.vector_store.get(rel["memory_id"])
+                # 图谱关联记忆的基础分数 = 置信度 * 0.6（低于直接匹配）
+                graph_score = rel.get("confidence", 0.5) * 0.6
+                graph_entries.append((entry, graph_score))
+            except Exception:
+                continue
+
+        self._log.info(
+            f"[图谱增强] 核心={len(core_entries)}, 图谱关联={len(graph_entries)}"
+        )
+
+        # 4. 合并去重排序
+        all_entries: dict[str, tuple[MemoryEntry, float]] = {}
+        for entry in core_entries:
+            all_entries[entry.id] = (entry, core_scores.get(entry.id, 0.5))
+        for entry, score in graph_entries:
+            if entry.id not in all_entries:
+                all_entries[entry.id] = (entry, score)
+
+        sorted_entries = sorted(
+            all_entries.values(), key=lambda x: x[1], reverse=True
+        )
+        return sorted_entries[:top_k]

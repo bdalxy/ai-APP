@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.os.Build
 import android.renderscript.Allocation
 import android.renderscript.Element
@@ -63,21 +65,29 @@ object BlurUtils {
     fun blurBitmap(context: Context, bitmap: Bitmap, radius: Float = DEFAULT_RADIUS): Bitmap? {
         val clampedRadius = radius.coerceIn(1f, MAX_RADIUS)
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) blurWithRenderEffect(context, bitmap, clampedRadius)
-            else blurWithRenderScript(context, bitmap, clampedRadius)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                blurWithRenderEffectBitmap(bitmap, clampedRadius)
+            } else {
+                blurWithRenderScriptInternal(context, bitmap, clampedRadius)
+            }
         } catch (e: Exception) { createFallbackBlurredBitmap(bitmap) }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun blurWithRenderEffect(context: Context, bitmap: Bitmap, radius: Float): Bitmap? {
-        return blurWithRenderScriptInternal(context, bitmap, radius)
+    private fun blurWithRenderEffectBitmap(bitmap: Bitmap, radius: Float): Bitmap? {
+        // API 31+ 使用降采样模拟模糊（RenderEffect 无法直接作用于 Bitmap）
+        val scale = (1f + radius / 10f).coerceAtMost(4f)
+        val smallW = (bitmap.width / scale).toInt().coerceAtLeast(1)
+        val smallH = (bitmap.height / scale).toInt().coerceAtLeast(1)
+        val small = Bitmap.createScaledBitmap(bitmap, smallW, smallH, true)
+        val output = Bitmap.createScaledBitmap(small, bitmap.width, bitmap.height, true)
+        small.recycle()
+        return output
     }
 
-    private fun blurWithRenderScript(context: Context, bitmap: Bitmap, radius: Float): Bitmap? {
-        return blurWithRenderScriptInternal(context, bitmap, radius)
-    }
-
+    @Suppress("DEPRECATION")
     private fun blurWithRenderScriptInternal(context: Context, bitmap: Bitmap, radius: Float): Bitmap? {
+        // RenderScript 在 Android 12+ 已废弃，仅用于 API 31 以下的兼容方案
         val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val rs = RenderScript.create(context)
         val input = Allocation.createFromBitmap(rs, bitmap)

@@ -6,19 +6,14 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import com.aicompanion.app.AppConfig
 import java.util.Locale
-import java.util.UUID
 
 class SpeechManager(private val context: Context) {
 
     companion object {
         private const val TAG = "SpeechManager"
-        private const val DEFAULT_SPEECH_RATE = 1.0f
-        private const val DEFAULT_PITCH = 1.0f
     }
 
     interface SpeechCallback {
@@ -30,8 +25,7 @@ class SpeechManager(private val context: Context) {
 
     var callback: SpeechCallback? = null
     private var speechRecognizer: SpeechRecognizer? = null
-    private var tts: TextToSpeech? = null
-    @Volatile private var ttsReady = false
+    private var sherpaTts: SherpaTtsEngine? = null
     @Volatile var isRecording = false
         private set
     @Volatile var isSpeaking = false
@@ -118,62 +112,88 @@ class SpeechManager(private val context: Context) {
     }
 
     fun initTts(onReady: ((Boolean) -> Unit)? = null) {
-        if (tts != null) { Log.d(TAG, "TTS 引擎已初始化"); onReady?.invoke(ttsReady); return }
-        tts = TextToSpeech(context) { status ->
-            ttsReady = (status == TextToSpeech.SUCCESS)
-            if (ttsReady) {
-                val result = tts?.setLanguage(Locale.CHINESE)
-                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    Log.w(TAG, "中文 TTS 不可用，使用默认语言")
-                    tts?.setLanguage(Locale.getDefault())
-                }
-                val rate = AppConfig.getTtsSpeechRate(context)
-                val pitch = AppConfig.getTtsPitch(context)
-                tts?.setSpeechRate(rate)
-                tts?.setPitch(pitch)
-                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) { Log.d(TAG, "TTS 开始播放"); isSpeaking = true; callback?.onSpeechStart() }
-                    override fun onDone(utteranceId: String?) { Log.d(TAG, "TTS 播放完成"); isSpeaking = false; callback?.onSpeechDone() }
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) { Log.e(TAG, "TTS 播放错误"); isSpeaking = false; callback?.onSpeechError("语音合成播放出错") }
-                    override fun onError(utteranceId: String?, errorCode: Int) { Log.e(TAG, "TTS 播放错误, errorCode=$errorCode"); isSpeaking = false; callback?.onSpeechError("语音合成播放出错 (code=$errorCode)") }
-                })
-                Log.d(TAG, "TTS 引擎初始化成功")
-            } else { Log.e(TAG, "TTS 引擎初始化失败"); callback?.onSpeechError("语音合成引擎初始化失败") }
-            onReady?.invoke(ttsReady)
+        if (sherpaTts?.isInitialized == true) {
+            Log.d(TAG, "SherpaTtsEngine 已初始化")
+            onReady?.invoke(true)
+            return
         }
+
+        if (sherpaTts == null) {
+            sherpaTts = SherpaTtsEngine(context).apply {
+                callback = object : SherpaTtsEngine.Callback {
+                    override fun onInitSuccess() {
+                        Log.d(TAG, "SherpaTtsEngine 初始化成功")
+                        onReady?.invoke(true)
+                    }
+
+                    override fun onInitError(error: String) {
+                        Log.e(TAG, "SherpaTtsEngine 初始化失败: $error")
+                        this@SpeechManager.callback?.onSpeechError(error)
+                        onReady?.invoke(false)
+                    }
+
+                    override fun onSynthesisStart() {
+                        isSpeaking = true
+                        this@SpeechManager.callback?.onSpeechStart()
+                    }
+
+                    override fun onSynthesisDone() {
+                        // 合成完成，等待播放
+                    }
+
+                    override fun onPlayStart() {
+                        isSpeaking = true
+                    }
+
+                    override fun onPlayDone() {
+                        Log.d(TAG, "SherpaTtsEngine 播放完成")
+                        isSpeaking = false
+                        this@SpeechManager.callback?.onSpeechDone()
+                    }
+
+                    override fun onError(error: String) {
+                        Log.e(TAG, "SherpaTtsEngine 错误: $error")
+                        isSpeaking = false
+                        this@SpeechManager.callback?.onSpeechError(error)
+                    }
+                }
+            }
+        }
+
+        sherpaTts?.initialize()
     }
 
     fun startSpeaking(text: String, utteranceId: String? = null) {
         if (text.isBlank()) { Log.w(TAG, "播放文本为空"); return }
-        if (!ttsReady || tts == null) {
-            Log.w(TAG, "TTS 引擎尚未初始化")
-            initTts { ready -> if (ready) startSpeaking(text, utteranceId) else callback?.onSpeechError("语音合成引擎初始化失败") }
+        if (sherpaTts?.isInitialized != true) {
+            Log.w(TAG, "SherpaTtsEngine 尚未初始化，尝试初始化...")
+            initTts { ready ->
+                if (ready) {
+                    startSpeaking(text, utteranceId)
+                } else {
+                    callback?.onSpeechError("本地语音合成引擎不可用")
+                }
+            }
             return
         }
-        try { tts?.setSpeechRate(AppConfig.getTtsSpeechRate(context)); tts?.setPitch(AppConfig.getTtsPitch(context)) }
-        catch (e: Exception) { Log.w(TAG, "更新 TTS 参数失败: ${e.message}") }
-        if (isSpeaking) stopSpeaking()
-        val id = utteranceId ?: UUID.randomUUID().toString()
-        try {
-            val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
-            if (result == TextToSpeech.SUCCESS) Log.d(TAG, "TTS 开始播放")
-            else { Log.e(TAG, "TTS 播放失败"); callback?.onSpeechError("语音合成播放失败") }
-        } catch (e: Exception) { Log.e(TAG, "TTS 播放异常", e); callback?.onSpeechError("语音合成播放异常: ${e.message}") }
+
+        val speed = AppConfig.getTtsSpeechRate(context)
+        sherpaTts?.synthesize(text, speed)
     }
 
     fun stopSpeaking() {
         if (!isSpeaking) return
-        try { tts?.stop(); isSpeaking = false; Log.d(TAG, "TTS 播放已停止") }
-        catch (e: Exception) { Log.e(TAG, "停止 TTS 播放失败", e); isSpeaking = false }
+        sherpaTts?.stopSpeaking()
+        isSpeaking = false
+        Log.d(TAG, "语音播放已停止")
     }
 
     fun destroy() {
         Log.d(TAG, "释放语音资源")
         try { speechRecognizer?.apply { cancel(); destroy() }; speechRecognizer = null; isRecording = false }
         catch (e: Exception) { Log.e(TAG, "释放 SpeechRecognizer 失败", e) }
-        try { tts?.apply { stop(); shutdown() }; tts = null; ttsReady = false; isSpeaking = false }
-        catch (e: Exception) { Log.e(TAG, "释放 TTS 引擎失败", e) }
+        try { sherpaTts?.destroy(); sherpaTts = null; isSpeaking = false }
+        catch (e: Exception) { Log.e(TAG, "释放 SherpaTtsEngine 失败", e) }
         callback = null
     }
 }

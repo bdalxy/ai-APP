@@ -30,7 +30,7 @@ from typing import Any
 from src.api_client.deepseek import DeepSeekClient
 from src.memory.analyzer import MemoryAnalyzer
 from src.memory.consolidator import MemoryConsolidator
-from src.memory.extractor import MemoryExtractor, _is_low_info_conversation
+from src.memory.extractor import MemoryExtractor, _is_low_info_conversation, _is_question_or_request
 from src.memory.lifecycle import MemoryLifecycle
 from src.memory.retriever import MemoryRetriever
 from src.memory.vector_store import MemoryEntry, VectorStore
@@ -75,6 +75,8 @@ class MemoryOrchestrator:
         self._context_builder: "ContextBuilder | None" = None  # 懒加载的上下文构建器
         self._cache: "MemoryCache | None" = None               # 懒加载的记忆缓存
         self._backup: "MemoryBackup | None" = None             # 懒加载的备份管理器
+        self._knowledge_graph: "KnowledgeGraph | None" = None  # 懒加载的知识图谱
+        self._summarizer: "MemorySummarizer | None" = None      # 懒加载的摘要器
         self._log = get_logger()
         self._log.info("MemoryOrchestrator 初始化完成")
 
@@ -152,11 +154,16 @@ class MemoryOrchestrator:
         #    每 _extract_interval 轮启用一次 LLM 提取，其余轮次使用规则模式
         #    _extract_interval == 0 始终使用 LLM
         #    低信息量对话始终使用规则模式（省Token）
+        #    纯提问/请求对话使用规则模式（省Token，且不太可能产生有价值的记忆）
         is_low_info = _is_low_info_conversation(messages)
+        is_pure_question = _is_question_or_request(user_msg)
         use_llm: bool
         if is_low_info:
             use_llm = False
             self._log.info(f"[记忆存储] 检测到低信息量对话（纯寒暄），跳过 LLM 提取，使用规则模式")
+        elif is_pure_question:
+            use_llm = False
+            self._log.info(f"[记忆存储] 检测到纯提问/请求，跳过 LLM 提取，使用规则模式")
         elif self._extract_interval <= 0:
             use_llm = True
         elif self._extract_interval == 1:
@@ -228,6 +235,18 @@ class MemoryOrchestrator:
                 self._get_cache().on_memory_change()
             except Exception as e:
                 self._log.debug(f"[缓存] 失效通知失败: {e}")
+
+            # 知识图谱更新：从新记忆提取实体和关系（异步，不阻断主流程）
+            try:
+                kg = self._get_knowledge_graph()
+                kg_result = kg.extract_from_memories(entries)
+                if kg_result["entities_added"] > 0:
+                    self._log.debug(
+                        f"[知识图谱] 新增 {kg_result['entities_added']} 实体, "
+                        f"{kg_result['relations_added']} 关系"
+                    )
+            except Exception as e:
+                self._log.debug(f"[知识图谱] 更新失败（不影响对话）: {e}")
 
         # 归档检查：记忆数超过阈值时自动触发归档
         self._check_archive()
@@ -469,14 +488,30 @@ class MemoryOrchestrator:
             self._backup = MemoryBackup(self.vector_store, str(backup_dir))
         return self._backup
 
+    def _get_knowledge_graph(self) -> "KnowledgeGraph":
+        """懒加载获取知识图谱。"""
+        if self._knowledge_graph is None:
+            from src.memory.knowledge_graph import KnowledgeGraph
+            self._knowledge_graph = KnowledgeGraph(self.vector_store, self.client)
+        return self._knowledge_graph
+
+    def _get_summarizer(self) -> "MemorySummarizer":
+        """懒加载获取记忆摘要器。"""
+        if self._summarizer is None:
+            from src.memory.summarizer import MemorySummarizer
+            self._summarizer = MemorySummarizer(self.vector_store, self.client)
+        return self._summarizer
+
     def run_maintenance(self) -> dict[str, Any]:
         """执行记忆库维护任务。
 
         每 N 轮对话触发一次，执行以下维护操作:
             1. 衰减更新（decay update）
             2. 记忆合并（consolidation）
-            3. 智能清理（pruning）
-            4. 健康检查（health check）
+            3. 重要性重评估（importance reassessment）
+            4. 记忆摘要（summarization）
+            5. 智能清理（pruning）
+            6. 健康检查（health check）
 
         Returns:
             维护报告字典。
@@ -487,6 +522,8 @@ class MemoryOrchestrator:
         report = {
             "decay_updated": 0,
             "consolidated": 0,
+            "importance_reassessed": 0,
+            "summaries_generated": 0,
             "pruned": 0,
             "health": {},
         }
@@ -505,19 +542,36 @@ class MemoryOrchestrator:
             except Exception as e:
                 self._log.warning(f"[维护] 合并失败: {e}")
 
-        # 3. 智能清理
+        # 3. 重要性重评估（每 CONSOLIDATION_INTERVAL * 2 轮触发）
+        if self._turn_count % (consolidator.CONSOLIDATION_INTERVAL * 2) == 0:
+            try:
+                imp_result = consolidator.reassess_importance()
+                report["importance_reassessed"] = imp_result["adjusted"]
+            except Exception as e:
+                self._log.warning(f"[维护] 重要性重评估失败: {e}")
+
+        # 4. 记忆摘要检查
+        try:
+            summarizer = self._get_summarizer()
+            if summarizer.should_summarize(self._turn_count):
+                summary_result = summarizer.generate_summaries(self._turn_count)
+                report["summaries_generated"] = summary_result["summaries_generated"]
+        except Exception as e:
+            self._log.warning(f"[维护] 摘要生成失败: {e}")
+
+        # 5. 智能清理
         try:
             report["pruned"] = lifecycle.prune()
         except Exception as e:
             self._log.warning(f"[维护] 清理失败: {e}")
 
-        # 4. 健康检查
+        # 6. 健康检查
         try:
             report["health"] = lifecycle.health_check(self._turn_count)
         except Exception as e:
             self._log.warning(f"[维护] 健康检查失败: {e}")
 
-        # 5. 缓存清理
+        # 7. 缓存清理
         try:
             cache_cleanup = self.cache_cleanup()
             report["cache_cleanup"] = cache_cleanup
@@ -526,7 +580,10 @@ class MemoryOrchestrator:
 
         self._log.info(
             f"[维护] 完成: 衰减={report['decay_updated']}, "
-            f"合并={report['consolidated']}, 清理={report['pruned']}"
+            f"合并={report['consolidated']}, "
+            f"重要性重评估={report['importance_reassessed']}, "
+            f"摘要={report['summaries_generated']}, "
+            f"清理={report['pruned']}"
         )
         return report
 
@@ -624,6 +681,125 @@ class MemoryOrchestrator:
     def get_relations(self, memory_id: str) -> list[dict]:
         """获取记忆的关系列表。"""
         return self.vector_store.get_relations(memory_id)
+
+    # =========================================================================
+    # 知识图谱接口
+    # =========================================================================
+
+    def build_knowledge_graph(self, limit: int = 50) -> dict[str, int]:
+        """从现有记忆中构建/更新知识图谱。
+
+        获取最近的 N 条记忆，使用 LLM 提取实体和关系。
+
+        Args:
+            limit: 处理的记忆数上限。
+
+        Returns:
+            统计字典: {"entities_added": int, "relations_added": int}。
+        """
+        try:
+            entries = self.vector_store.get_recent_entries(limit)
+            if not entries:
+                return {"entities_added": 0, "relations_added": 0}
+            kg = self._get_knowledge_graph()
+            result = kg.extract_from_memories(entries)
+            self._log.info(
+                f"[知识图谱] 构建完成: 实体={result['entities_added']}, "
+                f"关系={result['relations_added']}"
+            )
+            return result
+        except Exception as e:
+            self._log.warning(f"[知识图谱] 构建失败: {e}")
+            return {"entities_added": 0, "relations_added": 0}
+
+    def query_graph(
+        self,
+        start_entity: str = "",
+        max_hops: int = 2,
+    ) -> dict:
+        """查询知识图谱。
+
+        如果指定起始实体，则沿关系图遍历。
+        否则返回图谱统计信息。
+
+        Args:
+            start_entity: 起始实体名称。空字符串表示返回统计。
+            max_hops: 最大遍历跳数。
+
+        Returns:
+            图谱遍历结果或统计信息。
+        """
+        try:
+            kg = self._get_knowledge_graph()
+            if start_entity:
+                return kg.traverse(start_entity, max_hops=max_hops)
+            return kg.get_stats()
+        except Exception as e:
+            self._log.warning(f"[知识图谱] 查询失败: {e}")
+            return {"error": str(e)}
+
+    def list_kg_entities(self, entity_type: str = "", limit: int = 100) -> list[dict]:
+        """列出知识图谱中的实体。
+
+        Args:
+            entity_type: 实体类型过滤（PERSON/LOCATION/ORG/EVENT/CONCEPT/TIME）。
+            limit: 返回上限。
+
+        Returns:
+            实体字典列表。
+        """
+        try:
+            kg = self._get_knowledge_graph()
+            return kg.list_entities(entity_type, limit)
+        except Exception as e:
+            self._log.warning(f"[知识图谱] 列出实体失败: {e}")
+            return []
+
+    def get_kg_entity(self, name: str) -> dict | None:
+        """查询知识图谱实体。
+
+        Args:
+            name: 实体名称。
+
+        Returns:
+            实体字典，不存在返回 None。
+        """
+        try:
+            kg = self._get_knowledge_graph()
+            return kg.get_entity(name)
+        except Exception as e:
+            self._log.warning(f"[知识图谱] 查询实体失败: {e}")
+            return None
+
+    def get_kg_relations(self, entity_name: str, direction: str = "both") -> list[dict]:
+        """查询知识图谱实体的关系。
+
+        Args:
+            entity_name: 实体名称。
+            direction: 方向，"out"（出边）/ "in"（入边）/ "both"（双向）。
+
+        Returns:
+            关系字典列表。
+        """
+        try:
+            kg = self._get_knowledge_graph()
+            return kg.get_relations(entity_name, direction)
+        except Exception as e:
+            self._log.warning(f"[知识图谱] 查询关系失败: {e}")
+            return []
+
+    def get_kg_stats(self) -> dict:
+        """获取知识图谱统计信息。
+
+        Returns:
+            统计字典。
+        """
+        try:
+            kg = self._get_knowledge_graph()
+            return kg.get_stats()
+        except Exception as e:
+            self._log.warning(f"[知识图谱] 统计失败: {e}")
+            return {"entity_count": 0, "relation_count": 0, "error": str(e)}
 
     # =========================================================================
     # 变更日志接口

@@ -1,6 +1,7 @@
 package com.aicompanion.app
 
 import android.content.Context
+import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.Toast
@@ -73,9 +74,23 @@ class ConversationCoordinator(
                     callback?.onSessionChanged(messages)
                 }
             } catch (e: Exception) {
-                // 静默失败，不影响主流程
+                Log.w(TAG, "加载会话失败: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, context.getString(R.string.toast_load_session_failed), Toast.LENGTH_SHORT).show()
+                }
             }
         }
+    }
+
+    /** 仅刷新会话元数据（不替换消息列表），用于 onResume 时避免覆盖当前对话 */
+    fun refreshSessionMeta() {
+        val sessionId = ConversationSessionManager.getCurrentSessionId()
+        if (sessionId.isEmpty()) return
+        val messages = adapter.getMessages()
+        if (messages.isEmpty()) return
+        val lastMsg = messages.last()
+        val preview = if (lastMsg.content.length > 30) lastMsg.content.take(30) + "..." else lastMsg.content
+        ConversationSessionManager.updateSessionPreview(sessionId, preview, messages.size)
     }
 
     // ======================== 新建会话 ========================

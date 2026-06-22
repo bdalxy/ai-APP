@@ -114,13 +114,13 @@ class CrashHandler private constructor(
      * 3. 调用原 DefaultUncaughtExceptionHandler
      */
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
-        Log.e(TAG, "捕获到未处理异常: ${throwable.message}", throwable)
+        // 只记录异常类型和消息，不记录完整堆栈（避免泄露用户数据到 logcat）
+        Log.e(TAG, "捕获到未处理异常: ${throwable.javaClass.simpleName}: ${throwable.message?.take(200) ?: "无消息"}")
 
         try {
             writeCrashLog(thread, throwable)
         } catch (e: Exception) {
-            // 写入日志失败时，至少打印到 Logcat
-            Log.e(TAG, "写入崩溃日志失败: ${e.message}", e)
+            Log.e(TAG, "写入崩溃日志失败: ${e.javaClass.simpleName}")
         }
 
         // 传递给原默认处理器（让系统显示崩溃对话框或重启应用）
@@ -165,6 +165,7 @@ class CrashHandler private constructor(
 
         // 标题
         sb.appendLine("========== 崩溃报告 ==========")
+        sb.appendLine("注意: 本报告仅含设备信息与堆栈，不含用户对话内容。")
 
         // 时间
         sb.appendLine("时间: ${LOG_DATE_FORMAT.format(Date())}")
@@ -190,16 +191,36 @@ class CrashHandler private constructor(
         // 崩溃线程
         sb.appendLine("线程: ${thread.name}")
 
-        // 堆栈信息
-        sb.appendLine("--- 堆栈信息 ---")
+        // 异常消息（脱敏：截断至200字符）
+        val rawMessage = throwable.message ?: "无消息"
+        val sanitizedMessage = if (rawMessage.length > 200) rawMessage.take(200) + "...（已截断）" else rawMessage
+        sb.appendLine("异常: ${throwable.javaClass.simpleName}: $sanitizedMessage")
+
+        // 堆栈信息（截断至50行，避免敏感数据泄露）
+        sb.appendLine("--- 堆栈信息（已截断） ---")
         val sw = StringWriter()
         throwable.printStackTrace(PrintWriter(sw))
-        sb.append(sw.toString())
+        val lines = sw.toString().lines()
+        lines.take(50).forEach { sb.appendLine(sanitizeStackTraceLine(it)) }
+        if (lines.size > 50) {
+            sb.appendLine("... (已截断 ${lines.size - 50} 行)")
+        }
 
         // 结束标记
         sb.appendLine("===============================")
 
         return sb.toString()
+    }
+
+    /**
+     * 对堆栈行进行脱敏处理。
+     * 截断过长的行（>300字符），过滤可能包含用户输入内容的行。
+     */
+    private fun sanitizeStackTraceLine(line: String): String {
+        if (line.length > 300) {
+            return line.take(300) + "...（已截断）"
+        }
+        return line
     }
 
     /**

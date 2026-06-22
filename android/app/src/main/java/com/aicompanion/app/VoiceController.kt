@@ -314,7 +314,10 @@ class VoiceController(
     }
 
     fun speakAIContentIfNeeded(content: String) {
-        if (wasVoiceInput && content.isNotBlank()) {
+        val autoRead = AppConfig.getAutoReadAloud(context)
+        if (autoRead && content.isNotBlank()) {
+            speechManager.startSpeaking(content)
+        } else if (wasVoiceInput && content.isNotBlank()) {
             wasVoiceInput = false
             speechManager.startSpeaking(content)
         }

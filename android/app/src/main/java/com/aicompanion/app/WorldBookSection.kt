@@ -1,5 +1,7 @@
 package com.aicompanion.app
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -368,7 +370,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             activity.prefs.edit().putString("enabled_world_books", names.joinToString(",")).apply()
         } catch (e: Exception) {
             Log.e("SettingsDetail", "saveEnabledWorldBooks 失败: ${e.message}", e)
-            activity.runOnUiThread {
+            Handler(Looper.getMainLooper()).post {
                 Toast.makeText(activity, "保存世界书状态失败", Toast.LENGTH_SHORT).show()
             }
         }

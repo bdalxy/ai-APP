@@ -77,7 +77,7 @@
                 android:lineSpacingExtra="3dp"
                 android:elevation="3dp"
                 android:maxWidth="280dp"
-                android:textColor="#4A3B3A"
+                android:textColor="@color/wb_text_warm"
                 android:background="@drawable/bg_bubble_ai"
                 tools:text="这是一条AI消息示例" />
             <TextView
@@ -85,7 +85,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="11sp"
-                android:textColor="#B0C4DE"
+                android:textColor="@color/sakura_border"
                 android:layout_marginTop="2dp"
                 android:visibility="gone"
                 tools:text="12:30" />

@@ -1,224 +1,180 @@
-package com.aicompanion.app
+"""角色卡解析模块。
 
-import android.content.Context
-import android.content.SharedPreferences
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+提供 Card 数据类、CardParser 解析器和 CardParseError 异常。
+支持从 JSON 文件或字典（Kotlin 桥接层传入）构建角色卡。
+"""
 
-/**
- * 应用配置管理（EncryptedSharedPreferences）。
- *
- * API Key 使用 AES-256 加密存储，防止 root 设备直接读取。
- * 其他非敏感配置（如 Token 预设、模型选择）使用普通 SharedPreferences。
- */
-object AppConfig {
-    private const val PREFS_NAME = "ai_companion_prefs"
-    private const val SECURE_PREFS_NAME = "ai_companion_secure_prefs"
-    private const val KEY_API_KEY = "api_key"
-    private const val KEY_TOKEN_PRESET = "token_preset"
-    private const val KEY_MODEL = "model"
-    private const val KEY_CONTEXT_SIZE = "context_size"
-    private const val KEY_TEMPERATURE = "temperature"
-    private const val KEY_MAX_TOKENS = "max_tokens"
-    private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
+from __future__ import annotations
 
-    // ── 语音设置（voice）──
-    private const val KEY_TTS_SPEECH_RATE = "tts_speech_rate"
-    private const val KEY_TTS_PITCH = "tts_pitch"
-    private const val KEY_AUTO_READ_ALOUD = "auto_read_aloud"
-    private const val KEY_VOICE_RECOGNITION_LANG = "voice_recognition_lang"
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
-    /** 默认 TTS 语速 */
-    const val DEFAULT_TTS_SPEECH_RATE = 1.0f
-    /** 默认 TTS 音调 */
-    const val DEFAULT_TTS_PITCH = 1.0f
-    /** 默认语音识别语言 */
-    const val DEFAULT_VOICE_RECOGNITION_LANG = "zh-CN"
 
-    // ── 主动消息配置（proactive）──
-    private const val KEY_PROACTIVE_ENABLED = "proactive_enabled"
-    private const val KEY_PROACTIVE_INTERVAL = "proactive_interval"
-    private const val KEY_QUIET_START = "quiet_start"
-    private const val KEY_QUIET_END = "quiet_end"
+class CardParseError(Exception):
+    """角色卡解析错误。"""
 
-    // ── 主动消息间隔选项（公共常量，避免多处重复定义）──
-    val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
-    val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
-    val DEFAULT_INTERVAL_MS = 10800000L  // 默认 3 小时
-    val MIN_INTERVAL_MS = 1800000L  // 最低间隔 30 分钟
+    def __init__(self, message: str, path: str = "") -> None:
+        super().__init__(message)
+        self.path = path
 
-    /** 缓存的加密 SharedPreferences 实例（避免重复创建 MasterKey） */
-    @Volatile
-    private var cachedSecurePrefs: SharedPreferences? = null
-    private val securePrefsLock = Any()
 
-    /** 普通配置（非敏感） */
-    private fun getPrefs(context: Context): SharedPreferences {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    }
+@dataclass
+class Card:
+    """角色卡数据模型。
 
-    /** 加密配置（API Key 等敏感数据，带缓存） */
-    private fun getSecurePrefs(context: Context): SharedPreferences {
-        return cachedSecurePrefs ?: synchronized(securePrefsLock) {
-            cachedSecurePrefs ?: run {
-                val masterKey = MasterKey.Builder(context.applicationContext)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-                EncryptedSharedPreferences.create(
-                    context.applicationContext,
-                    SECURE_PREFS_NAME,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                ).also { cachedSecurePrefs = it }
-            }
-        }
-    }
+    Attributes:
+        name: 角色名称。
+        personality: 性格描述。
+        speaking_style: 说话风格。
+        backstory: 背景故事。
+        greeting: 开场白。
+        core_traits: 核心特质（逗号分隔）。
+        taboo_topics: 禁忌话题（逗号分隔）。
+        role_anchor: 角色锚点（一句话定义）。
+        avatar_uri: 头像路径。
+    """
 
-    // ── API Key（加密存储）──
+    name: str = ""
+    personality: str = ""
+    speaking_style: str = ""
+    backstory: str = ""
+    greeting: str = ""
+    core_traits: str = ""
+    taboo_topics: str = ""
+    role_anchor: str = ""
+    avatar_uri: str = ""
 
-    fun getApiKey(context: Context): String {
-        return getSecurePrefs(context).getString(KEY_API_KEY, "") ?: ""
-    }
+    # 兼容属性
+    nickname: str = ""
 
-    fun setApiKey(context: Context, key: String) {
-        getSecurePrefs(context).edit().putString(KEY_API_KEY, key).apply()
-    }
+    def __post_init__(self):
+        if not self.nickname:
+            self.nickname = self.name
 
-    fun hasApiKey(context: Context): Boolean {
-        return getApiKey(context).isNotBlank()
-    }
+    @property
+    def gender(self) -> str:
+        """角色性别（从 personality 推断，默认为"未知"）。"""
+        personality_lower = self.personality.lower()
+        if any(kw in personality_lower for kw in ["女", "她", "女性", "girl", "woman", "female"]):
+            return "女"
+        if any(kw in personality_lower for kw in ["男", "他", "男性", "boy", "man", "male"]):
+            return "男"
+        return "未知"
 
-    // ── 非敏感配置（明文存储）──
+    def to_prompt_text(self) -> str:
+        """生成用于 System Prompt 的角色卡文本。"""
+        lines = []
 
-    fun getTokenPreset(context: Context): String {
-        return getPrefs(context).getString(KEY_TOKEN_PRESET, "balanced") ?: "balanced"
-    }
+        if self.name:
+            lines.append(f"【角色名称】{self.name}")
+        if self.role_anchor:
+            lines.append(f"【角色定位】{self.role_anchor}")
+        if self.personality:
+            lines.append(f"【性格】{self.personality}")
+        if self.core_traits:
+            lines.append(f"【核心特质】{self.core_traits}")
+        if self.speaking_style:
+            lines.append(f"【说话风格】{self.speaking_style}")
+        if self.backstory:
+            lines.append(f"【背景故事】{self.backstory}")
+        if self.taboo_topics:
+            lines.append(f"【禁忌话题】{self.taboo_topics}")
+        if self.greeting:
+            lines.append(f"【开场白示例】{self.greeting}")
 
-    fun setTokenPreset(context: Context, preset: String) {
-        getPrefs(context).edit().putString(KEY_TOKEN_PRESET, preset).apply()
-    }
+        return "\n".join(lines)
 
-    fun getModel(context: Context): String {
-        return getPrefs(context).getString(KEY_MODEL, "") ?: ""
-    }
 
-    fun setModel(context: Context, model: String) {
-        getPrefs(context).edit().putString(KEY_MODEL, model).apply()
-    }
+class CardParser:
+    """角色卡解析器。
 
-    // ── 独立对话参数 ──
+    支持从 JSON 文件或字典（Kotlin 桥接层传入）解析角色卡。
+    """
 
-    fun getContextSize(context: Context): Int {
-        return getPrefs(context).getInt(KEY_CONTEXT_SIZE, 2000)
-    }
+    def from_file(self, card_path: str | Path) -> Card:
+        """从 JSON 文件加载角色卡。
 
-    fun setContextSize(context: Context, size: Int) {
-        getPrefs(context).edit().putInt(KEY_CONTEXT_SIZE, size).apply()
-    }
+        Args:
+            card_path: 角色卡 JSON 文件路径。
 
-    fun getTemperature(context: Context): Float {
-        return getPrefs(context).getFloat(KEY_TEMPERATURE, 0.7f)
-    }
+        Returns:
+            解析后的 Card 对象。
 
-    fun setTemperature(context: Context, temp: Float) {
-        getPrefs(context).edit().putFloat(KEY_TEMPERATURE, temp).apply()
-    }
+        Raises:
+            CardParseError: 解析失败时。
+            FileNotFoundError: 文件不存在时。
+        """
+        path = Path(card_path).resolve()
 
-    fun getMaxTokens(context: Context): Int {
-        return getPrefs(context).getInt(KEY_MAX_TOKENS, 1000)
-    }
+        if not path.exists():
+            raise FileNotFoundError(f"角色卡文件不存在: {path}")
 
-    fun setMaxTokens(context: Context, tokens: Int) {
-        getPrefs(context).edit().putInt(KEY_MAX_TOKENS, tokens).apply()
-    }
+        try:
+            raw_text = path.read_text(encoding="utf-8")
+        except Exception as e:
+            raise CardParseError(f"读取角色卡文件失败: {e}", str(path))
 
-    fun getExampleDialogues(context: Context): Int {
-        return getPrefs(context).getInt(KEY_EXAMPLE_DIALOGUES, 1)
-    }
+        try:
+            data = json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            raise CardParseError(f"角色卡 JSON 解析失败: {e}", str(path))
 
-    fun setExampleDialogues(context: Context, count: Int) {
-        getPrefs(context).edit().putInt(KEY_EXAMPLE_DIALOGUES, count).apply()
-    }
+        if not isinstance(data, dict):
+            raise CardParseError("角色卡数据必须是 JSON 对象", str(path))
 
-    // ── 语音设置（voice）──
+        return self._build_card(data)
 
-    fun getTtsSpeechRate(context: Context): Float {
-        return getPrefs(context).getFloat(KEY_TTS_SPEECH_RATE, DEFAULT_TTS_SPEECH_RATE)
-    }
+    def from_character_data(
+        self, char_data: dict[str, Any], output_dir: str | None = None
+    ) -> Card:
+        """从字典构建角色卡（供 Kotlin 桥接层使用）。
 
-    fun setTtsSpeechRate(context: Context, rate: Float) {
-        getPrefs(context).edit().putFloat(KEY_TTS_SPEECH_RATE, rate).apply()
-    }
+        Args:
+            char_data: 来自 Kotlin CharacterData 的字典。
+            output_dir: 可选，如果提供则同步写入 JSON 文件。
 
-    fun getTtsPitch(context: Context): Float {
-        return getPrefs(context).getFloat(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
-    }
+        Returns:
+            构建好的 Card 对象。
 
-    fun setTtsPitch(context: Context, pitch: Float) {
-        getPrefs(context).edit().putFloat(KEY_TTS_PITCH, pitch).apply()
-    }
+        Raises:
+            CardParseError: 必填字段缺失时。
+        """
+        if not isinstance(char_data, dict):
+            raise CardParseError("角色数据必须是字典类型")
 
-    fun getAutoReadAloud(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_AUTO_READ_ALOUD, false)
-    }
+        if "name" not in char_data or not char_data["name"]:
+            raise CardParseError("角色卡缺少必填字段: name")
 
-    fun setAutoReadAloud(context: Context, enabled: Boolean) {
-        getPrefs(context).edit().putBoolean(KEY_AUTO_READ_ALOUD, enabled).apply()
-    }
+        card = self._build_card(char_data)
 
-    fun getVoiceRecognitionLang(context: Context): String {
-        return getPrefs(context).getString(KEY_VOICE_RECOGNITION_LANG, DEFAULT_VOICE_RECOGNITION_LANG) ?: DEFAULT_VOICE_RECOGNITION_LANG
-    }
+        # 可选：同步写入文件
+        if output_dir:
+            output_path = Path(output_dir) / f"{card.name}.json"
+            try:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(
+                    json.dumps(char_data, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+            except Exception as e:
+                raise CardParseError(f"写入角色卡文件失败: {e}", str(output_path))
 
-    fun setVoiceRecognitionLang(context: Context, lang: String) {
-        getPrefs(context).edit().putString(KEY_VOICE_RECOGNITION_LANG, lang).apply()
-    }
+        return card
 
-    // ── 主动消息配置（proactive）──
-
-    fun getProactiveEnabled(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_PROACTIVE_ENABLED, false)
-    }
-
-    fun setProactiveEnabled(context: Context, enabled: Boolean) {
-        getPrefs(context).edit().putBoolean(KEY_PROACTIVE_ENABLED, enabled).apply()
-    }
-
-    fun getProactiveInterval(context: Context): Long {
-        return getPrefs(context).getLong(KEY_PROACTIVE_INTERVAL, DEFAULT_INTERVAL_MS)
-    }
-
-    fun setProactiveInterval(context: Context, intervalMs: Long) {
-        getPrefs(context).edit().putLong(KEY_PROACTIVE_INTERVAL, intervalMs).apply()
-    }
-
-    fun getQuietStart(context: Context): String {
-        return getPrefs(context).getString(KEY_QUIET_START, "") ?: ""
-    }
-
-    fun setQuietStart(context: Context, start: String) {
-        getPrefs(context).edit().putString(KEY_QUIET_START, start).apply()
-    }
-
-    fun getQuietEnd(context: Context): String {
-        return getPrefs(context).getString(KEY_QUIET_END, "") ?: ""
-    }
-
-    fun setQuietEnd(context: Context, end: String) {
-        getPrefs(context).edit().putString(KEY_QUIET_END, end).apply()
-    }
-
-    /** 一次性设置免打扰时段 */
-    fun setQuietHours(context: Context, start: String, end: String) {
-        getPrefs(context).edit().putString(KEY_QUIET_START, start).putString(KEY_QUIET_END, end).apply()
-    }
-
-    /** 清除免打扰时段 */
-    fun clearQuietHours(context: Context) {
-        getPrefs(context).edit().remove(KEY_QUIET_START).remove(KEY_QUIET_END).apply()
-    }
-}
-
-// NOTE: This is a placeholder — the actual file content for card_parser.py was too long.
-// The real file has been updated locally. Please rebuild with the actual content.
+    @staticmethod
+    def _build_card(data: dict[str, Any]) -> Card:
+        """从字典构建 Card 对象。"""
+        return Card(
+            name=str(data.get("name", "")),
+            personality=str(data.get("personality", "")),
+            speaking_style=str(data.get("speaking_style", data.get("speakingStyle", ""))),
+            backstory=str(data.get("backstory", "")),
+            greeting=str(data.get("greeting", "")),
+            core_traits=str(data.get("core_traits", data.get("coreTraits", ""))),
+            taboo_topics=str(data.get("taboo_topics", data.get("tabooTopics", ""))),
+            role_anchor=str(data.get("role_anchor", data.get("roleAnchor", ""))),
+            avatar_uri=str(data.get("avatar_uri", data.get("avatarUri", ""))),
+            nickname=str(data.get("nickname", data.get("name", ""))),
+        )

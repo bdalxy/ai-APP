@@ -55,7 +55,7 @@
             android:lineSpacingExtra="3dp"
             android:elevation="3dp"
             android:maxWidth="280dp"
-            android:textColor="#4A3B3A"
+            android:textColor="@color/wb_text_warm"
             android:background="@drawable/bg_bubble_user"
             tools:text="这是一条用户消息示例" />
         <LinearLayout

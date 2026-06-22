@@ -225,6 +225,19 @@ object AppConfig {
         getPrefs(context).edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
     }
 
+    // ── 主题模式 ──
+    private const val KEY_THEME_MODE = "theme_mode"
+    const val THEME_LIGHT = "light"
+    const val THEME_DARK = "dark"
+
+    fun getThemeMode(context: Context): String {
+        return getPrefs(context).getString(KEY_THEME_MODE, THEME_LIGHT) ?: THEME_LIGHT
+    }
+
+    fun setThemeMode(context: Context, mode: String) {
+        getPrefs(context).edit().putString(KEY_THEME_MODE, mode).apply()
+    }
+
     /** 清除免打扰时段 */
     fun clearQuietHours(context: Context) {
         getPrefs(context).edit().remove(KEY_QUIET_START).remove(KEY_QUIET_END).apply()

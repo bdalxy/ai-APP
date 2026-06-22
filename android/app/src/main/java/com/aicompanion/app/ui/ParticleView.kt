@@ -12,7 +12,7 @@ import android.view.animation.LinearInterpolator
 import kotlin.random.Random
 
 /**
- * 背景粒子视图 — 往世乐土主题粒子漂浮效果。
+ * 背景粒子视图 — 主题粒子漂浮效果。
  * 支持深色/亮色模式自动适配粒子颜色。
  */
 class ParticleView @JvmOverloads constructor(

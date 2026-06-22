@@ -38,6 +38,7 @@ from ._core import (
     chat_stream_cancel,
     cleanup_all_streams,
     reset,
+    restore_history,
     get_card_info,
     set_api_key,
     list_presets,
