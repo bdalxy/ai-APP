@@ -203,6 +203,14 @@ class MainActivity : AppCompatActivity() {
             override fun onStreamComplete(fullContent: String) {
                 voiceController.speakAIContentIfNeeded(fullContent)
             }
+
+            override fun onStreamSentence(sentence: String) {
+                voiceController.speakSentenceStreaming(sentence)
+            }
+
+            override fun onNewMessageSent() {
+                voiceController.stopTtsAndClear()
+            }
         }
 
         // VoiceController 回调
@@ -222,6 +230,11 @@ class MainActivity : AppCompatActivity() {
             override fun onVoiceInputTriggered() {
                 // 语音识别结果已填入输入框，wasVoiceInput 已在 VoiceController 内部标记
                 // 用户手动点击发送后会触发 TTS 自动朗读
+            }
+
+            override fun onVoiceInputReady(text: String) {
+                // 语音识别完成后自动发送
+                chatViewModel.sendMessage()
             }
 
             override fun onError(error: String) {
@@ -369,16 +382,25 @@ class MainActivity : AppCompatActivity() {
 
     // ======================== Python 初始化 ========================
 
+    /**
+     * 获取 Python 模块引用
+     * @return chat_bridge 模块的 PyObject
+     */
+    private fun initPythonModule(): com.chaquo.python.PyObject {
+        return com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+    }
+
+    /**
+     * Python 异步初始化编排入口
+     */
     private fun initializePythonAsync() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
                     binding.tvStatus.text = getString(R.string.status_initializing)
                 }
-                val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
-
-                if (!injectApiKey(module)) return@launch
-                initChatEngine(module)
+                val module = initPythonModule()
+                if (!initChatBridge(module)) return@launch
                 initMemorySystem(module)
                 val character = loadCharacterCard(module)
                 restoreWorldBooks(module)
@@ -420,6 +442,16 @@ class MainActivity : AppCompatActivity() {
             if (it.isBlank()) "" else it
         }
         module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
+    }
+
+    /**
+     * 初始化聊天桥接：注入 API Key 并配置聊天引擎
+     * @return true 成功，false 失败
+     */
+    private suspend fun initChatBridge(module: com.chaquo.python.PyObject): Boolean {
+        if (!injectApiKey(module)) return false
+        initChatEngine(module)
+        return true
     }
 
     /**

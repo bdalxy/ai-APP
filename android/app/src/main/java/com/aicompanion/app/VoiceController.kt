@@ -34,6 +34,8 @@ class VoiceController(
         fun onRecordingOverlayHide()
         fun onRecordingDurationUpdate(durationStr: String)
         fun onVoiceInputTriggered()
+        /** 语音识别完成，自动发送文本 */
+        fun onVoiceInputReady(text: String) = Unit
         fun onError(error: String)
     }
 
@@ -66,6 +68,10 @@ class VoiceController(
                 runOnUiThread {
                     binding.etInput.setText(text)
                     binding.etInput.setSelection(text.length)
+                    if (text.isNotBlank()) {
+                        wasVoiceInput = true
+                        callback?.onVoiceInputReady(text)
+                    }
                 }
             }
             override fun onSpeechError(error: String) {
@@ -321,6 +327,17 @@ class VoiceController(
             wasVoiceInput = false
             speechManager.startSpeaking(content)
         }
+    }
+
+    /** 流式句子朗读：将句子加入 TTS 队列，顺序播放 */
+    fun speakSentenceStreaming(sentence: String) {
+        if (sentence.isBlank()) return
+        speechManager.speakSentenceStreaming(sentence)
+    }
+
+    /** 停止 TTS 播放并清空句子队列（新消息到达时调用） */
+    fun stopTtsAndClear() {
+        speechManager.stopSpeakingAndClear()
     }
 
     private fun startDurationUpdater() {

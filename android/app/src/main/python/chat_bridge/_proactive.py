@@ -11,13 +11,25 @@ from ._state import _ctx
 _log = get_logger()
 
 
+def _check_python_ready() -> str | None:
+    """检查 Python 环境是否已就绪，返回错误消息或 None（表示就绪）。"""
+    if _ctx.player is None:
+        return "聊天引擎未初始化，请先调用 init()"
+    if _ctx.client is None:
+        return "API 客户端未初始化，请先调用 init()"
+    # 验证核心模块可正常导入
+    try:
+        from src.proactive.engine import ProactiveEngine  # noqa: F811
+    except ImportError as e:
+        return f"Python 主动消息模块加载失败: {e}"
+    return None
+
+
 def generate_proactive_message() -> str:
     """生成一条主动推送消息，供 WorkManager 定时调用。"""
-    if _ctx.player is None:
-        return json.dumps({"status": "error", "message": "聊天引擎未初始化，请先调用 init()"})
-
-    if _ctx.client is None:
-        return json.dumps({"status": "error", "message": "API 客户端未初始化，请先调用 init()"})
+    ready_error = _check_python_ready()
+    if ready_error is not None:
+        return json.dumps({"status": "error", "message": ready_error})
 
     try:
         engine = ProactiveEngine()

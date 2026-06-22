@@ -31,6 +31,10 @@ class SpeechManager(private val context: Context) {
     @Volatile var isSpeaking = false
         private set
 
+    /** 流式句子队列：用于逐句 TTS 朗读，保证顺序播放 */
+    private val sentenceQueue = mutableListOf<String>()
+    private var isProcessingQueue = false
+
     fun startRecording() {
         if (isRecording) { Log.w(TAG, "已在录音中，忽略重复调用"); return }
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
@@ -149,12 +153,16 @@ class SpeechManager(private val context: Context) {
                         Log.d(TAG, "SherpaTtsEngine 播放完成")
                         isSpeaking = false
                         this@SpeechManager.callback?.onSpeechDone()
+                        // 处理队列中的下一句
+                        processNextSentence()
                     }
 
                     override fun onError(error: String) {
                         Log.e(TAG, "SherpaTtsEngine 错误: $error")
                         isSpeaking = false
                         this@SpeechManager.callback?.onSpeechError(error)
+                        // 出错后继续处理队列中的下一句
+                        processNextSentence()
                     }
                 }
             }
@@ -179,6 +187,51 @@ class SpeechManager(private val context: Context) {
 
         val speed = AppConfig.getTtsSpeechRate(context)
         sherpaTts?.synthesize(text, speed)
+    }
+
+    /**
+     * 流式句子朗读：将句子加入队列，按顺序逐个播放。
+     * 与 startSpeaking 不同，此方法不会中断当前正在播放的内容。
+     */
+    fun speakSentenceStreaming(text: String) {
+        if (text.isBlank()) return
+        if (sherpaTts?.isInitialized != true) {
+            Log.w(TAG, "SherpaTtsEngine 尚未初始化，尝试初始化...")
+            initTts { ready ->
+                if (ready) speakSentenceStreaming(text)
+            }
+            return
+        }
+        synchronized(sentenceQueue) {
+            sentenceQueue.add(text)
+        }
+        if (!isProcessingQueue) {
+            processNextSentence()
+        }
+    }
+
+    /** 从队列中取出下一句并播放 */
+    private fun processNextSentence() {
+        val next: String
+        synchronized(sentenceQueue) {
+            if (sentenceQueue.isEmpty()) {
+                isProcessingQueue = false
+                return
+            }
+            next = sentenceQueue.removeAt(0)
+            isProcessingQueue = true
+        }
+        val speed = AppConfig.getTtsSpeechRate(context)
+        sherpaTts?.synthesize(next, speed)
+    }
+
+    /** 停止播放并清空句子队列（新消息到达时调用） */
+    fun stopSpeakingAndClear() {
+        synchronized(sentenceQueue) {
+            sentenceQueue.clear()
+            isProcessingQueue = false
+        }
+        stopSpeaking()
     }
 
     fun stopSpeaking() {

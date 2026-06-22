@@ -50,8 +50,12 @@ class ChatViewModel(
     interface ChatCallback {
         /** 通知 MainActivity 保存当前会话 */
         fun onConversationNeedSave()
-        /** 流式对话完成，传递完整回复内容（用于触发 TTS 朗读） */
+        /** 流式对话完成，传递完整回复内容（用于触发 TTS 朗读剩余内容） */
         fun onStreamComplete(fullContent: String)
+        /** 流式对话中检测到完整句子，逐句触发 TTS 朗读 */
+        fun onStreamSentence(sentence: String)
+        /** 用户发送新消息时，通知停止当前 TTS 播放 */
+        fun onNewMessageSent()
     }
 
     var callback: ChatCallback? = null
@@ -79,6 +83,9 @@ class ChatViewModel(
     /** 当前活跃的流式对话 ID（用于 onDestroy 清理 Python 流资源） */
     @Volatile
     private var activeStreamId: String? = null
+
+    /** 流式句子边界追踪：已处理到的字符位置（用于逐句 TTS） */
+    private var lastSentenceEnd = 0
 
     // ======================== 搜索相关 ========================
 
@@ -134,6 +141,9 @@ class ChatViewModel(
             return
         }
 
+        // 通知停止当前 TTS 播放
+        callback?.onNewMessageSent()
+
         binding.etInput.text.clear()
         updateSendButton(false)
         sendMessageStream(text)
@@ -164,6 +174,9 @@ class ChatViewModel(
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                // 重置句子边界
+                lastSentenceEnd = 0
+
                 // 启动流式对话（30秒超时保护）
                 val streamId = withTimeout(30_000L) {
                     module.callAttr("chat_stream_start", userInput)?.toString() ?: "{}"
@@ -212,10 +225,32 @@ class ChatViewModel(
                                 }
                                 lastScrollTime = now
                             }
+                            // 检测完整句子，逐句触发 TTS
+                            val currentText = fullReply.toString()
+                            while (lastSentenceEnd < currentText.length) {
+                                val sentenceEnd = findSentenceEnd(currentText, lastSentenceEnd)
+                                if (sentenceEnd < 0) break
+                                val sentence = currentText.substring(lastSentenceEnd, sentenceEnd)
+                                lastSentenceEnd = sentenceEnd
+                                if (sentence.isNotBlank()) {
+                                    runOnUiThread {
+                                        callback?.onStreamSentence(sentence)
+                                    }
+                                }
+                            }
                         }
                         "done" -> {
                             val reply = pollJson.optString("reply", fullReply.toString())
                             val finalContent = reply.ifEmpty { fullReply.toString() }
+                            // 发送最后可能残留的句子
+                            val remaining = finalContent.substring(
+                                lastSentenceEnd.coerceAtMost(finalContent.length)
+                            )
+                            if (remaining.isNotBlank()) {
+                                runOnUiThread {
+                                    callback?.onStreamSentence(remaining)
+                                }
+                            }
                             // 拆分多条消息
                             val parts = finalContent
                                 .replace("\r\n", "\n")
@@ -650,5 +685,20 @@ class ChatViewModel(
 
     private fun runOnUiThread(action: () -> Unit) {
         Handler(Looper.getMainLooper()).post(action)
+    }
+
+    /**
+     * 从指定位置查找句子结束位置。
+     * 句子结束标记：。！？!?\n（中文标点 + 英文感叹号/问号 + 换行）
+     * @return 句子结束位置（含标点），未找到返回 -1
+     */
+    private fun findSentenceEnd(text: String, startIndex: Int): Int {
+        for (i in startIndex until text.length) {
+            val ch = text[i]
+            if (ch == '。' || ch == '！' || ch == '？' || ch == '!' || ch == '?' || ch == '\n') {
+                return i + 1
+            }
+        }
+        return -1
     }
 }
