@@ -26,10 +26,11 @@ import shutil
 import sqlite3
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.memory.vector_store import VectorStore
+from src.memory.vector_store import MemoryEntry, VectorStore
 from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso
 
@@ -513,8 +514,6 @@ class MemoryBackup:
             self._store.clear()
 
             # 3. 逐条导入记忆
-            from src.memory.vector_store import MemoryEntry
-
             imported = 0
             for item in memories:
                 try:
@@ -668,7 +667,6 @@ class MemoryBackup:
 
     def _generate_backup_id(self) -> str:
         """生成备份标识符。"""
-        from datetime import datetime
         now = datetime.now()
         return now.strftime("%Y%m%d_%H%M%S")
 

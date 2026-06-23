@@ -43,6 +43,7 @@
     <string name="search_result_count">找到 %d 条匹配</string>
     <string name="status_online">在线</string>
     <string name="tv_default_character_name">默认角色</string>
+    <string name="hint_archive_older_messages">对话历史较长，较早的消息已归档</string>
 
     <!-- ===== 设置页 (activity_settings) ===== -->
     <string name="title_settings">设置</string>
@@ -242,10 +243,38 @@
 
 此操作不可撤销！</string>
 
-    <!-- ===== 记忆类型标签 ===== -->
+    <!-- ===== 记忆类型标签（5大父类） ===== -->
     <string name="label_memory_type_episodic">情景记忆</string>
     <string name="label_memory_type_semantic">语义记忆</string>
     <string name="label_memory_type_user_fact">用户事实</string>
+    <string name="label_memory_type_emotional">情感记忆</string>
+    <string name="label_memory_type_summary">摘要记忆</string>
+
+    <!-- ===== 记忆类型标签（13细粒度分类） ===== -->
+    <string name="label_memory_type_episodic_event">事件</string>
+    <string name="label_memory_type_episodic_experience">经历</string>
+    <string name="label_memory_type_episodic_activity">活动</string>
+    <string name="label_memory_type_semantic_knowledge">知识</string>
+    <string name="label_memory_type_semantic_opinion">观点</string>
+    <string name="label_memory_type_semantic_concept">概念</string>
+    <string name="label_memory_type_user_identity">身份</string>
+    <string name="label_memory_type_user_preference">偏好</string>
+    <string name="label_memory_type_user_attribute">属性</string>
+    <string name="label_memory_type_user_relationship">关系</string>
+    <string name="label_memory_type_user_status">状态</string>
+    <string name="label_memory_type_emotional_mood">情绪</string>
+    <string name="label_memory_type_emotional_sentiment">情感</string>
+
+    <!-- ===== 分类过滤标签 ===== -->
+    <string name="label_filter_all">全部</string>
+    <string name="label_section_count_format">（%d条）</string>
+
+    <!-- ===== 记忆详情对话框 ===== -->
+    <string name="title_memory_detail">记忆详情</string>
+    <string name="label_memory_content">内容</string>
+    <string name="label_memory_category">分类</string>
+    <string name="label_memory_created_at">创建时间</string>
+    <string name="label_memory_importance">重要性</string>
 
     <!-- ===== 插件管理页面 (PluginManageActivity) ===== -->
     <string name="title_plugin_manage">插件管理</string>

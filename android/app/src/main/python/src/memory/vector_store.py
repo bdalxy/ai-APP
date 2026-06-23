@@ -32,6 +32,7 @@ from threading import Lock, RLock
 
 from src.exceptions import MemoryException, MemoryNotFoundError, MemoryStorageError
 from src.utils.logger import get_logger
+from src.utils.time_utils import format_timestamp_iso
 
 
 # =============================================================================
@@ -497,7 +498,6 @@ class VectorStore:
         if not entry.id:
             entry.id = str(uuid.uuid4())
         if not entry.created_at:
-            from src.utils.time_utils import format_timestamp_iso
             entry.created_at = format_timestamp_iso()
         if not entry.last_accessed:
             entry.last_accessed = entry.created_at
@@ -797,7 +797,6 @@ class VectorStore:
         return self._get_by_ids(mem_ids)
 
     def _record_access(self, entry: MemoryEntry) -> None:
-        from src.utils.time_utils import format_timestamp_iso
         entry.access_count += 1
         entry.last_accessed = format_timestamp_iso()
         sql = f"UPDATE {self._TABLE_NAME} SET last_accessed = ?, access_count = ? WHERE id = ?"
@@ -816,7 +815,6 @@ class VectorStore:
         """
         if not entries:
             return
-        from src.utils.time_utils import format_timestamp_iso
 
         now = format_timestamp_iso()
         updates: list[tuple[str, int, str]] = []
@@ -1107,14 +1105,14 @@ class VectorStore:
 
     def list_with_rowid(
         self,
-        type_filter: str = "",
+        type_filter: str | None = None,
         offset: int = 0,
         limit: int = 50,
     ) -> list[dict]:
         """分页列出记忆，返回包含 rowid 的字典列表。
 
         Args:
-            type_filter: 记忆类型过滤。空字符串表示不过滤。
+            type_filter: 记忆类型过滤。None 表示不过滤。
             offset: 分页偏移量（从 0 开始）。
             limit: 每页最大条数。
 
@@ -1122,7 +1120,7 @@ class VectorStore:
             dict 列表，每项包含 rowid 和 MemoryEntry.to_dict() 的所有字段。
         """
         self._check_closed()
-        if type_filter:
+        if type_filter is not None:
             sql = (
                 f"SELECT rowid, * FROM {self._TABLE_NAME} "
                 f"WHERE type = ? ORDER BY rowid DESC LIMIT ? OFFSET ?"
@@ -1380,7 +1378,6 @@ class VectorStore:
         """
         self._check_closed()
         self._ensure_relations_table()
-        from src.utils.time_utils import format_timestamp_iso
         now = format_timestamp_iso()
         sql = (
             f"INSERT INTO {self._RELATIONS_TABLE} "
@@ -1509,7 +1506,6 @@ class VectorStore:
         """
         self._check_closed()
         self._ensure_tags_tables()
-        from src.utils.time_utils import format_timestamp_iso
         now = format_timestamp_iso()
         sql = (
             f"INSERT OR IGNORE INTO {_TAGS_TABLE} (name, color, created_at) "
@@ -1540,7 +1536,6 @@ class VectorStore:
         tag_id = self.add_tag(tag_name)
         if tag_id < 0:
             return
-        from src.utils.time_utils import format_timestamp_iso
         now = format_timestamp_iso()
         sql = (
             f"INSERT OR IGNORE INTO {_TAG_MAP_TABLE} (tag_id, memory_id, created_at) "
@@ -1682,7 +1677,6 @@ class VectorStore:
         """
         self._check_closed()
         self._ensure_changelog_table()
-        from src.utils.time_utils import format_timestamp_iso
         now = format_timestamp_iso()
         sql = (
             f"INSERT INTO {_CHANGELOG_TABLE} "

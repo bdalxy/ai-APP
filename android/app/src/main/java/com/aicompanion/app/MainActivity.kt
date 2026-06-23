@@ -104,6 +104,9 @@ class MainActivity : AppCompatActivity() {
             onVoiceClick = { filePath, play ->
                 if (play) voiceController.playVoiceMessage(filePath)
                 else voiceController.pauseVoiceMessage()
+            },
+            onMessagesTrimmed = {
+                binding.tvArchiveHint.visibility = View.VISIBLE
             }
         )
         binding.rvMessages.adapter = adapter

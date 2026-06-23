@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.text.SpannableString
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -30,7 +31,9 @@ class ChatAdapter(
     private val messages: MutableList<Message>,
     private val onMessageLongClick: ((Message, Int) -> Unit)? = null,
     /** 语音播放回调：(voiceFilePath, play) -> 播放/暂停 */
-    private val onVoiceClick: ((String, Boolean) -> Unit)? = null
+    private val onVoiceClick: ((String, Boolean) -> Unit)? = null,
+    /** 消息被裁剪回调：当消息数量超过上限，旧消息被移除时触发 */
+    private val onMessagesTrimmed: (() -> Unit)? = null
 ) : RecyclerView.Adapter<ChatAdapter.BaseViewHolder>() {
 
     companion object {
@@ -41,6 +44,7 @@ class ChatAdapter(
         private const val VIEW_TYPE_AI_VOICE = 3
         private const val VIEW_TYPE_USER_VOICE = 4
         private const val MAX_MESSAGES = 50
+        private const val TAG = "ChatAdapter"
 
         private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         private val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
@@ -419,8 +423,10 @@ class ChatAdapter(
      */
     fun addMessage(message: Message) {
         if (messages.size >= MAX_MESSAGES) {
+            Log.w(TAG, "消息数量达到上限($MAX_MESSAGES)，移除最早消息")
             messages.removeAt(0)
             notifyItemRemoved(0)
+            onMessagesTrimmed?.invoke()
         }
 
         // 连续消息合并：检查上一条消息

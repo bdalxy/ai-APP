@@ -31,7 +31,7 @@ from src.memory.memory_types import (
     extract_entities,
     MemoryCategory,
 )
-from src.memory.vector_store import MemoryEntry, VectorStore
+from src.memory.vector_store import MemoryEntry, VectorStore, extract_keywords
 from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso, now_cst
 
@@ -188,7 +188,7 @@ class MemoryAnalyzer:
             keywords = set(entry.keywords) if entry.keywords else set()
             if not keywords and entry.content:
                 # 回退到内容分词
-                keywords = self._simple_tokenize(entry.content)
+                keywords = set(extract_keywords(entry.content))
             entry_keywords[entry.id] = keywords
 
         # 2. 贪心聚类
@@ -329,19 +329,6 @@ class MemoryAnalyzer:
             return "、".join(w for w, _ in top_words)
 
         return content[:30]
-
-    @staticmethod
-    def _simple_tokenize(text: str) -> set[str]:
-        """简单分词：提取中文字符 bigram 作为关键词。"""
-        cleaned = re.sub(r"[^\u4e00-\u9fff\w]", "", text)
-        if not cleaned:
-            return set()
-        tokens: set[str] = set()
-        for i in range(len(cleaned) - 1):
-            tokens.add(cleaned[i:i + 2])
-        for i in range(len(cleaned) - 2):
-            tokens.add(cleaned[i:i + 3])
-        return tokens
 
     # =========================================================================
     # 用户画像

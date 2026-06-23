@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
+import com.aicompanion.app.utils.UiThread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -186,7 +187,8 @@ class ChatViewModel(
                 // 检查是否返回了错误
                 if (streamId.startsWith("{")) {
                     val errorJson = JSONObject(streamId)
-                    runOnUiThread {
+                    Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", "未知错误")}")
+                    UiThread.run {
                         adapter.updateMessage(
                             aiMsgIndex,
                             aiMsg.copy(content = "[错误] ${errorJson.optString("message", "未知错误")}")
@@ -212,13 +214,13 @@ class ChatViewModel(
                             fullReply.append(token)
                             val now = System.currentTimeMillis()
                             if (now - lastMessageUpdateTime > 50) {
-                                runOnUiThread {
+                                UiThread.run {
                                     adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
                                 }
                                 lastMessageUpdateTime = now
                             }
                             if (now - lastScrollTime > 200) {
-                                runOnUiThread {
+                                UiThread.run {
                                     if (!binding.rvMessages.canScrollVertically(1)) {
                                         binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
                                     }
@@ -233,7 +235,7 @@ class ChatViewModel(
                                 val sentence = currentText.substring(lastSentenceEnd, sentenceEnd)
                                 lastSentenceEnd = sentenceEnd
                                 if (sentence.isNotBlank()) {
-                                    runOnUiThread {
+                                    UiThread.run {
                                         callback?.onStreamSentence(sentence)
                                     }
                                 }
@@ -247,7 +249,7 @@ class ChatViewModel(
                                 lastSentenceEnd.coerceAtMost(finalContent.length)
                             )
                             if (remaining.isNotBlank()) {
-                                runOnUiThread {
+                                UiThread.run {
                                     callback?.onStreamSentence(remaining)
                                 }
                             }
@@ -258,7 +260,7 @@ class ChatViewModel(
                                 .map { it.trim() }
                                 .filter { it.isNotEmpty() }
                             if (parts.size > 1) {
-                                runOnUiThread {
+                                UiThread.run {
                                     adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
                                     val handler = Handler(Looper.getMainLooper())
                                     parts.drop(1).forEachIndexed { idx, part ->
@@ -273,7 +275,7 @@ class ChatViewModel(
                                     }, (parts.size * 300).toLong())
                                 }
                             } else {
-                                runOnUiThread {
+                                UiThread.run {
                                     adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
                                     callback?.onConversationNeedSave()
                                     callback?.onStreamComplete(finalContent)
@@ -284,7 +286,7 @@ class ChatViewModel(
                         }
                         "error" -> {
                             val errorMsg = pollJson.optString("message", "未知错误")
-                            runOnUiThread {
+                            UiThread.run {
                                 adapter.updateMessage(
                                     aiMsgIndex,
                                     aiMsg.copy(content = "[错误] $errorMsg")
@@ -305,7 +307,7 @@ class ChatViewModel(
                 }
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Python调用超时", e)
-                runOnUiThread {
+                UiThread.run {
                     adapter.updateMessage(
                         aiMsgIndex,
                         aiMsg.copy(content = "[超时] 请求超时，请检查网络后重试")
@@ -314,7 +316,7 @@ class ChatViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "流式对话失败", e)
-                runOnUiThread {
+                UiThread.run {
                     adapter.updateMessage(
                         aiMsgIndex,
                         aiMsg.copy(content = "[错误] ${e.message}")
@@ -323,7 +325,7 @@ class ChatViewModel(
                 }
             } finally {
                 isStreaming = false
-                runOnUiThread {
+                UiThread.run {
                     enableInput()
                     updateSendButton(binding.etInput.text?.isNotBlank() == true)
                 }
@@ -389,6 +391,7 @@ class ChatViewModel(
                     "删除" -> {
                         val messages = adapter.getMessages().toMutableList()
                         if (position in messages.indices) {
+                            Log.d(TAG, "删除消息: position=$position, content=${messages[position].content.take(30)}")
                             messages.removeAt(position)
                             adapter.replaceAll(messages)
                         }
@@ -674,18 +677,16 @@ class ChatViewModel(
     /** 替换全部消息（供 ConversationCoordinator 加载） */
     fun replaceMessages(messages: List<Message>) {
         adapter.replaceMessages(messages)
+        binding.tvArchiveHint.visibility = View.GONE
     }
 
     /** 清空消息列表 */
     fun clearMessages() {
         adapter.clear()
+        binding.tvArchiveHint.visibility = View.GONE
     }
 
     // ======================== 工具 ========================
-
-    private fun runOnUiThread(action: () -> Unit) {
-        Handler(Looper.getMainLooper()).post(action)
-    }
 
     /**
      * 从指定位置查找句子结束位置。

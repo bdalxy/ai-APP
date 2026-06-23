@@ -199,15 +199,26 @@ class MemoryOrchestrator:
         stored_count = 0
         for entry in entries:
             try:
-                # 3. 补充向量（失败不阻断）
-                try:
-                    embed_resp = self.client.embed_cached(entry.content)
-                    entry.embedding = embed_resp.embeddings[0]
-                except Exception as e:
-                    self._log.warning(
-                        f"[记忆存储] embedding 失败，跳过向量但继续存储: "
-                        f"content='{entry.content[:30]}...', error={e}"
-                    )
+                # 3. 补充向量（失败不阻断，最多重试 3 次）
+                embedding_success = False
+                max_embedding_retries = 3
+                for attempt in range(max_embedding_retries):
+                    try:
+                        embed_resp = self.client.embed_cached(entry.content)
+                        entry.embedding = embed_resp.embeddings[0]
+                        embedding_success = True
+                        break
+                    except Exception as e:
+                        if attempt < max_embedding_retries - 1:
+                            self._log.debug(
+                                f"[记忆存储] embedding 重试 {attempt + 1}/{max_embedding_retries}: "
+                                f"content='{entry.content[:30]}...', error={e}"
+                            )
+                        else:
+                            self._log.warning(
+                                f"[记忆存储] embedding 失败（已重试 {max_embedding_retries} 次），跳过向量但继续存储: "
+                                f"content='{entry.content[:30]}...', error={e}"
+                            )
 
                 # 4. 存储记忆
                 try:

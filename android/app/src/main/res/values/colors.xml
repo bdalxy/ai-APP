@@ -78,6 +78,8 @@
     <color name="memory_episodic">#8C82D2</color>      <!-- 柔和紫 -->
     <color name="memory_semantic">#66BB6A</color>      <!-- 柔和绿 -->
     <color name="memory_user_fact">#F0A040</color>     <!-- 柔和橙 -->
+    <color name="memory_emotional">#E57399</color>     <!-- 柔和粉 -->
+    <color name="memory_summary">#64B5F6</color>      <!-- 柔和蓝 -->
     <color name="memory_default">#9090A0</color>       <!-- 柔和灰 -->
 
     <!-- ===== 玻璃糖纸边缘高光 ===== -->

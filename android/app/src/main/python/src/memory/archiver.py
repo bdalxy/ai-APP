@@ -17,8 +17,9 @@ from __future__ import annotations
 import threading
 
 from src.api_client.deepseek import DeepSeekClient
-from src.memory.vector_store import VectorStore
+from src.memory.vector_store import MemoryEntry, VectorStore
 from src.utils.logger import get_logger
+from src.utils.time_utils import format_timestamp_iso
 
 
 class MemoryArchiver:
@@ -122,9 +123,6 @@ class MemoryArchiver:
                     [m.id for m in old_memories]
                 )
                 self._log.info(f"[归档] 已标记 {archived_count} 条记忆为已归档")
-
-                from src.memory.vector_store import MemoryEntry
-                from src.utils.time_utils import format_timestamp_iso
 
                 now = format_timestamp_iso()
                 for summary in summaries:

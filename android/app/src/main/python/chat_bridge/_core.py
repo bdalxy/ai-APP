@@ -268,7 +268,7 @@ def chat_stream_start(user_input: str) -> str:
         _log.warning(f"[chat] 上下文注入失败（不影响对话）: {e}")
 
     stream_id = str(uuid.uuid4())
-    token_queue = queue.Queue()
+    token_queue = queue.Queue(maxsize=100)
 
     with _streams_lock:
         _streams[stream_id] = {

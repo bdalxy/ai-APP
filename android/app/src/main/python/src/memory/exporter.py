@@ -12,6 +12,7 @@ from typing import Any
 
 from src.memory.vector_store import MemoryEntry
 from src.utils.logger import get_logger
+from src.utils.time_utils import format_timestamp_iso
 
 
 _EXPORT_ENCODING: str = "utf-8"
@@ -25,21 +26,13 @@ def export_chat_history(messages: list[dict[str, str]], output_path: str | Path)
     log.info(f"[导出] 开始导出对话历史: 共 {len(messages)} 条消息 -> {output_path}")
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "export_type": "chat_history",
+            "total_count": len(messages),
+            "messages": messages,
+        }
         with open(temp_path, "w", encoding=_EXPORT_ENCODING) as f:
-            f.write("{\n")
-            f.write(f'  "export_type": "chat_history",\n')
-            f.write(f'  "total_count": {len(messages)},\n')
-            f.write('  "messages": [\n')
-            for i, msg in enumerate(messages):
-                json_str = json.dumps(msg, ensure_ascii=False, indent=_INDENT)
-                indented = "\n".join(("  " + line) if line.strip() else line for line in json_str.split("\n"))
-                f.write(indented)
-                if i < len(messages) - 1:
-                    f.write(",\n")
-                else:
-                    f.write("\n")
-            f.write("  ]\n")
-            f.write("}\n")
+            json.dump(data, f, ensure_ascii=False, indent=_INDENT)
         temp_path.replace(output_path)
         log.info(f"[导出] 对话历史导出完成: {output_path}")
     except OSError as e:
@@ -61,22 +54,13 @@ def export_memories(memories: list[MemoryEntry], output_path: str | Path) -> Pat
     log.info(f"[导出] 开始导出长期记忆: 共 {len(memories)} 条 -> {output_path}")
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        memory_dicts = [m.to_dict() for m in memories]
+        data = {
+            "export_type": "memories",
+            "total_count": len(memories),
+            "memories": [m.to_dict() for m in memories],
+        }
         with open(temp_path, "w", encoding=_EXPORT_ENCODING) as f:
-            f.write("{\n")
-            f.write(f'  "export_type": "memories",\n')
-            f.write(f'  "total_count": {len(memory_dicts)},\n')
-            f.write('  "memories": [\n')
-            for i, mem_dict in enumerate(memory_dicts):
-                json_str = json.dumps(mem_dict, ensure_ascii=False, indent=_INDENT)
-                indented = "\n".join(("  " + line) if line.strip() else line for line in json_str.split("\n"))
-                f.write(indented)
-                if i < len(memory_dicts) - 1:
-                    f.write(",\n")
-                else:
-                    f.write("\n")
-            f.write("  ]\n")
-            f.write("}\n")
+            json.dump(data, f, ensure_ascii=False, indent=_INDENT)
         temp_path.replace(output_path)
         log.info(f"[导出] 长期记忆导出完成: {output_path}")
     except OSError as e:
@@ -88,7 +72,6 @@ def export_memories(memories: list[MemoryEntry], output_path: str | Path) -> Pat
 
 
 def export_full(messages: list[dict[str, str]], memories: list[MemoryEntry], output_path: str | Path) -> Path:
-    from src.utils.time_utils import format_timestamp_iso
     output_path = Path(output_path).resolve()
     temp_path = output_path.with_suffix(output_path.suffix + ".tmp")
     log = get_logger()

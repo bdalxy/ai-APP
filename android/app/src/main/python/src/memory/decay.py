@@ -111,6 +111,17 @@ def get_weight(entry: MemoryEntry, current_time: datetime | None = None) -> floa
 
 
 def update_decay(entry: MemoryEntry, current_time: datetime | None = None) -> MemoryEntry:
+    """更新记忆的衰减因子，已归档记忆跳过更新。
+
+    Args:
+        entry: 记忆条目。
+        current_time: 当前时间，默认东八区当前时间。
+
+    Returns:
+        更新后的 MemoryEntry（已归档记忆原样返回）。
+    """
+    if entry.archived:
+        return entry
     entry.decay_factor = calculate_decay(entry, current_time)
     return entry
 

@@ -374,6 +374,29 @@ class WorldBookEngine:
             return self._books[self._active_book_id]
         return None
 
+    # ---- 访问器 ----
+
+    def has_book(self, name: str) -> bool:
+        """检查指定名称的世界书是否存在。"""
+        return name in self._books
+
+    def get_book(self, name: str) -> Optional[WorldBook]:
+        """获取指定名称的世界书，不存在返回 None。"""
+        return self._books.get(name)
+
+    def get_current_round(self) -> int:
+        """获取当前对话轮次。"""
+        return self._current_round
+
+    def increment_round(self) -> int:
+        """递增并返回当前对话轮次。"""
+        self._current_round += 1
+        return self._current_round
+
+    def load_book_file(self, file_path: str) -> Optional[WorldBook]:
+        """从文件加载世界书（公开接口）。"""
+        return self._load_book(file_path)
+
     # ---- 匹配 ----
 
     def match_and_inject(self, text: str) -> str:

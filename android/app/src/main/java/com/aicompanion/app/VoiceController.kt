@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.widget.Toast
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.aicompanion.app.databinding.ActivityMainBinding
+import com.aicompanion.app.utils.UiThread
 import com.aicompanion.app.speech.SpeechManager
 import com.aicompanion.app.speech.VoicePlayer
 import com.aicompanion.app.speech.VoiceRecorder
@@ -65,7 +66,7 @@ class VoiceController(
         speechManager = SpeechManager(context)
         speechManager.callback = object : SpeechManager.SpeechCallback {
             override fun onSpeechResult(text: String) {
-                runOnUiThread {
+                UiThread.run {
                     binding.etInput.setText(text)
                     binding.etInput.setSelection(text.length)
                     if (text.isNotBlank()) {
@@ -76,7 +77,7 @@ class VoiceController(
             }
             override fun onSpeechError(error: String) {
                 Log.e(TAG, "语音识别错误: $error")
-                runOnUiThread {
+                UiThread.run {
                     Toast.makeText(context, "语音识别失败: $error", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -92,26 +93,26 @@ class VoiceController(
             override fun onStart() {
                 Log.d(TAG, "语音录制开始")
                 voiceRecordStartTime = System.currentTimeMillis()
-                runOnUiThread { callback?.onRecordingOverlayShow() }
+                UiThread.run { callback?.onRecordingOverlayShow() }
                 startDurationUpdater()
             }
             override fun onComplete(audioFilePath: String) {
                 Log.d(TAG, "语音录制完成: $audioFilePath")
-                runOnUiThread {
+                UiThread.run {
                     stopDurationUpdater()
                     callback?.onRecordingOverlayHide()
                     val durationMs = System.currentTimeMillis() - voiceRecordStartTime
                     if (durationMs < 1000) {
                         Toast.makeText(context, R.string.voice_too_short, Toast.LENGTH_SHORT).show()
                         File(audioFilePath).delete()
-                        return@runOnUiThread
+                    } else {
+                        sendVoiceMessage(audioFilePath, durationMs)
                     }
-                    sendVoiceMessage(audioFilePath, durationMs)
                 }
             }
             override fun onError(error: String) {
                 Log.e(TAG, "语音录制错误: $error")
-                runOnUiThread {
+                UiThread.run {
                     stopDurationUpdater()
                     callback?.onRecordingOverlayHide()
                     Toast.makeText(context, "录制失败: $error", Toast.LENGTH_SHORT).show()
@@ -126,7 +127,7 @@ class VoiceController(
             override fun onStart() { Log.d(TAG, "语音播放开始") }
             override fun onComplete() {
                 Log.d(TAG, "语音播放完成")
-                runOnUiThread {
+                UiThread.run {
                     val pos = adapter.playingPosition
                     if (pos >= 0) {
                         adapter.playingPosition = -1
@@ -136,7 +137,7 @@ class VoiceController(
             }
             override fun onError(error: String) {
                 Log.e(TAG, "语音播放错误: $error")
-                runOnUiThread {
+                UiThread.run {
                     val pos = adapter.playingPosition
                     if (pos >= 0) {
                         adapter.playingPosition = -1
@@ -202,7 +203,7 @@ class VoiceController(
             Toast.makeText(context, "正在聆听...", Toast.LENGTH_SHORT).show()
             lifecycleScope.launch {
                 while (speechManager.isRecording) { delay(200) }
-                runOnUiThread {
+                UiThread.run {
                     binding.btnVoice.clearColorFilter()
                     wasVoiceInput = true
                     callback?.onVoiceInputTriggered()
@@ -368,9 +369,5 @@ class VoiceController(
         recordingHandler.removeCallbacksAndMessages(null)
         callback = null
         Log.d(TAG, "语音资源释放完成")
-    }
-
-    private fun runOnUiThread(action: () -> Unit) {
-        Handler(Looper.getMainLooper()).post(action)
     }
 }
