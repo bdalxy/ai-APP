@@ -5,24 +5,33 @@
     <string name="app_name">AI Chat</string>
 
     <!-- ===== Common Button / Icon Text ===== -->
-    <string name="btn_back_arrow">Back</string>
-    <string name="btn_back_arrow_label">Back</string>
-    <string name="btn_menu">Menu</string>
-    <string name="btn_send">Send</string>
+    <string name="btn_back_arrow">←</string>
+    <string name="btn_back_arrow_label">← Back</string>
+    <string name="btn_menu">≡</string>
+    <string name="btn_send">↑</string>
     <string name="btn_new_chat">New Chat</string>
     <string name="btn_save">Save</string>
-    <string name="btn_clear">Clear</string>
-    <string name="btn_refresh">Refresh</string>
-    <string name="btn_edit">Edit</string>
-    <string name="icon_chevron">></string>
+    <string name="btn_clear">✕</string>
+    <string name="btn_refresh">↻</string>
+    <string name="btn_edit">✎</string>
+    <string name="icon_chevron">›</string>
     <string name="btn_new_character">+ New</string>
 
     <!-- ===== Common Content Description ===== -->
     <string name="cd_back">Back</string>
+    <string name="cd_display">Display</string>
+    <string name="cd_dark_mode">Dark Mode</string>
+    <string name="section_display">Display</string>
+    <string name="section_display_settings">Display Settings</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light_desc">Light sakura theme</string>
+    <string name="theme_dark_desc">Dark theme, eye-friendly and power-saving</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_search">Search</string>
     <string name="cd_clear_search">Clear search</string>
     <string name="cd_avatar">Character avatar</string>
+    <string name="cd_message_status">Message status</string>
     <string name="cd_new_character">New character</string>
     <string name="cd_save_character">Save character</string>
     <string name="cd_edit_character">Edit character</string>
@@ -33,7 +42,8 @@
     <string name="hint_search_conversation">Search conversations...</string>
     <string name="search_result_count">Found %d matches</string>
     <string name="status_online">Online</string>
-    <string name="tv_default_character_name">Xiaomei</string>
+    <string name="tv_default_character_name">Default Character</string>
+    <string name="hint_archive_older_messages">Conversation history is long, older messages have been archived</string>
 
     <!-- ===== Settings Page (activity_settings) ===== -->
     <string name="title_settings">Settings</string>
@@ -90,7 +100,8 @@
     <string name="default_max_tokens">1000</string>
     <string name="default_example_dialogues">1</string>
 
-    <!-- Proactive Messages -->
+    <!-- Notification Settings -->
+    <string name="section_notification_settings">Notification Settings</string>
     <string name="section_proactive_messages">Proactive Messages</string>
     <string name="label_proactive_toggle">Enable Proactive Messages</string>
     <string name="label_send_frequency">Send Frequency</string>
@@ -100,12 +111,23 @@
     <string name="default_proactive_interval">Every 3 hours</string>
     <string name="value_not_set">Not set</string>
 
-    <!-- Memory Management -->
+    <!-- Memory Settings -->
+    <string name="section_memory_settings">Memory Settings</string>
     <string name="label_memory_manage">AI Memory Management</string>
+    <string name="label_memory_capacity">Memory Capacity</string>
+    <string name="label_memory_dedup_threshold">Dedup Threshold</string>
+    <string name="label_memory_decay">Decay Parameter</string>
+    <string name="label_view_memories">View Memory List</string>
+    <string name="label_clear_memories">Clear All Memories</string>
     <string name="value_loading_ellipsis">...</string>
 
     <!-- About -->
     <string name="section_about">About</string>
+    <string name="section_about_settings">About</string>
+    <string name="label_open_source_license">Open Source Licenses</string>
+    <string name="label_feedback">Feedback</string>
+    <string name="label_export_data">Export Conversation History</string>
+    <string name="cd_about_settings">About</string>
     <string name="section_world_book">World Book (Knowledge Injection)</string>
     <string name="desc_world_book">Enable to provide AI with relevant background knowledge, auto-injected in related conversations</string>
     <string name="world_book_no_books">No world book data available</string>
@@ -114,7 +136,7 @@
     <string name="app_version">v1.0.0</string>
 
     <!-- Role Preset Names -->
-    <string name="preset_xiaomei">Xiaomei</string>
+    <string name="preset_xiaomei">Default Character</string>
 
     <!-- ===== Memory Management Page (activity_memory_manage) ===== -->
     <string name="title_memory_manage">AI Memories</string>
@@ -128,10 +150,18 @@
 
     <!-- ===== Character Management Page (activity_character_manage) ===== -->
     <string name="title_character_manage">Character Management</string>
+    <string name="empty_character_guide">No characters yet</string>
+    <string name="empty_character_desc">Tap the button below to create your first character</string>
 
     <!-- ===== Character Edit Page (activity_character_edit) ===== -->
     <string name="title_create_character">Create Character</string>
     <string name="title_edit_character">Edit Character</string>
+    <string name="title_create_basic">Quick Create</string>
+    <string name="title_create_pro">Pro Edit</string>
+    <string name="label_avatar">Avatar</string>
+    <string name="hint_avatar_tap">Tap to change avatar</string>
+    <string name="cd_avatar_edit">Tap to change character avatar</string>
+    <string name="toast_avatar_saved">Avatar saved</string>
     <string name="label_character_name">Character Name</string>
     <string name="hint_character_name">Give the character a name</string>
     <string name="label_personality">Personality</string>
@@ -142,16 +172,51 @@
     <string name="hint_backstory">The character\'s origin, experiences, and worldview</string>
     <string name="label_greeting">Greeting</string>
     <string name="hint_greeting">The first thing the character says when meeting the user</string>
+    <!-- P0-4 New Fields -->
+    <string name="label_core_traits">Core Traits</string>
+    <string name="hint_core_traits">Comma-separated, e.g. gentle, tsundere, reliable</string>
+    <string name="label_taboo_topics">Taboo Topics</string>
+    <string name="hint_taboo_topics">Comma-separated, e.g. politics, violence, death</string>
+    <string name="label_emotional_tendency">Emotional Tendency</string>
+    <string name="hint_emotional_tendency">Format: tone=warm, fluctuation=stable</string>
+    <string name="label_role_anchor">Role Anchor</string>
+    <string name="hint_role_anchor">Define the character\'s essence in one sentence (30-60 chars)</string>
+    <string name="label_self_identity">Self Identity</string>
+    <string name="hint_self_identity">The character\'s self-identity statement</string>
+    <!-- Basic/Pro mode switch -->
+    <string name="link_switch_to_pro">Switch to Pro mode for more details</string>
+    <string name="section_pro_fields">── Pro Fields ──</string>
+    <string name="dialog_create_mode_title">Choose Creation Mode</string>
+    <string name="dialog_create_mode_basic">Basic (Quick Create)</string>
+    <string name="dialog_create_mode_basic_desc">Only fill in core fields, start chatting immediately</string>
+    <string name="dialog_create_mode_pro">Pro (Full Edit)</string>
+    <string name="dialog_create_mode_pro_desc">Edit all fields for a detailed character</string>
+    <!-- Field hints -->
+    <string name="hint_character_name_sub">AI will call itself by this name</string>
+    <string name="hint_personality_sub">Affects AI\'s speaking style and reactions</string>
+    <string name="hint_speaking_style_sub">Defines AI\'s tone, common phrases, and expression habits</string>
+    <string name="hint_backstory_sub">The character\'s origin, experiences, and worldview</string>
+    <string name="hint_greeting_sub">The first thing AI says when starting a conversation</string>
+    <string name="hint_core_traits_sub">Comma-separated, e.g. gentle, tsundere, reliable</string>
+    <string name="hint_taboo_topics_sub">AI will avoid these topics</string>
+    <string name="hint_role_anchor_sub">Define the most core essence of the character in one sentence</string>
+    <!-- Preview button -->
+    <string name="btn_preview">Preview</string>
+    <!-- Character Preview Page -->
+    <string name="title_character_preview">Character Preview</string>
+    <string name="btn_confirm_create">Confirm Create</string>
+    <string name="btn_back_edit">Back to Edit</string>
+    <string name="label_greeting_preview">Greeting Preview</string>
 
     <!-- ===== Character Card Page (activity_character) ===== -->
     <string name="title_character_card">Character Card</string>
-    <string name="default_character_desc">A gentle and caring AI companion who loves sharing the little joys of life</string>
-    <string name="default_personality">Warm, lively, empathetic, a good listener</string>
-    <string name="default_speaking_style">Soft-spoken, uses cute interjections, occasionally mixes in Japanese phrases</string>
+    <string name="default_character_desc">Create a character card to start chatting</string>
+    <string name="default_personality">Create a character card to set personality</string>
+    <string name="default_speaking_style">Create a character card to set speaking style</string>
     <string name="label_character_switch">Character Switch</string>
-    <string name="character_option_1">Xiaomei — Sweet Girlfriend</string>
-    <string name="character_option_2">Xiaomei — Lively Sister</string>
-    <string name="character_option_3">Xiaomei — Mature Sister</string>
+    <string name="character_option_1">Create a character card</string>
+    <string name="character_option_2">Create a character card</string>
+    <string name="character_option_3">Create a character card</string>
     <string name="btn_custom_character_coming">Create Custom Character Card (Coming soon)</string>
 
     <!-- ===== Settings Card contentDescription (Accessibility) ===== -->
@@ -214,10 +279,38 @@
     <string name="title_clear_all_memories">Clear All Memories</string>
     <string name="msg_clear_all_confirm">Are you sure you want to delete all %d memories?\n\nThis action cannot be undone!</string>
 
-    <!-- ===== Memory Type Labels ===== -->
+    <!-- ===== Memory Type Labels (5 Categories) ===== -->
     <string name="label_memory_type_episodic">Episodic</string>
     <string name="label_memory_type_semantic">Semantic</string>
     <string name="label_memory_type_user_fact">User Fact</string>
+    <string name="label_memory_type_emotional">Emotional</string>
+    <string name="label_memory_type_summary">Summary</string>
+
+    <!-- ===== Memory Type Labels (13 Subcategories) ===== -->
+    <string name="label_memory_type_episodic_event">Event</string>
+    <string name="label_memory_type_episodic_experience">Experience</string>
+    <string name="label_memory_type_episodic_activity">Activity</string>
+    <string name="label_memory_type_semantic_knowledge">Knowledge</string>
+    <string name="label_memory_type_semantic_opinion">Opinion</string>
+    <string name="label_memory_type_semantic_concept">Concept</string>
+    <string name="label_memory_type_user_identity">Identity</string>
+    <string name="label_memory_type_user_preference">Preference</string>
+    <string name="label_memory_type_user_attribute">Attribute</string>
+    <string name="label_memory_type_user_relationship">Relationship</string>
+    <string name="label_memory_type_user_status">Status</string>
+    <string name="label_memory_type_emotional_mood">Mood</string>
+    <string name="label_memory_type_emotional_sentiment">Sentiment</string>
+
+    <!-- ===== Category Filter Labels ===== -->
+    <string name="label_filter_all">All</string>
+    <string name="label_section_count_format">(%d)</string>
+
+    <!-- ===== Memory Detail Dialog ===== -->
+    <string name="title_memory_detail">Memory Detail</string>
+    <string name="label_memory_content">Content</string>
+    <string name="label_memory_category">Category</string>
+    <string name="label_memory_created_at">Created At</string>
+    <string name="label_memory_importance">Importance</string>
 
     <!-- ===== Plugin Management (PluginManageActivity) ===== -->
     <string name="title_plugin_manage">Plugin Management</string>
@@ -226,6 +319,7 @@
     <string name="msg_no_plugins">No plugins available</string>
     <string name="section_plugin_manage">Plugin Management</string>
     <string name="subtitle_plugin_manage">Manage installed plugins</string>
+    <string name="label_builtin">Built-in</string>
 
     <!-- ===== Plugin Panel (bottom_sheet_plugins) ===== -->
     <string name="plugin_panel_title">Plugin Panel</string>
@@ -235,4 +329,91 @@
     <string name="plugin_web">Web</string>
     <string name="plugin_reserved">Reserved</string>
     <string name="plugin_more_coming">More plugins coming soon...</string>
+
+    <!-- ===== Voice Features ===== -->
+    <string name="cd_voice_input">Voice Input</string>
+    <string name="cd_play_voice">Play Voice</string>
+    <string name="voice_recording">Recording... Release to send, swipe up to cancel</string>
+    <string name="voice_listening">Listening...</string>
+    <string name="voice_cancel_hint">Release to cancel</string>
+    <string name="voice_too_short">Recording too short</string>
+    <string name="voice_permission_required">Microphone permission required for voice features</string>
+    <string name="voice_no_match">No speech recognized</string>
+    <string name="voice_not_available">Device does not support speech recognition</string>
+    <string name="voice_tts_not_available">TTS engine not available</string>
+    <string name="voice_tts_initializing">Voice engine initializing...</string>
+
+    <!-- ===== Memory Archive Page (activity_memory_archive) ===== -->
+    <string name="title_memory_archive">Memory Archive</string>
+    <string name="subtitle_memory_archive">Time fades, memories remain eternal</string>
+    <string name="empty_memory_archive">No memories here yet\nChat and AI will record precious moments for you</string>
+    <string name="hint_delete_memory_confirm">Release to confirm deleting this memory</string>
+    <string name="btn_confirm_shatter">Confirm Shatter</string>
+
+    <!-- ===== Voice Settings Page ===== -->
+    <string name="section_voice_settings">Voice Settings</string>
+    <string name="cd_voice_settings">Voice Settings</string>
+    <string name="label_tts_speech_rate">Speech Rate</string>
+    <string name="label_tts_pitch">Pitch</string>
+    <string name="label_auto_read_aloud">Auto-read AI replies</string>
+    <string name="label_voice_recognition_lang">Recognition Language</string>
+
+    <!-- ===== World Book Page (activity_world_book) ===== -->
+    <string name="title_world_book">World Book</string>
+    <string name="subtitle_world_book">Shared foundation of common knowledge</string>
+    <string name="desc_world_book_hint">This common knowledge is AI\'s foundation for understanding the world, not tied to any character personality</string>
+    <string name="empty_world_book">No common knowledge entries yet\nTap the quill pen in the bottom right to write your first entry</string>
+    <string name="fab_add_entry">Add Entry</string>
+    <string name="hint_entry_category">Category tag (e.g. world view, physics, history)</string>
+    <string name="hint_entry_content">Knowledge content (e.g. In this world, magic consumes mental energy)</string>
+    <string name="label_category">Category</string>
+    <string name="label_content">Content</string>
+    <string name="title_add_entry">Add Entry</string>
+    <string name="title_edit_entry">Edit Entry</string>
+    <string name="btn_save_entry">Save</string>
+    <string name="toast_entry_saved">Entry saved</string>
+    <string name="toast_entry_deleted">Entry forgotten</string>
+    <string name="toast_entry_updated">Entry updated</string>
+    <string name="toast_load_failed">Load failed</string>
+    <string name="confirm_delete_entry">Confirm forgetting this knowledge?</string>
+    <string name="cd_world_book_avatar">World Book image</string>
+    <string name="cd_world_fab">New knowledge entry</string>
+    <string name="cd_edit_entry">Edit entry</string>
+    <string name="cd_delete_entry">Forget entry</string>
+
+    <!-- ===== Onboarding ===== -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_start">Get Started</string>
+    <string name="onboarding_title_welcome">Welcome to AI Companion</string>
+    <string name="onboarding_desc_welcome">Your personal AI chat partner, all memories belong only to you</string>
+    <string name="onboarding_title_apikey">Configure AI Key</string>
+    <string name="onboarding_desc_apikey">First-time setup requires a DeepSeek API Key to power AI conversations</string>
+    <string name="onboarding_title_character">Choose Your AI Partner</string>
+    <string name="onboarding_desc_character">Create or select an AI character to start your exclusive conversation</string>
+    <string name="onboarding_title_done">All Set</string>
+    <string name="onboarding_desc_done">Your AI partner is waiting here, start chatting now</string>
+
+    <!-- ===== Crash Log (CrashLogViewerActivity) ===== -->
+    <string name="title_crash_log">Crash Log</string>
+    <string name="btn_delete_all_crash_logs">Delete All Logs</string>
+    <string name="empty_crash_logs">No crash logs</string>
+    <string name="empty_crash_logs_desc">App is running normally, no crash records</string>
+    <string name="label_crash_logs">View Crash Logs</string>
+    <string name="desc_crash_logs">View app crash records and error details</string>
+    <string name="crash_log_dialog_title">Crash Log Detected</string>
+    <string name="crash_log_dialog_message">The app crashed during the last run</string>
+    <string name="crash_log_view_detail">View Details</string>
+    <string name="crash_log_ignore">Ignore</string>
+    <string name="crash_log_copy">Copy to Clipboard</string>
+    <string name="crash_log_copied">Log copied to clipboard</string>
+    <string name="crash_log_delete_confirm">Confirm Delete</string>
+    <string name="crash_log_delete_all_confirm">Delete all crash logs?</string>
+    <string name="crash_log_detail_title">Crash Details</string>
+
+    <!-- ===== Language Settings ===== -->
+    <string name="section_language">Language</string>
+    <string name="label_language">Interface Language</string>
+    <string name="language_dialog_title">Choose Language</string>
+    <string name="language_restart_message">Please restart the app for language change to take effect</string>
 </resources>

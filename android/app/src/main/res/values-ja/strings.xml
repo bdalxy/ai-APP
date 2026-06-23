@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 日本語翻訳: AIコンパニオンアプリ -->
+<resources>
+    <!-- ===== アプリ名 ===== -->
+    <string name="app_name">AI チャット</string>
+
+    <!-- ===== 共通ボタン/アイコンテキスト ===== -->
+    <string name="btn_back_arrow">←</string>
+    <string name="btn_back_arrow_label">← 戻る</string>
+    <string name="btn_menu">≡</string>
+    <string name="btn_send">↑</string>
+    <string name="btn_new_chat">新規チャット</string>
+    <string name="btn_save">保存</string>
+    <string name="btn_clear">✕</string>
+    <string name="btn_refresh">↻</string>
+    <string name="btn_edit">✎</string>
+    <string name="icon_chevron">›</string>
+    <string name="btn_new_character">+ 新規作成</string>
+
+    <!-- ===== 共通コンテンツ説明 ===== -->
+    <string name="cd_back">戻る</string>
+    <string name="cd_display">表示</string>
+    <string name="cd_dark_mode">ダークモード</string>
+    <string name="section_display">表示設定</string>
+    <string name="section_display_settings">表示設定</string>
+    <string name="theme_light">ライトモード</string>
+    <string name="theme_dark">ダークモード</string>
+    <string name="theme_light_desc">明るい桜色のテーマを使用</string>
+    <string name="theme_dark_desc">ダークテーマ、目に優しく省電力</string>
+    <string name="cd_settings">設定</string>
+    <string name="cd_search">検索</string>
+    <string name="cd_clear_search">検索をクリア</string>
+    <string name="cd_avatar">キャラクターアイコン</string>
+    <string name="cd_message_status">メッセージ状態</string>
+    <string name="cd_new_character">新規キャラクター</string>
+    <string name="cd_save_character">キャラクターを保存</string>
+    <string name="cd_edit_character">キャラクターを編集</string>
+    <string name="cd_delete_character">キャラクターを削除</string>
+
+    <!-- ===== チャットメイン画面 (activity_main) ===== -->
+    <string name="hint_input_message">なにか話しかけてみて…</string>
+    <string name="hint_search_conversation">会話を検索…</string>
+    <string name="search_result_count">%d 件の一致</string>
+    <string name="status_online">オンライン</string>
+    <string name="tv_default_character_name">デフォルトキャラクター</string>
+    <string name="hint_archive_older_messages">会話履歴が長いため、古いメッセージはアーカイブされました</string>
+
+    <!-- ===== 設定画面 (activity_settings) ===== -->
+    <string name="title_settings">設定</string>
+
+    <!-- ステータスラベル -->
+    <string name="status_configured">設定済み</string>
+    <string name="status_not_configured">未設定</string>
+    <string name="status_enabled">オン</string>
+    <string name="status_disabled">オフ</string>
+    <string name="status_not_enabled">無効</string>
+    <string name="status_no_plugins">プラグインなし</string>
+    <string name="status_no_world_book">無効</string>
+
+    <!-- 温度ラベル -->
+    <string name="temp_conservative">保守的</string>
+    <string name="temp_moderate">普通</string>
+    <string name="temp_creative">クリエイティブ</string>
+
+    <!-- 言語ラベル -->
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ja">日本語</string>
+
+    <!-- 設定サマリー -->
+    <string name="summary_chat_format">%1$s token · 創造性%2$s · 返信%3$s文字</string>
+    <string name="summary_memory_format">%d件の長期記憶</string>
+    <string name="summary_world_book_enabled">%d冊有効</string>
+    <string name="summary_plugin_format">%1$d個インストール · %2$d個有効</string>
+    <string name="summary_quiet_time_format">おやすみモード %1$s-%2$s</string>
+    <string name="summary_quiet_time_none">おやすみモードなし</string>
+    <string name="summary_proactive_on_format">オン · %1$s · %2$s</string>
+    <string name="summary_voice_auto_read_on">自動読み上げ · %s</string>
+    <string name="summary_voice_auto_read_off">自動読み上げオフ · %s</string>
+
+    <!-- アカウント設定 -->
+    <string name="section_account_settings">アカウント設定</string>
+    <string name="label_api_key">API キー</string>
+    <string name="label_role_preset">ロールプリセット</string>
+    <string name="label_model_selection">モデル選択</string>
+    <string name="value_follow_preset">プリセットに従う</string>
+
+    <!-- 会話設定 -->
+    <string name="section_chat_settings">会話設定</string>
+    <string name="label_context_window">コンテキストウィンドウ</string>
+    <string name="label_temperature">創造性（温度）</string>
+    <string name="label_max_tokens">返信の詳細度</string>
+    <string name="label_example_dialogues">例文の数</string>
+    <string name="action_new_chat">新規会話を開始</string>
+    <string name="action_clear_memory">会話記憶をクリア</string>
+
+    <!-- 会話設定のデフォルト値 -->
+    <string name="default_context_size">2000</string>
+    <string name="default_temperature">0.7</string>
+    <string name="default_max_tokens">1000</string>
+    <string name="default_example_dialogues">1件</string>
+
+    <!-- 通知設定 -->
+    <string name="section_notification_settings">通知設定</string>
+    <string name="section_proactive_messages">プロアクティブメッセージ</string>
+    <string name="label_proactive_toggle">プロアクティブメッセージを有効にする</string>
+    <string name="label_send_frequency">送信頻度</string>
+    <string name="label_quiet_time">おやすみ時間</string>
+
+    <!-- 通知設定のデフォルト値 -->
+    <string name="default_proactive_interval">3時間ごと</string>
+    <string name="value_not_set">未設定</string>
+
+    <!-- 記憶設定 -->
+    <string name="section_memory_settings">記憶設定</string>
+    <string name="label_memory_manage">AI 記憶管理</string>
+    <string name="label_memory_capacity">記憶容量</string>
+    <string name="label_memory_dedup_threshold">重複除去閾値</string>
+    <string name="label_memory_decay">減衰パラメータ</string>
+    <string name="label_view_memories">記憶一覧を見る</string>
+    <string name="label_clear_memories">すべての記憶を消去</string>
+    <string name="value_loading_ellipsis">…</string>
+
+    <!-- バージョン情報 -->
+    <string name="section_about">バージョン情報</string>
+    <string name="section_about_settings">バージョン情報</string>
+    <string name="label_open_source_license">オープンソースライセンス</string>
+    <string name="label_feedback">フィードバック</string>
+    <string name="label_export_data">会話履歴をエクスポート</string>
+    <string name="cd_about_settings">バージョン情報</string>
+    <string name="section_world_book">ワールドブック（知識/常識注入）</string>
+    <string name="desc_world_book">チェックを入れると、AIは関連する会話で自動的に知識を注入します</string>
+    <string name="world_book_no_books">ワールドブックデータがありません</string>
+    <string name="label_world_book_entries">%d件</string>
+    <string name="label_version">バージョン番号</string>
+    <string name="app_version">v0.1.0</string>
+
+    <!-- ロールプリセット名 -->
+    <string name="preset_xiaomei">デフォルトキャラクター</string>
+
+    <!-- ===== 記憶管理画面 (activity_memory_manage) ===== -->
+    <string name="title_memory_manage">AI の記憶</string>
+    <string name="stats_total_memories">総記憶数：-- 件</string>
+    <string name="status_loading">読み込み中…</string>
+    <string name="hint_search_memories">AI の記憶を検索…</string>
+    <string name="empty_memories">AI はまだ記憶を形成していません
+    チャットすると、AI が会話から重要な情報を自動的に抽出します</string>
+    <string name="action_load_more">もっと読み込む…</string>
+    <string name="action_clear_all_memories">すべての記憶を消去</string>
+    <string name="desc_memory_ai_perspective">以下は AI の会話の記憶です（AI の視点で記録）</string>
+
+    <!-- ===== キャラクター管理画面 (activity_character_manage) ===== -->
+    <string name="title_character_manage">キャラクター管理</string>
+    <string name="empty_character_guide">まだキャラクターがいません</string>
+    <string name="empty_character_desc">下のボタンをクリックして最初のキャラクターを作成しましょう</string>
+
+    <!-- ===== キャラクター編集画面 (activity_character_edit) ===== -->
+    <string name="title_create_character">キャラクター作成</string>
+    <string name="title_edit_character">キャラクター編集</string>
+    <string name="title_create_basic">クイック作成</string>
+    <string name="title_create_pro">プロ編集</string>
+    <string name="label_avatar">キャラクターアイコン</string>
+    <string name="hint_avatar_tap">タップしてアイコンを変更</string>
+    <string name="cd_avatar_edit">タップしてキャラクターアイコンを変更</string>
+    <string name="toast_avatar_saved">アイコンを保存しました</string>
+    <string name="label_character_name">キャラクター名</string>
+    <string name="hint_character_name">キャラクターに名前を付けてください</string>
+    <string name="label_personality">性格</string>
+    <string name="hint_personality">キャラクターの性格を説明してください（例：優しい、元気、思いやりがある）</string>
+    <string name="label_speaking_style">話し方</string>
+    <string name="hint_speaking_style">話し方の特徴を説明してください（口調、よく使う言葉、話す速度など）</string>
+    <string name="label_backstory">背景ストーリー</string>
+    <string name="hint_backstory">キャラクターの出身、経歴、世界観の設定</string>
+    <string name="label_greeting">挨拶</string>
+    <string name="hint_greeting">キャラクターがユーザーに会ったときの最初の一言</string>
+    <!-- P0-4 新フィールドラベル -->
+    <string name="label_core_traits">コア特性</string>
+    <string name="hint_core_traits">カンマ区切り（例：優しい、ツンデレ、頼りになる）</string>
+    <string name="label_taboo_topics">タブートピック</string>
+    <string name="hint_taboo_topics">カンマ区切り（例：政治、暴力、死）</string>
+    <string name="label_emotional_tendency">感情傾向</string>
+    <string name="hint_emotional_tendency">形式：基調=温かい, 変動=安定</string>
+    <string name="label_role_anchor">ロールアンカー</string>
+    <string name="hint_role_anchor">一文（30〜60文字）でキャラクターの本質を定義</string>
+    <string name="label_self_identity">自己認識</string>
+    <string name="hint_self_identity">キャラクターの自己認識に関する声明</string>
+    <!-- 基本版/プロ版の切り替え -->
+    <string name="link_switch_to_pro">プロ版に切り替えて詳細を編集</string>
+    <string name="section_pro_fields">── プロ版フィールド ──</string>
+    <string name="dialog_create_mode_title">作成モードを選択</string>
+    <string name="dialog_create_mode_basic">基本版（クイック作成）</string>
+    <string name="dialog_create_mode_basic_desc">コアフィールドのみ入力、すぐに会話開始</string>
+    <string name="dialog_create_mode_pro">プロ版（完全編集）</string>
+    <string name="dialog_create_mode_pro_desc">すべてのフィールドを編集、精密なキャラクターを作成</string>
+    <!-- フィールドヒント -->
+    <string name="hint_character_name_sub">AI はこの名前で自分を呼びます</string>
+    <string name="hint_personality_sub">AI の話し方や反応に影響します</string>
+    <string name="hint_speaking_style_sub">AI の口調、よく使う言葉、表現習慣を定義</string>
+    <string name="hint_backstory_sub">キャラクターの出身、経歴、世界観の設定</string>
+    <string name="hint_greeting_sub">会話開始時に AI が話す最初の一言</string>
+    <string name="hint_core_traits_sub">カンマ区切り（例：優しい、ツンデレ、頼りになる）</string>
+    <string name="hint_taboo_topics_sub">AI はこれらの話題を避けます</string>
+    <string name="hint_role_anchor_sub">一文でキャラクターの最も核心的な本質を定義</string>
+    <!-- プレビューボタン -->
+    <string name="btn_preview">効果をプレビュー</string>
+    <!-- キャラクタープレビュー画面 -->
+    <string name="title_character_preview">キャラクタープレビュー</string>
+    <string name="btn_confirm_create">作成を確認</string>
+    <string name="btn_back_edit">戻って修正</string>
+    <string name="label_greeting_preview">挨拶プレビュー</string>
+
+    <!-- ===== キャラクターカード画面 (activity_character) ===== -->
+    <string name="title_character_card">キャラクターカード</string>
+    <string name="default_character_desc">キャラクターカードを作成して会話を始めましょう</string>
+    <string name="default_personality">キャラクターカードを作成して性格を設定しましょう</string>
+    <string name="default_speaking_style">キャラクターカードを作成して話し方を設定しましょう</string>
+    <string name="label_character_switch">キャラクター切替</string>
+    <string name="character_option_1">キャラクターカードを作成してください</string>
+    <string name="character_option_2">キャラクターカードを作成してください</string>
+    <string name="character_option_3">キャラクターカードを作成してください</string>
+    <string name="btn_custom_character_coming">カスタムキャラクターカードを作成（近日公開）</string>
+
+    <!-- ===== 設定画面カード contentDescription（アクセシビリティ） ===== -->
+    <string name="cd_account_settings">アカウント設定</string>
+    <string name="cd_chat_settings">会話設定</string>
+    <string name="cd_proactive_messages">プロアクティブメッセージ</string>
+    <string name="cd_memory_manage">記憶管理</string>
+    <string name="cd_world_book">ワールドブック</string>
+
+    <!-- ===== 共通ダイアログ/ボタンテキスト ===== -->
+    <string name="btn_cancel">キャンセル</string>
+    <string name="btn_delete">削除</string>
+    <string name="btn_confirm_clear">消去を確認</string>
+    <string name="btn_got_it">了解</string>
+    <string name="title_hint">ヒント</string>
+    <string name="label_error_prefix">[エラー]</string>
+    <string name="label_error_timeout_prefix">[タイムアウト]</string>
+    <string name="action_copy">コピー</string>
+    <string name="action_retry">再試行</string>
+    <string name="toast_copied">コピーしました</string>
+    <string name="error_unknown">不明なエラー</string>
+    <string name="error_timeout_message">リクエストがタイムアウトしました。ネットワークを確認して再試行してください</string>
+    <string name="error_timeout_short">リクエストタイムアウト</string>
+    <string name="error_send_failed">送信失敗</string>
+    <string name="snackbar_retry_format">%s、タップして再試行</string>
+    <string name="icon_loading">⏳</string>
+
+    <!-- ===== メイン画面 (MainActivity) 実行時テキスト ===== -->
+    <string name="toast_session_created">セッション「%s」を作成しました</string>
+    <string name="toast_session_deleted">セッションを削除しました</string>
+    <string name="status_initializing">初期化中…</string>
+    <string name="error_init_api_key">初期化失敗：API キーが設定されていません</string>
+    <string name="error_init_failed">初期化失敗：%s</string>
+    <string name="toast_message_too_long">メッセージが長すぎます。2000文字以内にしてください</string>
+    <string name="toast_conversation_failed">会話失敗: %s</string>
+    <string name="toast_timeout">リクエストがタイムアウトしました。ネットワークを確認して再試行してください</string>
+    <string name="toast_save_failed">会話の保存に失敗しました</string>
+    <string name="toast_load_session_failed">セッションの読み込みに失敗しました</string>
+    <string name="toast_search_failed">検索失敗: %s</string>
+    <string name="toast_export_failed">エクスポート失敗: %s</string>
+    <string name="toast_engine_not_init_export">エンジンが初期化されていません。エクスポートできません</string>
+    <string name="toast_exported_to">エクスポート先: %s</string>
+    <string name="toast_voice_permission_denied">音声入力にはマイク権限が必要です</string>
+    <string name="title_export_dialog">会話履歴をエクスポート</string>
+    <string name="label_choose_export_format">エクスポート形式を選択</string>
+    <string name="export_format_json">JSON (構造化)</string>
+    <string name="export_format_txt">TXT (プレーンテキスト)</string>
+    <string name="toast_export_success">エクスポート成功</string>
+    <string name="toast_export_no_messages">エクスポート可能な会話メッセージがありません</string>
+    <string name="toast_export_file_failed">ファイル書き込み失敗。ストレージ権限を確認してください</string>
+    <string name="chooser_share_conversation">会話履歴を共有</string>
+    <string name="label_export_chat">会話履歴をエクスポート</string>
+    <string name="desc_export_chat">現在の会話をJSONまたはTXTファイルとしてエクスポート</string>
+
+    <!-- ===== 記憶管理画面 (MemoryManageActivity) 実行時テキスト ===== -->
+    <string name="label_total_memories_format">総記憶：%d 件</string>
+    <string name="title_delete_memory">記憶を削除</string>
+    <string name="msg_delete_memory_confirm">この%1$s記憶を削除してもよろしいですか？
+
+    \"%2$s\"</string>
+    <string name="msg_no_memory_to_clear">現在消去できる記憶はありません。</string>
+    <string name="title_clear_all_memories">すべての記憶を消去</string>
+    <string name="msg_clear_all_confirm">すべての %d 件の記憶を削除してもよろしいですか？
+
+    この操作は取り消せません！</string>
+
+    <!-- ===== 記憶タイプラベル（5大分類） ===== -->
+    <string name="label_memory_type_episodic">エピソード記憶</string>
+    <string name="label_memory_type_semantic">意味記憶</string>
+    <string name="label_memory_type_user_fact">ユーザー事実</string>
+    <string name="label_memory_type_emotional">感情記憶</string>
+    <string name="label_memory_type_summary">要約記憶</string>
+
+    <!-- ===== 記憶タイプラベル（13細分類） ===== -->
+    <string name="label_memory_type_episodic_event">イベント</string>
+    <string name="label_memory_type_episodic_experience">経験</string>
+    <string name="label_memory_type_episodic_activity">活動</string>
+    <string name="label_memory_type_semantic_knowledge">知識</string>
+    <string name="label_memory_type_semantic_opinion">意見</string>
+    <string name="label_memory_type_semantic_concept">概念</string>
+    <string name="label_memory_type_user_identity">身分</string>
+    <string name="label_memory_type_user_preference">好み</string>
+    <string name="label_memory_type_user_attribute">属性</string>
+    <string name="label_memory_type_user_relationship">関係</string>
+    <string name="label_memory_type_user_status">状態</string>
+    <string name="label_memory_type_emotional_mood">気分</string>
+    <string name="label_memory_type_emotional_sentiment">感情</string>
+
+    <!-- ===== 分類フィルターラベル ===== -->
+    <string name="label_filter_all">すべて</string>
+    <string name="label_section_count_format">（%d件）</string>
+
+    <!-- ===== 記憶詳細ダイアログ ===== -->
+    <string name="title_memory_detail">記憶詳細</string>
+    <string name="label_memory_content">内容</string>
+    <string name="label_memory_category">分類</string>
+    <string name="label_memory_created_at">作成日時</string>
+    <string name="label_memory_importance">重要度</string>
+
+    <!-- ===== プラグイン管理画面 (PluginManageActivity) ===== -->
+    <string name="title_plugin_manage">プラグイン管理</string>
+    <string name="cd_plugin_manage">プラグイン管理</string>
+    <string name="cd_toggle_plugin">プラグインの状態を切り替え</string>
+    <string name="msg_no_plugins">利用可能なプラグインはありません</string>
+    <string name="section_plugin_manage">プラグイン管理</string>
+    <string name="subtitle_plugin_manage">インストール済みプラグインの管理</string>
+    <string name="label_builtin">内蔵</string>
+
+    <!-- ===== プラグインパネル (bottom_sheet_plugins) ===== -->
+    <string name="plugin_panel_title">プラグインパネル</string>
+    <string name="plugin_image">画像</string>
+    <string name="plugin_voice">音声</string>
+    <string name="plugin_game">ミニゲーム</string>
+    <string name="plugin_web">ネット検索</string>
+    <string name="plugin_reserved">予約</string>
+    <string name="plugin_more_coming">さらに多くのプラグインが近日登場…</string>
+
+    <!-- ===== 音声機能 ===== -->
+    <string name="cd_voice_input">音声入力</string>
+    <string name="cd_play_voice">音声を再生</string>
+    <string name="voice_recording">録音中…離して送信、上にスワイプでキャンセル</string>
+    <string name="voice_listening">聞いています…</string>
+    <string name="voice_cancel_hint">離してキャンセル</string>
+    <string name="voice_too_short">録音時間が短すぎます</string>
+    <string name="voice_permission_required">音声機能を使用するにはマイク権限が必要です</string>
+    <string name="voice_no_match">音声が認識されませんでした</string>
+    <string name="voice_not_available">デバイスが音声認識に対応していません</string>
+    <string name="voice_tts_not_available">TTS音声エンジンが利用できません</string>
+    <string name="voice_tts_initializing">音声エンジン初期化中…</string>
+
+    <!-- ===== 記憶アーカイブ画面 (activity_memory_archive) ===== -->
+    <string name="title_memory_archive">記憶アーカイブ</string>
+    <string name="subtitle_memory_archive">時は褪せても、記憶は永遠に</string>
+    <string name="empty_memory_archive">ここにはまだ記憶がありません
+    チャットしてみてください。AI が大切な瞬間を記録します</string>
+    <string name="hint_delete_memory_confirm">離してこの記憶の削除を確認</string>
+    <string name="btn_confirm_shatter">破壊を確認</string>
+
+    <!-- ===== 音声設定画面 ===== -->
+    <string name="section_voice_settings">音声設定</string>
+    <string name="cd_voice_settings">音声設定</string>
+    <string name="label_tts_speech_rate">話速</string>
+    <string name="label_tts_pitch">音程</string>
+    <string name="label_auto_read_aloud">AIの返信を自動読み上げ</string>
+    <string name="label_voice_recognition_lang">認識言語</string>
+
+    <!-- ===== ワールドブック画面 (activity_world_book) ===== -->
+    <string name="title_world_book">ワールドブック</string>
+    <string name="subtitle_world_book">共有の常識の基盤</string>
+    <string name="desc_world_book_hint">これらの常識は AI が世界を理解する基盤であり、特定のキャラクター人格に縛られません</string>
+    <string name="empty_world_book">ここにはまだ常識の項目がありません
+    右下の羽ペンをクリックして、最初の常識を書きましょう</string>
+    <string name="fab_add_entry">新規常識を追加</string>
+    <string name="hint_entry_category">分類タグ（例：世界観、物理法則、歴史）</string>
+    <string name="hint_entry_content">常識の内容（例：この世界では、魔法は精神力を使う）</string>
+    <string name="label_category">分類タグ</string>
+    <string name="label_content">常識の内容</string>
+    <string name="title_add_entry">常識を追加</string>
+    <string name="title_edit_entry">常識を編集</string>
+    <string name="btn_save_entry">保存</string>
+    <string name="toast_entry_saved">常識を保存しました</string>
+    <string name="toast_entry_deleted">常識を忘れました</string>
+    <string name="toast_entry_updated">常識を更新しました</string>
+    <string name="toast_load_failed">読み込み失敗</string>
+    <string name="confirm_delete_entry">この常識を忘れてもよろしいですか？</string>
+    <string name="cd_world_book_avatar">ワールドブックイメージ</string>
+    <string name="cd_world_fab">新規常識項目</string>
+    <string name="cd_edit_entry">常識を編集</string>
+    <string name="cd_delete_entry">常識を忘れる</string>
+
+    <!-- ===== オンボーディング (Onboarding) ===== -->
+    <string name="onboarding_skip">スキップ</string>
+    <string name="onboarding_next">次へ</string>
+    <string name="onboarding_start">使い始める</string>
+    <string name="onboarding_title_welcome">AIコンパニオンへようこそ</string>
+    <string name="onboarding_desc_welcome">あなただけのAI会話パートナー、すべての記憶はあなただけのものです</string>
+    <string name="onboarding_title_apikey">AIキーを設定</string>
+    <string name="onboarding_desc_apikey">初回使用時にDeepSeek APIキーを設定する必要があります</string>
+    <string name="onboarding_title_character">AIパートナーを選択</string>
+    <string name="onboarding_desc_character">AIキャラクターを作成または選択して、専属の会話を始めましょう</string>
+    <string name="onboarding_title_done">準備完了</string>
+    <string name="onboarding_desc_done">AIパートナーがここで待っています。チャットを始めましょう</string>
+
+    <!-- ===== クラッシュログ (CrashLogViewerActivity) ===== -->
+    <string name="title_crash_log">クラッシュログ</string>
+    <string name="btn_delete_all_crash_logs">すべてのログを削除</string>
+    <string name="empty_crash_logs">クラッシュログはありません</string>
+    <string name="empty_crash_logs_desc">アプリは正常に動作しています。クラッシュ記録はありません</string>
+    <string name="label_crash_logs">クラッシュログを表示</string>
+    <string name="desc_crash_logs">アプリのクラッシュ記録とエラー詳細を表示</string>
+    <string name="crash_log_dialog_title">クラッシュログを検出</string>
+    <string name="crash_log_dialog_message">前回の実行時にアプリがクラッシュしました</string>
+    <string name="crash_log_view_detail">詳細を表示</string>
+    <string name="crash_log_ignore">無視</string>
+    <string name="crash_log_copy">クリップボードにコピー</string>
+    <string name="crash_log_copied">ログをクリップボードにコピーしました</string>
+    <string name="crash_log_delete_confirm">削除を確認</string>
+    <string name="crash_log_delete_all_confirm">すべてのクラッシュログを削除してもよろしいですか</string>
+    <string name="crash_log_detail_title">クラッシュ詳細</string>
+
+    <!-- ===== 言語設定 ===== -->
+    <string name="section_language">言語 / Language</string>
+    <string name="label_language">インターフェース言語</string>
+    <string name="language_dialog_title">言語を選択</string>
+    <string name="language_restart_message">言語を切り替えるにはアプリを再起動してください</string>
+</resources>

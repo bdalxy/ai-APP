@@ -28,7 +28,7 @@ from typing import Any
 # =============================================================================
 
 class MemoryCategory(Enum):
-    """记忆分类枚举 —— 扩展自原有的三种基础类型。
+    """记忆分类枚举 —— 扩展自原有的三种基础类型（V1.2-14 简化版）。
 
     层级结构:
         EPISODIC (事件记忆)
@@ -42,15 +42,13 @@ class MemoryCategory(Enum):
             └── CONCEPT: 抽象概念（"用户理解的'幸福'定义"）
 
         USER_FACT (用户事实)
-            ├── IDENTITY: 身份信息（"用户叫李明"）
+            ├── PROFILE: 用户画像（身份+属性）— "用户叫李明"、"用户生日是1月1日"
             ├── PREFERENCE: 偏好（"用户喜欢猫"）
-            ├── ATTRIBUTE: 属性（"用户生日是1月1日"）
             ├── RELATIONSHIP: 人际关系（"用户有个妹妹叫小红"）
             └── STATUS: 状态（"用户目前在工作"）
 
         EMOTIONAL (情感记忆)
-            ├── MOOD: 情绪状态（"用户今天心情很好"）
-            └── SENTIMENT: 情感倾向（"用户对这部电影感到失望"）
+            └── STATE: 情感状态（情绪+倾向）— "用户今天心情很好"
 
         SUMMARY (摘要记忆)
             └── SUMMARY: 归档摘要（由归档器生成）
@@ -66,19 +64,25 @@ class MemoryCategory(Enum):
     SEMANTIC_OPINION = "semantic_opinion"
     SEMANTIC_CONCEPT = "semantic_concept"
 
-    # 用户事实子类
-    USER_IDENTITY = "user_identity"
+    # 用户事实子类（V1.2-14: user_identity + user_attribute → user_profile）
+    USER_PROFILE = "user_profile"
     USER_PREFERENCE = "user_preference"
-    USER_ATTRIBUTE = "user_attribute"
     USER_RELATIONSHIP = "user_relationship"
     USER_STATUS = "user_status"
 
-    # 情感记忆
-    EMOTIONAL_MOOD = "emotional_mood"
-    EMOTIONAL_SENTIMENT = "emotional_sentiment"
+    # 情感记忆（V1.2-14: emotional_mood + emotional_sentiment → emotional_state）
+    EMOTIONAL_STATE = "emotional_state"
 
-    # 摘要
+    # 摘
     SUMMARY = "summary"
+
+    # 旧分类名称 → 新分类名称映射（向后兼容）
+    _LEGACY_MAP: dict[str, str] = {
+        "user_identity": "user_profile",
+        "user_attribute": "user_profile",
+        "emotional_mood": "emotional_state",
+        "emotional_sentiment": "emotional_state",
+    }
 
     @property
     def parent_type(self) -> str:
@@ -90,26 +94,27 @@ class MemoryCategory(Enum):
             MemoryCategory.SEMANTIC_KNOWLEDGE: "semantic",
             MemoryCategory.SEMANTIC_OPINION: "semantic",
             MemoryCategory.SEMANTIC_CONCEPT: "semantic",
-            MemoryCategory.USER_IDENTITY: "user_fact",
+            MemoryCategory.USER_PROFILE: "user_fact",
             MemoryCategory.USER_PREFERENCE: "user_fact",
-            MemoryCategory.USER_ATTRIBUTE: "user_fact",
             MemoryCategory.USER_RELATIONSHIP: "user_fact",
             MemoryCategory.USER_STATUS: "user_fact",
-            MemoryCategory.EMOTIONAL_MOOD: "emotional",
-            MemoryCategory.EMOTIONAL_SENTIMENT: "emotional",
+            MemoryCategory.EMOTIONAL_STATE: "emotional",
             MemoryCategory.SUMMARY: "summary",
         }
         return mapping.get(self, "semantic")
 
     @classmethod
     def from_string(cls, s: str) -> "MemoryCategory":
-        """从字符串解析分类，兼容旧类型名称。"""
+        """从字符串解析分类，兼容旧类型名称（自动映射到新分类）。"""
+        # V1.2-14: 旧分类名称自动映射到新分类
+        if s in cls._LEGACY_MAP:
+            s = cls._LEGACY_MAP[s]
         # 旧类型名称映射
         legacy_map = {
             "episodic": cls.EPISODIC_EVENT,
             "semantic": cls.SEMANTIC_KNOWLEDGE,
-            "user_fact": cls.USER_IDENTITY,
-            "emotional": cls.EMOTIONAL_MOOD,
+            "user_fact": cls.USER_PROFILE,
+            "emotional": cls.EMOTIONAL_STATE,
             "summary": cls.SUMMARY,
         }
         if s in legacy_map:
@@ -547,9 +552,8 @@ def estimate_importance(
     # 2. 记忆类型基础分
     type_base = {
         "user_fact": 0.25,
-        "user_identity": 0.25,
+        "user_profile": 0.24,
         "user_preference": 0.22,
-        "user_attribute": 0.23,
         "user_relationship": 0.24,
         "user_status": 0.20,
         "semantic": 0.15,
@@ -561,9 +565,13 @@ def estimate_importance(
         "episodic_experience": 0.12,
         "episodic_activity": 0.08,
         "emotional": 0.18,
-        "emotional_mood": 0.16,
-        "emotional_sentiment": 0.18,
+        "emotional_state": 0.17,
         "summary": 0.20,
+        # 向后兼容旧类型名称
+        "user_identity": 0.24,
+        "user_attribute": 0.24,
+        "emotional_mood": 0.17,
+        "emotional_sentiment": 0.17,
     }
     score += type_base.get(memory_type, 0.10)
 

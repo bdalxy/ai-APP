@@ -529,6 +529,7 @@ class ContextBuilder:
         if self._config.include_types:
             type_label = {
                 "user_fact": "[事实]",
+                "user_profile": "[画像]",
                 "user_identity": "[身份]",
                 "user_preference": "[偏好]",
                 "user_attribute": "[属性]",
@@ -543,6 +544,7 @@ class ContextBuilder:
                 "semantic_opinion": "[观点]",
                 "semantic_concept": "[概念]",
                 "emotional": "[情感]",
+                "emotional_state": "[情感]",
                 "emotional_mood": "[情绪]",
                 "emotional_sentiment": "[情感]",
                 "summary": "[摘要]",

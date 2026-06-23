@@ -242,4 +242,16 @@ object AppConfig {
     fun clearQuietHours(context: Context) {
         getPrefs(context).edit().remove(KEY_QUIET_START).remove(KEY_QUIET_END).apply()
     }
+
+    // ── 应用语言 ──
+    private const val KEY_APP_LANGUAGE = "app_language"
+    const val DEFAULT_APP_LANGUAGE = "zh"
+
+    fun getAppLanguage(context: Context): String {
+        return getPrefs(context).getString(KEY_APP_LANGUAGE, DEFAULT_APP_LANGUAGE) ?: DEFAULT_APP_LANGUAGE
+    }
+
+    fun setAppLanguage(context: Context, language: String) {
+        getPrefs(context).edit().putString(KEY_APP_LANGUAGE, language).apply()
+    }
 }

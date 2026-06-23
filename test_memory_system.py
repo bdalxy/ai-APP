@@ -13,6 +13,8 @@ from __future__ import annotations
 import sys
 import os
 import json
+import time
+import random
 import traceback
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -680,6 +682,118 @@ with test("8.5 get_decay_stats 空列表"):
     stats = get_decay_stats([])
     assert stats["total"] == 0
     assert stats["avg_decay"] == 0.0
+
+
+# =============================================================================
+# 第9部分：1000+ 记忆性能测试（V1.1-17）
+# =============================================================================
+print("\n" + "=" * 70)
+print("第9部分：1000+ 记忆性能测试")
+print("=" * 70)
+
+# 性能基准
+BENCH_INSERT_1000 = 30.0    # 插入 1000 条：< 30 秒
+BENCH_SEARCH_1000 = 1.0     # 搜索 1000 条：< 1 秒
+BENCH_RETRIEVE_1000 = 3.0   # 检索 1000 条：< 3 秒
+
+# 预生成 128 维随机向量（固定种子保证可复现）
+random.seed(42)
+_TEST_EMBEDDING_128 = [random.random() for _ in range(128)]
+_TEST_EMBEDDING_256 = [random.random() for _ in range(256)]
+
+
+def _populate_1000_memories(store: VectorStore) -> None:
+    """向 VectorStore 批量插入 1000 条测试记忆。"""
+    for i in range(1000):
+        mem_types = ["episodic", "semantic", "user_fact", "emotional"]
+        entry = MemoryEntry(
+            content=f"测试记忆内容第{i}条: 用户在第{i}次对话中提到了关于测试主题{i % 100}的信息",
+            memory_type=mem_types[i % 4],
+            importance=0.3 + (i % 7) * 0.1,
+        )
+        store.add(entry)
+
+
+with test("9.1 插入 1000 条记忆性能"):
+    store = VectorStore(db_path=":memory:")
+    start = time.perf_counter()
+    _populate_1000_memories(store)
+    elapsed = time.perf_counter() - start
+    throughput = 1000 / elapsed if elapsed > 0 else 0
+    count = store.count()
+    assert count == 1000, f"应有 1000 条记忆, 实际 {count}"
+    assert elapsed < BENCH_INSERT_1000, (
+        f"插入耗时 {elapsed:.2f}s 超过基准 {BENCH_INSERT_1000}s"
+    )
+    print(f"  → 耗时: {elapsed:.3f}秒, 吞吐量: {throughput:.1f} 条/秒")
+
+
+with test("9.2 搜索 1000 条记忆性能（向量搜索）"):
+    store = VectorStore(db_path=":memory:")
+    _populate_1000_memories(store)
+    start = time.perf_counter()
+    results = store.search(_TEST_EMBEDDING_128, "测试主题", top_k=10)
+    elapsed = time.perf_counter() - start
+    assert elapsed < BENCH_SEARCH_1000, (
+        f"搜索耗时 {elapsed:.3f}s 超过基准 {BENCH_SEARCH_1000}s"
+    )
+    print(f"  → 耗时: {elapsed:.4f}秒, 返回 {len(results)} 条结果")
+
+
+with test("9.3 搜索 1000 条记忆性能（关键词搜索）"):
+    store = VectorStore(db_path=":memory:")
+    _populate_1000_memories(store)
+    start = time.perf_counter()
+    results = store.search([], "测试记忆内容", top_k=10)
+    elapsed = time.perf_counter() - start
+    assert elapsed < BENCH_SEARCH_1000, (
+        f"关键词搜索耗时 {elapsed:.3f}s 超过基准 {BENCH_SEARCH_1000}s"
+    )
+    print(f"  → 耗时: {elapsed:.4f}秒, 返回 {len(results)} 条结果")
+
+
+with test("9.4 多策略检索 1000 条记忆性能"):
+    """模拟多策略检索：向量搜索 + 关键词搜索 + 倒排索引预过滤"""
+    store = VectorStore(db_path=":memory:")
+    _populate_1000_memories(store)
+    start = time.perf_counter()
+    # 策略1: 纯向量搜索
+    results1 = store.search(_TEST_EMBEDDING_128, "", top_k=10)
+    # 策略2: 纯关键词搜索
+    results2 = store.search([], "用户对话测试", top_k=10)
+    # 策略3: 混合搜索（向量+关键词）
+    results3 = store.search(_TEST_EMBEDDING_128, "用户 对话 测试", top_k=10)
+    elapsed = time.perf_counter() - start
+    assert elapsed < BENCH_RETRIEVE_1000, (
+        f"多策略检索耗时 {elapsed:.3f}s 超过基准 {BENCH_RETRIEVE_1000}s"
+    )
+    total = len(results1) + len(results2) + len(results3)
+    print(f"  → 耗时: {elapsed:.4f}秒, 三策略共返回 {total} 条结果")
+
+
+with test("9.5 倒排索引预过滤性能"):
+    """测试倒排索引在 1000 条数据下的预过滤速度"""
+    store = VectorStore(db_path=":memory:")
+    _populate_1000_memories(store)
+    start = time.perf_counter()
+    candidate_ids = store.inverted_index.search(["测试", "记忆", "内容"])
+    elapsed = time.perf_counter() - start
+    assert elapsed < 0.5, (
+        f"倒排索引预过滤耗时 {elapsed:.3f}s 超过 0.5s"
+    )
+    print(f"  → 耗时: {elapsed:.4f}秒, 候选集大小: {len(candidate_ids)}")
+
+
+with test("9.6 1000 条记忆 count() 性能"):
+    store = VectorStore(db_path=":memory:")
+    _populate_1000_memories(store)
+    start = time.perf_counter()
+    for _ in range(100):
+        store.count()
+    elapsed = time.perf_counter() - start
+    avg = elapsed / 100
+    assert avg < 0.01, f"count() 平均耗时 {avg:.4f}s 超过 0.01s"
+    print(f"  → 100次 count() 总耗时: {elapsed:.4f}秒, 平均: {avg:.5f}秒/次")
 
 
 # =============================================================================

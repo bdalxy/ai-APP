@@ -1,5 +1,6 @@
 package com.aicompanion.app
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -13,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.Locale
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -22,6 +24,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivitySettingsBinding
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyLanguage(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +66,9 @@ class SettingsActivity : AppCompatActivity() {
         }
         binding.cardExport.setOnClickListener {
             showExportDialog()
+        }
+        binding.cardLanguage.setOnClickListener {
+            showLanguageDialog()
         }
 
         // 主题切换开关
@@ -139,6 +148,41 @@ class SettingsActivity : AppCompatActivity() {
         binding.tvVoiceSummary.text = if (autoRead) getString(R.string.summary_voice_auto_read_on, langLabel) else getString(R.string.summary_voice_auto_read_off, langLabel)
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
+        refreshLanguageSummary()
+    }
+
+    private fun refreshLanguageSummary() {
+        val langCode = LocaleHelper.getCurrentLanguage(this)
+        val langName = when (langCode) {
+            "zh" -> getString(R.string.lang_zh)
+            "en" -> getString(R.string.lang_en)
+            "ja" -> getString(R.string.lang_ja)
+            else -> langCode
+        }
+        binding.tvLanguageSummary.text = langName
+    }
+
+    private fun showLanguageDialog() {
+        val languages = LocaleHelper.SUPPORTED_LANGUAGES
+        val langNames = languages.map { it.displayName }.toTypedArray()
+        val currentLang = LocaleHelper.getCurrentLanguage(this)
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.language_dialog_title))
+            .setSingleChoiceItems(langNames, languages.indexOfFirst { it.code == currentLang }) { dialog, which ->
+                val selectedLang = languages[which].code
+                if (selectedLang != currentLang) {
+                    LocaleHelper.setLanguage(this, selectedLang)
+                    dialog.dismiss()
+                    Toast.makeText(this, getString(R.string.language_restart_message), Toast.LENGTH_LONG).show()
+                    // 重启 Activity 使语言生效
+                    recreate()
+                } else {
+                    dialog.dismiss()
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     private fun showExportDialog() {

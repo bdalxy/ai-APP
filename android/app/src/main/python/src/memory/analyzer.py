@@ -365,7 +365,7 @@ class MemoryAnalyzer:
         for entry in entries:
             mem_type = entry.memory_type
 
-            if mem_type in ("user_identity", "user_fact"):
+            if mem_type in ("user_profile", "user_identity", "user_fact"):
                 # 检查是否包含身份相关词
                 identity_keywords = ["叫", "是", "名字", "姓名", "年龄", "性别"]
                 if any(kw in entry.content for kw in identity_keywords):
@@ -376,7 +376,7 @@ class MemoryAnalyzer:
                 if any(kw in entry.content for kw in pref_keywords):
                     preferences.append(entry.content)
 
-            if mem_type in ("user_attribute", "user_fact"):
+            if mem_type in ("user_profile", "user_attribute", "user_fact"):
                 attr_keywords = ["生日", "血型", "星座", "身高", "体重", "地址", "手机"]
                 if any(kw in entry.content for kw in attr_keywords):
                     attributes.append(entry.content)
@@ -391,7 +391,7 @@ class MemoryAnalyzer:
                 if any(kw in entry.content for kw in stat_keywords):
                     status.append(entry.content)
 
-            if mem_type in ("emotional_mood", "emotional_sentiment"):
+            if mem_type in ("emotional_state", "emotional_mood", "emotional_sentiment"):
                 sentiment = analyze_sentiment(entry.content)
                 emotions.append({
                     "content": entry.content,

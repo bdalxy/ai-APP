@@ -416,4 +416,10 @@
     <string name="crash_log_delete_confirm">确认删除</string>
     <string name="crash_log_delete_all_confirm">确认删除全部崩溃日志</string>
     <string name="crash_log_detail_title">崩溃详情</string>
+
+    <!-- ===== 语言设置 ===== -->
+    <string name="section_language">语言 / Language</string>
+    <string name="label_language">界面语言</string>
+    <string name="language_dialog_title">选择语言</string>
+    <string name="language_restart_message">切换语言后请重启应用以生效</string>
 </resources>

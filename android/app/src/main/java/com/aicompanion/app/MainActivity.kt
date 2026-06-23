@@ -1,5 +1,6 @@
 package com.aicompanion.app
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -10,9 +11,6 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -23,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
+import com.aicompanion.app.views.RecordingOverlayView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +48,10 @@ class MainActivity : AppCompatActivity() {
         private const val SCROLL_BOTTOM_THRESHOLD = 3
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyLanguage(newBase))
+    }
+
     private lateinit var pythonModule: com.chaquo.python.PyObject
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: ChatAdapter
@@ -63,9 +66,7 @@ class MainActivity : AppCompatActivity() {
     // ======================== 录音覆盖层 ========================
 
     /** 录音中覆盖层 View */
-    private var recordingOverlay: View? = null
-    /** 录音覆盖层中的时长文本（用于实时更新） */
-    private var recordingDurationText: TextView? = null
+    private lateinit var recordingOverlay: RecordingOverlayView
 
     // ======================== Activity Result 回调 ========================
 
@@ -158,7 +159,9 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         chatViewModel.destroy()
         voiceController.destroy()
-        hideRecordingOverlay()
+        if (::recordingOverlay.isInitialized) {
+            recordingOverlay.hide()
+        }
     }
 
     override fun onStop() {
@@ -225,15 +228,15 @@ class MainActivity : AppCompatActivity() {
         // VoiceController 回调
         voiceController.callback = object : VoiceController.VoiceCallback {
             override fun onRecordingOverlayShow() {
-                showRecordingOverlay()
+                recordingOverlay.show()
             }
 
             override fun onRecordingOverlayHide() {
-                hideRecordingOverlay()
+                recordingOverlay.hide()
             }
 
             override fun onRecordingDurationUpdate(durationStr: String) {
-                recordingDurationText?.text = durationStr
+                recordingOverlay.updateDuration(durationStr)
             }
 
             override fun onVoiceInputTriggered() {
@@ -510,6 +513,9 @@ class MainActivity : AppCompatActivity() {
             binding.tvStatus.text = ""
             binding.tvTitle.text = character.name
             voiceController.init()
+            // 初始化录音覆盖层
+            recordingOverlay = RecordingOverlayView(this@MainActivity)
+            (binding.root as android.view.ViewGroup).addView(recordingOverlay)
             NotificationHelper.createChannel(this@MainActivity)
             ProactiveService.schedule(this@MainActivity)
             conversationCoordinator.loadConversation()
@@ -591,84 +597,5 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ======================== 录音覆盖层 UI ========================
-
-    private fun showRecordingOverlay() {
-        if (recordingOverlay != null) return
-
-        val overlay = FrameLayout(this).apply {
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(Color.argb(80, 0, 0, 0))
-            isClickable = true
-        }
-
-        val card = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            gravity = android.view.Gravity.CENTER
-            layoutParams = FrameLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { gravity = android.view.Gravity.CENTER }
-            setPadding(48, 36, 48, 36)
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(Color.argb(220, 45, 27, 58))
-                cornerRadius = 24f
-            }
-        }
-
-        // 波形图标
-        val waveIcon = ImageView(this).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(48, 48).apply {
-                gravity = android.view.Gravity.CENTER
-            }
-            setImageResource(R.drawable.ic_voice_wave)
-            setColorFilter(Color.parseColor("#FFB7C5"))
-        }
-        card.addView(waveIcon)
-
-        // 时长文本
-        val durationText = TextView(this).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 16
-                gravity = android.view.Gravity.CENTER
-            }
-            text = "0:00"
-            textSize = 28f
-            setTextColor(Color.parseColor("#FFB7C5"))
-        }
-        recordingDurationText = durationText
-        card.addView(durationText)
-
-        // 提示文字
-        val hintText = TextView(this).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 12
-                gravity = android.view.Gravity.CENTER
-            }
-            text = getString(R.string.voice_recording)
-            textSize = 14f
-            setTextColor(Color.argb(180, 255, 183, 197))
-        }
-        card.addView(hintText)
-
-        overlay.addView(card)
-        (binding.root as android.view.ViewGroup).addView(overlay)
-        recordingOverlay = overlay
-    }
-
-    private fun hideRecordingOverlay() {
-        recordingOverlay?.let { overlay ->
-            (overlay.parent as? android.view.ViewGroup)?.removeView(overlay)
-        }
-        recordingOverlay = null
-        recordingDurationText = null
-    }
+    // 已抽取为 RecordingOverlayView，通过 VoiceController 回调控制
 }
