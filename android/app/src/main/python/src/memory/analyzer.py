@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from typing import Any
 
 from src.memory.decay import get_decay_stats, _parse_iso_datetime

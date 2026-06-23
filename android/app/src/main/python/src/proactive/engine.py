@@ -97,19 +97,26 @@ class ProactiveEngine:
         if now is None:
             now = now_cst()
         recent_memories: list[str] = []
+        user_preferences: list[str] = []
         if retriever is not None:
             try:
                 recent_entries = retriever.get_recent(top_k=5)
                 recent_memories = [e.content for e in recent_entries]
             except Exception as e:
                 self._log.warning(f"[主动消息] 获取最近记忆失败: {e}")
+            try:
+                pref_entries = retriever.retrieve_by_type("偏好话题", "user_preference", top_k=5)
+                user_preferences = [e.content for e in pref_entries]
+            except Exception as e:
+                self._log.debug(f"[主动消息] 获取用户偏好失败（非关键）: {e}")
         card = role_player.card
         if card is None:
             self._log.warning("[主动消息] 角色卡未加载，无法生成主动消息")
             return None
         prompt = self._build_proactive_prompt(
             card_name=card.name, card_personality=card.personality,
-            card_speaking_style=card.speaking_style, recent_memories=recent_memories, now=now,
+            card_speaking_style=card.speaking_style, recent_memories=recent_memories,
+            user_preferences=user_preferences, now=now,
         )
         try:
             response = api_client.chat(messages=[{"role": "user", "content": prompt}], temperature=0.9, max_tokens=200)
@@ -129,7 +136,7 @@ class ProactiveEngine:
         else:
             return "晚上"
 
-    def _build_proactive_prompt(self, card_name: str, card_personality: str, card_speaking_style: str, recent_memories: list[str], now: datetime) -> str:
+    def _build_proactive_prompt(self, card_name: str, card_personality: str, card_speaking_style: str, recent_memories: list[str], user_preferences: list[str], now: datetime) -> str:
         time_period = self._get_time_period(now)
         time_str = now.strftime("%H:%M")
         time_style_map = {
@@ -142,13 +149,17 @@ class ProactiveEngine:
         if recent_memories:
             memory_lines = "\n".join(f"- {m}" for m in recent_memories[:3])
             memory_text = f"\n\n你和用户最近的互动记忆：\n{memory_lines}"
+        preference_text = ""
+        if user_preferences:
+            pref_lines = "\n".join(f"- {p}" for p in user_preferences[:5])
+            preference_text = f"\n\n用户的兴趣和偏好：\n{pref_lines}\n请优先围绕用户的兴趣偏好来发起话题，让对话更贴合用户的喜好。"
         prompt = f"""你是一个名为 {card_name} 的角色，正在和用户进行日常聊天。
 
 你的性格：{card_personality}
 你的说话风格：{card_speaking_style}
 
 现在的时间是 {time_str}，{time_period}。
-{time_style}{memory_text}
+{time_style}{memory_text}{preference_text}
 
 请以 {card_name} 的身份，主动向用户发起一段自然的对话。要求：
 1. 不要超过 3 句话，保持简洁自然。

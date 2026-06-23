@@ -45,6 +45,13 @@ class ChatViewModel(
 ) {
     companion object {
         private const val TAG = "ChatViewModel"
+        private const val MAX_MESSAGE_LENGTH = 2000
+        private const val STREAM_TIMEOUT_MS = 30_000L
+        private const val MSG_UPDATE_THROTTLE_MS = 50L
+        private const val SCROLL_THROTTLE_MS = 200L
+        private const val POLL_WAIT_MS = 30L
+        private const val SEARCH_DEBOUNCE_MS = 300L
+        private const val MULTI_PART_DELAY_MS = 300L
     }
 
     /** 回调接口：通知 MainActivity 执行协调整操作 */
@@ -114,7 +121,7 @@ class ChatViewModel(
                 searchRunnable = Runnable {
                     performSearch(s?.toString() ?: "")
                 }
-                searchHandler.postDelayed(searchRunnable!!, 300)
+                searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_MS)
             }
         })
 
@@ -135,7 +142,7 @@ class ChatViewModel(
         if (text.isEmpty() || pythonModule == null || isStreaming) return
 
         // 消息长度限制（2000字符）
-        if (text.length > 2000) {
+        if (text.length > MAX_MESSAGE_LENGTH) {
             Toast.makeText(
                 context, R.string.toast_message_too_long, Toast.LENGTH_SHORT
             ).show()
@@ -179,7 +186,7 @@ class ChatViewModel(
                 lastSentenceEnd = 0
 
                 // 启动流式对话（30秒超时保护）
-                val streamId = withTimeout(30_000L) {
+                val streamId = withTimeout(STREAM_TIMEOUT_MS) {
                     module.callAttr("chat_stream_start", userInput)?.toString() ?: "{}"
                 }
                 activeStreamId = streamId
@@ -187,11 +194,11 @@ class ChatViewModel(
                 // 检查是否返回了错误
                 if (streamId.startsWith("{")) {
                     val errorJson = JSONObject(streamId)
-                    Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", "未知错误")}")
+                    Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
                     UiThread.run {
                         adapter.updateMessage(
                             aiMsgIndex,
-                            aiMsg.copy(content = "[错误] ${errorJson.optString("message", "未知错误")}")
+                            aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
                         )
                     }
                     return@launch
@@ -202,7 +209,7 @@ class ChatViewModel(
                 var shouldContinueLoop = true
 
                 while (!isDone && isStreaming && shouldContinueLoop) {
-                    val pollResult = withTimeout(30_000L) {
+                    val pollResult = withTimeout(STREAM_TIMEOUT_MS) {
                         module.callAttr("chat_stream_poll", streamId)?.toString() ?: "{}"
                     }
                     val pollJson = JSONObject(pollResult)
@@ -213,13 +220,13 @@ class ChatViewModel(
                             val token = pollJson.optString("token", "")
                             fullReply.append(token)
                             val now = System.currentTimeMillis()
-                            if (now - lastMessageUpdateTime > 50) {
+                            if (now - lastMessageUpdateTime > MSG_UPDATE_THROTTLE_MS) {
                                 UiThread.run {
                                     adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
                                 }
                                 lastMessageUpdateTime = now
                             }
-                            if (now - lastScrollTime > 200) {
+                            if (now - lastScrollTime > SCROLL_THROTTLE_MS) {
                                 UiThread.run {
                                     if (!binding.rvMessages.canScrollVertically(1)) {
                                         binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
@@ -267,12 +274,12 @@ class ChatViewModel(
                                         handler.postDelayed({
                                             adapter.addMessage(Message(content = part, isUser = false))
                                             binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-                                        }, ((idx + 1) * 300).toLong())
+                                        }, ((idx + 1) * MULTI_PART_DELAY_MS).toLong())
                                     }
                                     handler.postDelayed({
                                         callback?.onConversationNeedSave()
                                         callback?.onStreamComplete(finalContent)
-                                    }, (parts.size * 300).toLong())
+                                    }, (parts.size * MULTI_PART_DELAY_MS).toLong())
                                 }
                             } else {
                                 UiThread.run {
@@ -285,11 +292,11 @@ class ChatViewModel(
                             isDone = true
                         }
                         "error" -> {
-                            val errorMsg = pollJson.optString("message", "未知错误")
+                            val errorMsg = pollJson.optString("message", context.getString(R.string.error_unknown))
                             UiThread.run {
                                 adapter.updateMessage(
                                     aiMsgIndex,
-                                    aiMsg.copy(content = "[错误] $errorMsg")
+                                    aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorMsg")
                                 )
                                 Toast.makeText(
                                     context,
@@ -301,7 +308,7 @@ class ChatViewModel(
                             isDone = true
                         }
                         "waiting" -> {
-                            delay(30)
+                            delay(POLL_WAIT_MS)
                         }
                     }
                 }
@@ -310,18 +317,18 @@ class ChatViewModel(
                 UiThread.run {
                     adapter.updateMessage(
                         aiMsgIndex,
-                        aiMsg.copy(content = "[超时] 请求超时，请检查网络后重试")
+                        aiMsg.copy(content = "${context.getString(R.string.label_error_timeout_prefix)} ${context.getString(R.string.error_timeout_message)}")
                     )
-                    showRetrySnackbar("请求超时")
+                    showRetrySnackbar(context.getString(R.string.error_timeout_short))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "流式对话失败", e)
                 UiThread.run {
                     adapter.updateMessage(
                         aiMsgIndex,
-                        aiMsg.copy(content = "[错误] ${e.message}")
+                        aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${e.message}")
                     )
-                    showRetrySnackbar("发送失败")
+                    showRetrySnackbar(context.getString(R.string.error_send_failed))
                 }
             } finally {
                 isStreaming = false
@@ -363,7 +370,7 @@ class ChatViewModel(
         if (isStreaming) {
             binding.btnSend.isEnabled = false
             binding.btnSend.setBackgroundResource(R.drawable.bg_send_inactive)
-            binding.btnSend.text = "⏳"
+            binding.btnSend.text = context.getString(R.string.icon_loading)
             return
         }
         binding.btnSend.isEnabled = hasText
@@ -377,18 +384,18 @@ class ChatViewModel(
     /** 显示消息长按上下文菜单 */
     fun showMessageContextMenu(message: Message, position: Int) {
         if (message.isTyping) return
-        val items = mutableListOf("复制")
-        if (message.isUser) items.add("删除")
+        val items = mutableListOf(context.getString(R.string.action_copy))
+        if (message.isUser) items.add(context.getString(R.string.btn_delete))
 
         MaterialAlertDialogBuilder(context)
             .setItems(items.toTypedArray()) { _, which ->
-                when (items[which]) {
-                    "复制" -> {
+                when (which) {
+                    0 -> {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("message", message.content))
-                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.toast_copied), Toast.LENGTH_SHORT).show()
                     }
-                    "删除" -> {
+                    1 -> {
                         val messages = adapter.getMessages().toMutableList()
                         if (position in messages.indices) {
                             Log.d(TAG, "删除消息: position=$position, content=${messages[position].content.take(30)}")
@@ -453,7 +460,7 @@ class ChatViewModel(
                     jsonArray.put(obj)
                 }
 
-                val result = withTimeout(30_000L) {
+                val result = withTimeout(STREAM_TIMEOUT_MS) {
                     module.callAttr(
                         "search_conversation", keyword, jsonArray.toString()
                     ).toString()
@@ -485,7 +492,7 @@ class ChatViewModel(
                         }
                     }
                 } else {
-                    val errorMsg = resultJson.optString("message", "未知错误")
+                    val errorMsg = resultJson.optString("message", context.getString(R.string.error_unknown))
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             context,
@@ -664,8 +671,8 @@ class ChatViewModel(
 
     /** 显示带重试按钮的 Snackbar */
     private fun showRetrySnackbar(message: String) {
-        Snackbar.make(binding.root, "$message，点击重试", Snackbar.LENGTH_LONG)
-            .setAction("重试") { retryLastMessage() }
+        Snackbar.make(binding.root, context.getString(R.string.snackbar_retry_format, message), Snackbar.LENGTH_LONG)
+            .setAction(context.getString(R.string.action_retry)) { retryLastMessage() }
             .show()
     }
 

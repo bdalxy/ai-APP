@@ -10,7 +10,7 @@ from typing import List, Optional
 
 from .plugin_base import BasePlugin
 
-_logger = logging.getLogger("PluginManager")
+_log = logging.getLogger(__name__)
 
 
 class PluginManager:
@@ -79,24 +79,24 @@ class PluginManager:
                     break
             
             if plugin is None:
-                _logger.warning(f"插件模块 {module_name} 中未找到 BasePlugin 子类")
+                _log.warning(f"插件模块 {module_name} 中未找到 BasePlugin 子类")
                 return None
             
             with self._lock:
                 # 避免重复加载
                 existing = self.get_plugin(plugin.name)
                 if existing:
-                    _logger.info(f"插件 {plugin.name} 已加载，跳过")
+                    _log.info(f"插件 {plugin.name} 已加载，跳过")
                     return existing
                 self._plugins.append(plugin)
 
             # 恢复持久化状态
             self._restore_plugin_state(plugin)
             
-            _logger.info(f"插件已加载: {plugin.name} v{plugin.version}")
+            _log.info(f"插件已加载: {plugin.name} v{plugin.version}")
             return plugin
         except Exception as e:
-            _logger.error(f"加载插件 {module_name} 失败: {e}")
+            _log.error(f"加载插件 {module_name} 失败: {e}")
             return None
 
     def load_all(self) -> int:
@@ -129,7 +129,7 @@ class PluginManager:
             for i, p in enumerate(self._plugins):
                 if p.name == name:
                     self._plugins.pop(i)
-                    _logger.info(f"插件已卸载: {name}")
+                    _log.info(f"插件已卸载: {name}")
                     return True
         return False
 
@@ -179,9 +179,9 @@ class PluginManager:
             with open(self._state_file, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2)
             self._dirty = False
-            _logger.debug("插件状态已保存到 %s", self._state_file)
+            _log.debug("插件状态已保存到 %s", self._state_file)
         except Exception as e:
-            _logger.error("保存插件状态失败: %s", e)
+            _log.error("保存插件状态失败: %s", e)
 
     def _load_state(self) -> dict:
         """从 data/plugin_state.json 读取插件状态。
@@ -191,19 +191,19 @@ class PluginManager:
             文件不存在或解析失败时返回空字典。
         """
         if not os.path.exists(self._state_file):
-            _logger.debug("插件状态文件不存在，使用默认状态")
+            _log.debug("插件状态文件不存在，使用默认状态")
             return {}
         try:
             with open(self._state_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
             plugins_state = data.get("plugins", {})
-            _logger.info("已加载 %d 个插件的持久化状态", len(plugins_state))
+            _log.info("已加载 %d 个插件的持久化状态", len(plugins_state))
             return plugins_state
         except json.JSONDecodeError as e:
-            _logger.warning("插件状态 JSON 解析失败: %s，使用默认状态", e)
+            _log.warning("插件状态 JSON 解析失败: %s，使用默认状态", e)
             return {}
         except IOError as e:
-            _logger.warning("读取插件状态文件失败: %s，使用默认状态", e)
+            _log.warning("读取插件状态文件失败: %s，使用默认状态", e)
             return {}
 
     def _restore_plugin_state(self, plugin: BasePlugin) -> None:
@@ -222,10 +222,10 @@ class PluginManager:
             plugin._install_time = state.get("install_time", plugin._install_time)
             plugin._last_call_time = state.get("last_call_time", 0.0)
             plugin._last_error = state.get("last_error", "")
-            _logger.debug("插件 %s 状态已恢复: enabled=%s, call_count=%d",
+            _log.debug("插件 %s 状态已恢复: enabled=%s, call_count=%d",
                           plugin.name, plugin.enabled, plugin._call_count)
         except Exception as e:
-            _logger.warning("恢复插件 %s 状态失败: %s", plugin.name, e)
+            _log.warning("恢复插件 %s 状态失败: %s", plugin.name, e)
 
     # ===== 启用/禁用 =====
 
@@ -243,7 +243,7 @@ class PluginManager:
         if plugin:
             plugin.enabled = enabled
             self._save_state()
-            _logger.info(f"插件 {name} {'启用' if enabled else '禁用'}")
+            _log.info(f"插件 {name} {'启用' if enabled else '禁用'}")
             return True
         return False
 
@@ -264,7 +264,7 @@ class PluginManager:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
                 self._dirty = True
-                _logger.error(f"插件 {plugin.name}.pre_process() 异常: {e}")
+                _log.error(f"插件 {plugin.name}.pre_process() 异常: {e}")
         return result
 
     def post_process(self, ai_reply: str) -> str:
@@ -282,7 +282,7 @@ class PluginManager:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
                 self._dirty = True
-                _logger.error(f"插件 {plugin.name}.post_process() 异常: {e}")
+                _log.error(f"插件 {plugin.name}.post_process() 异常: {e}")
         return result
 
     def on_turn_end(self, user_input: str, ai_reply: str) -> None:
@@ -297,7 +297,7 @@ class PluginManager:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
                 self._dirty = True
-                _logger.error(f"插件 {plugin.name}.on_turn_end() 异常: {e}")
+                _log.error(f"插件 {plugin.name}.on_turn_end() 异常: {e}")
 
     def on_memory_extracted(self, memory: dict) -> None:
         """依次调用所有已启用插件的 on_memory_extracted 钩子。"""
@@ -311,7 +311,7 @@ class PluginManager:
                 plugin._error_count += 1
                 plugin._last_error = str(e)
                 self._dirty = True
-                _logger.error(f"插件 {plugin.name}.on_memory_extracted() 异常: {e}")
+                _log.error(f"插件 {plugin.name}.on_memory_extracted() 异常: {e}")
 
     def reload(self) -> int:
         """重新加载所有插件（先卸载再加载）。

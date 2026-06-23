@@ -43,6 +43,12 @@ import org.json.JSONObject
  */
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private const val FLING_THRESHOLD = 150f
+        private const val FLING_RATIO = 1.5f
+        private const val SCROLL_BOTTOM_THRESHOLD = 3
+    }
+
     private lateinit var pythonModule: com.chaquo.python.PyObject
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: ChatAdapter
@@ -257,11 +263,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onSessionCreated(name: String) {
-                Toast.makeText(this@MainActivity, "已创建会话「${name}」", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, getString(R.string.toast_session_created, name), Toast.LENGTH_SHORT).show()
             }
 
             override fun onSessionDeleted() {
-                Toast.makeText(this@MainActivity, "会话已删除", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, R.string.toast_session_deleted, Toast.LENGTH_SHORT).show()
             }
 
             override fun onError(error: String) {
@@ -323,7 +329,7 @@ class MainActivity : AppCompatActivity() {
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                 val lastVisible = layoutManager.findLastVisibleItemPosition()
                 val totalItems = adapter.itemCount
-                binding.btnScrollBottom.visibility = if (lastVisible < totalItems - 3) {
+                binding.btnScrollBottom.visibility = if (lastVisible < totalItems - SCROLL_BOTTOM_THRESHOLD) {
                     View.VISIBLE
                 } else {
                     View.GONE
@@ -374,7 +380,7 @@ class MainActivity : AppCompatActivity() {
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
                 if (e1 == null) return false
                 val diffX = e2.x - e1.x
-                if (diffX > 150 && Math.abs(velocityX) > Math.abs(velocityY) * 1.5f && velocityX > 0) {
+                if (diffX > FLING_THRESHOLD && Math.abs(velocityX) > Math.abs(velocityY) * FLING_RATIO && velocityX > 0) {
                     openCharacterSelect()
                     return true
                 }

@@ -51,14 +51,15 @@ class TopicGenerator:
         self._log = get_logger()
         self._log.info("TopicGenerator 初始化完成")
 
-    def generate_topic(self, card: "Card", memories: list[str], time_of_day: str | None = None, api_client: "DeepSeekClient | None" = None) -> str:
+    def generate_topic(self, card: "Card", memories: list[str], time_of_day: str | None = None, api_client: "DeepSeekClient | None" = None, user_preferences: list[str] | None = None) -> str:
         if time_of_day is None:
             time_of_day = self._get_time_period(datetime.now())
         if time_of_day not in self._TIME_PERIOD_CONFIG:
             raise ValueError(f"无效的时间段: {time_of_day}")
-        self._log.info(f"[话题生成] 时间段={time_of_day}, 记忆数={len(memories)}, API={'可用' if api_client else '不可用'}")
+        prefs = user_preferences or []
+        self._log.info(f"[话题生成] 时间段={time_of_day}, 记忆数={len(memories)}, 偏好数={len(prefs)}, API={'可用' if api_client else '不可用'}")
         if api_client is not None:
-            return self._generate_with_ai(card, memories, time_of_day, api_client)
+            return self._generate_with_ai(card, memories, time_of_day, api_client, prefs)
         else:
             return self._generate_with_template(card, time_of_day)
 
@@ -81,17 +82,21 @@ class TopicGenerator:
         else:
             return "晚上"
 
-    def _generate_with_ai(self, card: "Card", memories: list[str], time_of_day: str, api_client: "DeepSeekClient") -> str:
+    def _generate_with_ai(self, card: "Card", memories: list[str], time_of_day: str, api_client: "DeepSeekClient", user_preferences: list[str]) -> str:
         config = self._TIME_PERIOD_CONFIG[time_of_day]
         memory_text = ""
         if memories:
             memory_lines = "\n".join(f"- {m}" for m in memories[:3])
             memory_text = f"\n\n你和用户最近的互动记忆：\n{memory_lines}"
+        preference_text = ""
+        if user_preferences:
+            pref_lines = "\n".join(f"- {p}" for p in user_preferences[:5])
+            preference_text = f"\n\n用户的兴趣和偏好：\n{pref_lines}\n请优先围绕用户的兴趣偏好来发起话题。"
         prompt = f"""你是一个名为 {card.name} 的角色，性格是{card.personality}，说话风格是{card.speaking_style}。
 
 当前是{time_of_day}，你需要主动发起话题。
 话题方向：{config['topic_direction']}
-风格要求：{config['style']}{memory_text}
+风格要求：{config['style']}{memory_text}{preference_text}
 
 请生成一段自然的话题开场白，不超过3句话。
 要求：

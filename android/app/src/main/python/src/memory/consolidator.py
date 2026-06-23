@@ -23,7 +23,6 @@
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from typing import Any
 
@@ -54,6 +53,9 @@ class MemoryConsolidator:
         1. 相似合并：两条记忆内容高度相似（> 0.85），合并为一条更完整的记忆。
         2. 冲突合并：两条记忆矛盾，新记忆取代旧记忆（旧记忆标记为 archived）。
         3. 批量合并：周期性扫描记忆库，对相似记忆进行批量合并。
+
+    注意：重要性重评估（reassess_importance）已迁移至 MemoryLifecycle.recalibrate_importance()，
+    以避免与 lifecycle.py 中的功能重复。lifecycle 版本更全面（含访问频率、衰减、情感、时间老化）。
 
     Attributes:
         SIMILARITY_THRESHOLD: 触发合并的相似度阈值（默认 0.85）。
@@ -405,107 +407,6 @@ class MemoryConsolidator:
         }
 
     # =========================================================================
-    # 重要性动态重评估
+    # 重要性重评估已迁移至 MemoryLifecycle.recalibrate_importance()
+    # 该方法的更全面版本（含访问频率、衰减、情感、时间老化）在 lifecycle.py 中。
     # =========================================================================
-
-    def reassess_importance(
-        self,
-        max_entries: int = 100,
-    ) -> dict[str, int]:
-        """定期重新评估记忆重要性。
-
-        根据以下规则调整重要性：
-            - 频繁访问（access_count > 5）：+0.1
-            - 超过30天未访问：-0.1
-            - 被关系引用（有 memory_relations 关联）：+0.05（最多+0.1）
-            - 总调整范围：-0.2 ~ +0.2
-
-        此方法应在维护周期中调用，保持记忆重要性的时效性。
-
-        Args:
-            max_entries: 最多处理记忆数。
-
-        Returns:
-            统计字典: {"adjusted": int, "increased": int, "decreased": int}。
-        """
-        entries = self._store.get_recent_entries(max_entries)
-        if not entries:
-            return {"adjusted": 0, "increased": 0, "decreased": 0}
-
-        from datetime import datetime, timezone, timedelta
-        now = datetime.now(timezone(timedelta(hours=8)))
-        adjusted = 0
-        increased = 0
-        decreased = 0
-
-        for entry in entries:
-            old_importance = entry.importance
-            new_importance = old_importance
-
-            # 1. 频繁访问加成
-            if entry.access_count > 5:
-                new_importance += 0.1
-
-            # 2. 长期未访问衰减
-            if entry.last_accessed:
-                try:
-                    # 解析 last_accessed 时间
-                    last_dt = None
-                    for fmt in [
-                        "%Y-%m-%dT%H:%M:%S.%f%z",
-                        "%Y-%m-%dT%H:%M:%S%z",
-                        "%Y-%m-%dT%H:%M:%S.%f",
-                        "%Y-%m-%dT%H:%M:%S",
-                    ]:
-                        try:
-                            last_dt = datetime.strptime(entry.last_accessed, fmt)
-                            if last_dt.tzinfo is None:
-                                last_dt = last_dt.replace(tzinfo=timezone(timedelta(hours=8)))
-                            break
-                        except ValueError:
-                            continue
-                    if last_dt:
-                        elapsed_days = (now - last_dt).total_seconds() / 86400
-                        if elapsed_days > 30:
-                            new_importance -= 0.1
-                except Exception:
-                    pass
-
-            # 3. 被关系引用加成
-            try:
-                relations = self._store.get_relations(entry.id)
-                if relations:
-                    # 每条关系 +0.05，最多 +0.1
-                    rel_boost = min(len(relations) * 0.05, 0.1)
-                    new_importance += rel_boost
-            except Exception:
-                pass
-
-            # 4. 限制调整范围
-            delta = new_importance - old_importance
-            delta = max(-0.2, min(0.2, delta))
-            new_importance = old_importance + delta
-            new_importance = max(0.0, min(1.0, new_importance))
-
-            if abs(new_importance - old_importance) > 0.01:
-                try:
-                    self._store.update_importance(entry.id, new_importance)
-                    adjusted += 1
-                    if new_importance > old_importance:
-                        increased += 1
-                    else:
-                        decreased += 1
-                except Exception as e:
-                    self._log.debug(f"[重要性重评估] 更新失败: {e}")
-
-        if adjusted > 0:
-            self._log.info(
-                f"[重要性重评估] 完成: 调整 {adjusted} 条 "
-                f"(增加 {increased}, 减少 {decreased})"
-            )
-
-        return {
-            "adjusted": adjusted,
-            "increased": increased,
-            "decreased": decreased,
-        }

@@ -83,23 +83,23 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun refreshUI() {
         val apiKey = AppConfig.getApiKey(this)
-        val apiStatus = if (apiKey.isNotEmpty()) "已配置" else "未配置"
+        val apiStatus = if (apiKey.isNotEmpty()) getString(R.string.status_configured) else getString(R.string.status_not_configured)
         val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
         binding.tvAccountSummary.text = "$apiStatus · $model"
 
         val ctxSize = AppConfig.getContextSize(this)
         val temp = AppConfig.getTemperature(this)
-        val tempLabel = when { temp <= 0.5f -> "保守"; temp >= 0.9f -> "创意"; else -> "中等" }
+        val tempLabel = when { temp <= 0.5f -> getString(R.string.temp_conservative); temp >= 0.9f -> getString(R.string.temp_creative); else -> getString(R.string.temp_moderate) }
         val maxTk = AppConfig.getMaxTokens(this)
-        binding.tvChatSummary.text = "${ctxSize} token · 创意度${tempLabel} · 回复${maxTk}字"
+        binding.tvChatSummary.text = getString(R.string.summary_chat_format, ctxSize.toString(), tempLabel, maxTk.toString())
 
         val enabled = AppConfig.getProactiveEnabled(this)
         val intervalMs = AppConfig.getProactiveInterval(this)
         val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
         val start = AppConfig.getQuietStart(this)
         val end = AppConfig.getQuietEnd(this)
-        val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "免打扰 $start-$end" else "无免打扰"
-        binding.tvNotificationSummary.text = if (enabled) "已开启 · $intervalLabel · $quietLabel" else "已关闭"
+        val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) getString(R.string.summary_quiet_time_format, start, end) else getString(R.string.summary_quiet_time_none)
+        binding.tvNotificationSummary.text = if (enabled) getString(R.string.summary_proactive_on_format, intervalLabel, quietLabel) else getString(R.string.status_disabled)
 
         lifecycleScope.launch(Dispatchers.IO) {
             val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
@@ -107,9 +107,9 @@ class SettingsActivity : AppCompatActivity() {
                 val result = module?.callAttr("get_memory_stats")?.toString() ?: "{}"
                 val json = JSONObject(result)
                 val count = json.optInt("total", 0)
-                withContext(Dispatchers.Main) { binding.tvMemorySummary.text = "${count}条长期记忆" }
+                withContext(Dispatchers.Main) { binding.tvMemorySummary.text = getString(R.string.summary_memory_format, count) }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { binding.tvMemorySummary.text = "加载中..." }
+                withContext(Dispatchers.Main) { binding.tvMemorySummary.text = getString(R.string.status_loading) }
             }
 
             try {
@@ -117,9 +117,9 @@ class SettingsActivity : AppCompatActivity() {
                 val json = JSONObject(result)
                 val enabled = json.optJSONArray("enabled")
                 val count = enabled?.length() ?: 0
-                withContext(Dispatchers.Main) { binding.tvWorldBookSummary.text = if (count > 0) "已启用${count}本" else "未启用" }
+                withContext(Dispatchers.Main) { binding.tvWorldBookSummary.text = if (count > 0) getString(R.string.summary_world_book_enabled, count) else getString(R.string.status_not_enabled) }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { binding.tvWorldBookSummary.text = "未启用" }
+                withContext(Dispatchers.Main) { binding.tvWorldBookSummary.text = getString(R.string.status_not_enabled) }
             }
 
             try {
@@ -127,16 +127,16 @@ class SettingsActivity : AppCompatActivity() {
                 val json = JSONObject(result)
                 val total = json.optInt("total", 0)
                 val enabled = json.optInt("enabled", 0)
-                withContext(Dispatchers.Main) { binding.tvPluginSummary.text = if (total > 0) "已安装${total}个 · 已启用${enabled}个" else "暂无插件" }
+                withContext(Dispatchers.Main) { binding.tvPluginSummary.text = if (total > 0) getString(R.string.summary_plugin_format, total, enabled) else getString(R.string.status_no_plugins) }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { binding.tvPluginSummary.text = "暂无插件" }
+                withContext(Dispatchers.Main) { binding.tvPluginSummary.text = getString(R.string.status_no_plugins) }
             }
         }
 
         val autoRead = AppConfig.getAutoReadAloud(this)
         val lang = AppConfig.getVoiceRecognitionLang(this)
-        val langLabel = when (lang) { "zh-CN" -> "中文"; "en-US" -> "English"; "ja-JP" -> "日本語"; else -> lang }
-        binding.tvVoiceSummary.text = if (autoRead) "自动朗读 · ${langLabel}" else "未开启自动朗读 · ${langLabel}"
+        val langLabel = when (lang) { "zh-CN" -> getString(R.string.lang_zh); "en-US" -> getString(R.string.lang_en); "ja-JP" -> getString(R.string.lang_ja); else -> lang }
+        binding.tvVoiceSummary.text = if (autoRead) getString(R.string.summary_voice_auto_read_on, langLabel) else getString(R.string.summary_voice_auto_read_off, langLabel)
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
     }

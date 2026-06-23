@@ -556,8 +556,8 @@ class MemoryOrchestrator:
         # 3. 重要性重评估（每 CONSOLIDATION_INTERVAL * 2 轮触发）
         if self._turn_count % (consolidator.CONSOLIDATION_INTERVAL * 2) == 0:
             try:
-                imp_result = consolidator.reassess_importance()
-                report["importance_reassessed"] = imp_result["adjusted"]
+                imp_result = lifecycle.recalibrate_importance()
+                report["importance_reassessed"] = imp_result
             except Exception as e:
                 self._log.warning(f"[维护] 重要性重评估失败: {e}")
 

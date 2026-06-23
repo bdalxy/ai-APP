@@ -14,8 +14,24 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Android 14+ 前台服务权限 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- 录音权限（语音识别/语音消息） -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- ─────────────────────────────────────────────────────────────
+    品牌设备适配权限
+    - REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: 请求电池优化白名单
+      （小米/华为/OPPO/vivo 后台保活必需）
+    - RECEIVE_BOOT_COMPLETED: 开机自启动（重启后恢复定时器）
+    - ACCESS_NOTIFICATION_POLICY: 通知使用权（部分厂商限制通知）
+    - SYSTEM_ALERT_WINDOW: 悬浮窗权限（部分厂商通知弹窗需要）
+    ───────────────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 前台服务类型：Android 14+ 需要声明 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <!-- ─────────────────────────────────────────────────────────────
     屏幕适配：明确声明支持所有屏幕尺寸，避免 Google Play 过滤
@@ -45,6 +61,8 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true"
         android:extractNativeLibs="true"
+        android:resizeableActivity="true"
+        android:foregroundServiceType="dataSync|specialUse"
         tools:targetApi="36">
 
         <activity

@@ -48,10 +48,39 @@
     <!-- ===== 设置页 (activity_settings) ===== -->
     <string name="title_settings">设置</string>
 
+    <!-- 状态标签 -->
+    <string name="status_configured">已配置</string>
+    <string name="status_not_configured">未配置</string>
+    <string name="status_enabled">已开启</string>
+    <string name="status_disabled">已关闭</string>
+    <string name="status_not_enabled">未启用</string>
+    <string name="status_no_plugins">暂无插件</string>
+    <string name="status_no_world_book">未启用</string>
+
+    <!-- 温度标签 -->
+    <string name="temp_conservative">保守</string>
+    <string name="temp_moderate">中等</string>
+    <string name="temp_creative">创意</string>
+
+    <!-- 语言标签 -->
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ja">日本語</string>
+
+    <!-- 设置摘要格式 -->
+    <string name="summary_chat_format">%1$s token · 创意度%2$s · 回复%3$s字</string>
+    <string name="summary_memory_format">%d条长期记忆</string>
+    <string name="summary_world_book_enabled">已启用%d本</string>
+    <string name="summary_plugin_format">已安装%1$d个 · 已启用%2$d个</string>
+    <string name="summary_quiet_time_format">免打扰 %1$s-%2$s</string>
+    <string name="summary_quiet_time_none">无免打扰</string>
+    <string name="summary_proactive_on_format">已开启 · %1$s · %2$s</string>
+    <string name="summary_voice_auto_read_on">自动朗读 · %s</string>
+    <string name="summary_voice_auto_read_off">未开启自动朗读 · %s</string>
+
     <!-- 账户设置 -->
     <string name="section_account_settings">账户设置</string>
     <string name="label_api_key">API Key</string>
-    <string name="status_not_configured">未配置</string>
     <string name="label_role_preset">角色预设</string>
     <string name="label_model_selection">模型选择</string>
     <string name="value_follow_preset">跟随预设</string>
@@ -205,8 +234,20 @@
     <string name="btn_got_it">知道了</string>
     <string name="title_hint">提示</string>
     <string name="label_error_prefix">[错误]</string>
+    <string name="label_error_timeout_prefix">[超时]</string>
+    <string name="action_copy">复制</string>
+    <string name="action_retry">重试</string>
+    <string name="toast_copied">已复制</string>
+    <string name="error_unknown">未知错误</string>
+    <string name="error_timeout_message">请求超时，请检查网络后重试</string>
+    <string name="error_timeout_short">请求超时</string>
+    <string name="error_send_failed">发送失败</string>
+    <string name="snackbar_retry_format">%s，点击重试</string>
+    <string name="icon_loading">⏳</string>
 
     <!-- ===== 主页面 (MainActivity) 运行时文本 ===== -->
+    <string name="toast_session_created">已创建会话「%s」</string>
+    <string name="toast_session_deleted">会话已删除</string>
     <string name="status_initializing">正在初始化...</string>
     <string name="error_init_api_key">初始化失败：API Key 未配置</string>
     <string name="error_init_failed">初始化失败：%s</string>

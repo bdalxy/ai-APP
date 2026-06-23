@@ -38,9 +38,38 @@
     <!-- ===== Settings Page (activity_settings) ===== -->
     <string name="title_settings">Settings</string>
 
+    <!-- Status Labels -->
+    <string name="status_configured">Configured</string>
+    <string name="status_not_configured">Not configured</string>
+    <string name="status_enabled">Enabled</string>
+    <string name="status_disabled">Disabled</string>
+    <string name="status_not_enabled">Not enabled</string>
+    <string name="status_no_plugins">No plugins</string>
+    <string name="status_no_world_book">Not enabled</string>
+
+    <!-- Temperature Labels -->
+    <string name="temp_conservative">Conservative</string>
+    <string name="temp_moderate">Moderate</string>
+    <string name="temp_creative">Creative</string>
+
+    <!-- Language Labels -->
+    <string name="lang_zh">Chinese</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ja">Japanese</string>
+
+    <!-- Summary Formats -->
+    <string name="summary_chat_format">%1$s token · Temp %2$s · Reply %3$s chars</string>
+    <string name="summary_memory_format">%d long-term memories</string>
+    <string name="summary_world_book_enabled">%d enabled</string>
+    <string name="summary_plugin_format">%1$d installed · %2$d enabled</string>
+    <string name="summary_quiet_time_format">DND %1$s-%2$s</string>
+    <string name="summary_quiet_time_none">No quiet time</string>
+    <string name="summary_proactive_on_format">On · %1$s · %2$s</string>
+    <string name="summary_voice_auto_read_on">Auto-read · %s</string>
+    <string name="summary_voice_auto_read_off">Auto-read off · %s</string>
+
     <!-- Account Settings -->
     <string name="section_account_settings">Account Settings</string>
-    <string name="status_not_configured">Not configured</string>
     <string name="label_api_key">API Key</string>
     <string name="label_role_preset">Role Preset</string>
     <string name="label_model_selection">Model Selection</string>
@@ -139,8 +168,20 @@
     <string name="btn_got_it">Got it</string>
     <string name="title_hint">Notice</string>
     <string name="label_error_prefix">[Error]</string>
+    <string name="label_error_timeout_prefix">[Timeout]</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_retry">Retry</string>
+    <string name="toast_copied">Copied</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_timeout_message">Request timed out. Please check your network and try again.</string>
+    <string name="error_timeout_short">Request timed out</string>
+    <string name="error_send_failed">Send failed</string>
+    <string name="snackbar_retry_format">%s, tap to retry</string>
+    <string name="icon_loading">⏳</string>
 
     <!-- ===== Main Page (MainActivity) Runtime Text ===== -->
+    <string name="toast_session_created">Session \"%s\" created</string>
+    <string name="toast_session_deleted">Session deleted</string>
     <string name="status_initializing">Initializing...</string>
     <string name="error_init_api_key">Initialization failed: API Key not configured</string>
     <string name="error_init_failed">Initialization failed: %s</string>
