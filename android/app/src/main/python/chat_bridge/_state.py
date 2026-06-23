@@ -1,5 +1,7 @@
 """
 共享状态模块 — 供 chat_bridge 子模块访问的全局单例和路径。
+
+所有状态封装在 ChatState 类中，模块级 __getattr__ 代理保证向后兼容。
 """
 import os
 import sys
@@ -15,16 +17,57 @@ if _PYTHON_ROOT not in sys.path:
 
 from src.app_context import AppContext
 
-# 全局应用上下文单例
-_ctx = AppContext.get_instance()
 
-# 全局线程池，用于异步记忆存储等后台任务
-# 可通过环境变量 CHAT_BRIDGE_MAX_WORKERS 配置，默认 2
-_DEFAULT_MAX_WORKERS = 2
-_MAX_WORKERS = int(os.environ.get("CHAT_BRIDGE_MAX_WORKERS", str(_DEFAULT_MAX_WORKERS)))
-# 注意：shutdown_executor() 关闭后立即重建，确保后续对话可用
-_executor = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="chat_bridge")
+class ChatState:
+    """聊天引擎全局状态容器（单例模式）。
 
+    所有状态封装为实例属性，避免模块级全局变量污染。
+    外部通过模块级 __getattr__ 代理访问，保持向后兼容。
+    """
+
+    _DEFAULT_MAX_WORKERS: int = 2
+
+    def __init__(self) -> None:
+        self._ctx = AppContext.get_instance()
+        self._MAX_WORKERS = int(os.environ.get(
+            "CHAT_BRIDGE_MAX_WORKERS", str(self._DEFAULT_MAX_WORKERS)
+        ))
+        # 注意：shutdown_executor() 关闭后立即重建，确保后续对话可用
+        self._executor = ThreadPoolExecutor(
+            max_workers=self._MAX_WORKERS, thread_name_prefix="chat_bridge"
+        )
+        # 线程锁，保护共享状态（_cached_memories、_current_params、_turn_since_last_inject 等）
+        self._lock = threading.Lock()
+        # 当前生效的对话参数（由 init()/apply_params() 写入，get_current_params() 读取）
+        self._current_params: dict[str, object] = {}
+        # 当前角色卡信息（由 set_character_card() 写入，get_character_card() 读取）
+        self._current_character: dict[str, object] = {}
+        # 记忆自动注入相关
+        self._memory_inject_interval: int = 1  # 每 N 轮对话更新一次记忆注入
+        self._turn_since_last_inject: int = 0  # 自上次注入以来的轮数
+        self._cached_memories: list[str] = []  # 缓存的记忆文本
+        # Android 上的路径
+        self._PYTHON_ROOT = _PYTHON_ROOT
+        self._BASE_DIR = Path(_PYTHON_ROOT)
+        self._CARD_DIR = self._BASE_DIR / "data" / "role_cards"
+
+
+# 全局单例
+_state_inst = ChatState()
+
+
+# ========== 模块级 __getattr__ 代理（PEP 562, Python 3.7+）==========
+# 将未在模块命名空间中定义的属性访问转发到 _state_inst，
+# 保证外部代码 from ._state import _ctx / _state._lock 等调用方式不变。
+
+def __getattr__(name: str):
+    """模块级属性代理：转发到 ChatState 单例。"""
+    if name == "_state_inst":
+        raise AttributeError(name)
+    return getattr(_state_inst, name)
+
+
+# ========== 公开函数 ==========
 
 def shutdown_executor() -> None:
     """安全关闭全局线程池并重建。
@@ -33,30 +76,12 @@ def shutdown_executor() -> None:
     关闭后立即重建一个全新的 executor，确保后续对话可用。
     多次调用安全（幂等）。
     """
-    global _executor
     try:
-        _executor.shutdown(wait=True, cancel_futures=False)
+        _state_inst._executor.shutdown(wait=True, cancel_futures=False)
     except Exception:
         pass  # 忽略关闭异常，不影响清理流程
     finally:
-        _executor = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="chat_bridge")
-
-# 线程锁，保护共享状态（_cached_memories、_current_params、_turn_since_last_inject 等）
-_lock = threading.Lock()
-
-# 当前生效的对话参数（由 init()/apply_params() 写入，get_current_params() 读取）
-_current_params: dict[str, object] = {}
-
-# 当前角色卡信息（由 set_character_card() 写入，get_character_card() 读取）
-# 现在包含完整字段（不只是 name/personality/speaking_style/backstory）
-_current_character: dict[str, object] = {}
-
-# 记忆自动注入相关
-# 每轮都检索记忆（ContextBuilder 内部有缓存，不会重复调用 embedding API）
-_memory_inject_interval: int = 1  # 每 N 轮对话更新一次记忆注入
-_turn_since_last_inject: int = 0  # 自上次注入以来的轮数
-_cached_memories: list[str] = []  # 缓存的记忆文本
-
-# Android 上的角色卡目录（data/ 在 python/ 根目录下）
-_BASE_DIR = Path(_PYTHON_ROOT)
-_CARD_DIR = _BASE_DIR / "data" / "role_cards"
+        _state_inst._executor = ThreadPoolExecutor(
+            max_workers=_state_inst._MAX_WORKERS,
+            thread_name_prefix="chat_bridge",
+        )

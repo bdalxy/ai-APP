@@ -22,7 +22,8 @@ JSON Schema (Tavo 兼容扩展):
       "regex_keys": ["正则表达式"],             // 正则匹配模式 (可选)
       "case_sensitive": false,                  // 是否区分大小写
       "max_injections": 5,                     // 单次对话最大注入次数
-      "cooldown_rounds": 0                     // 冷却轮数 (0=无冷却)
+      "cooldown_rounds": 0,                    // 冷却轮数 (0=无冷却)
+      "created_at": 1234567890.0               // 创建时间戳 (同优先级倒序排列)
     }
   ]
 }
@@ -31,7 +32,8 @@ JSON Schema (Tavo 兼容扩展):
 import json
 import random
 import re
-from typing import Dict, Any, Optional, List, Set
+import time
+from typing import Dict, Any, Optional, List, Set, Tuple
 from pathlib import Path
 from dataclasses import dataclass, field
 
@@ -60,6 +62,7 @@ class WorldBookEntry:
     case_sensitive: bool = False
     max_injections: int = 5
     cooldown_rounds: int = 0
+    created_at: float = 0.0  # 创建时间戳，同优先级时倒序排列
 
     # 运行时状态 (非持久化)
     _injection_count: int = 0
@@ -102,20 +105,25 @@ class WorldBook:
         self,
         text: str,
         current_round: int = 0,
-        max_entries: int = 10
+        max_entries: int = 5
     ) -> List[WorldBookEntry]:
         """
         获取触发匹配的条目
 
+        排序规则:
+        1. 匹配类型: 精确匹配(0) > 模糊匹配(1) > 正则匹配(2)
+        2. priority 数值降序 (越高越优先)
+        3. created_at 时间戳降序 (越新越优先)
+
         Args:
             text: 当前对话文本
             current_round: 当前对话轮次
-            max_entries: 最大返回条目数
+            max_entries: 最大返回条目数 (默认5)
 
         Returns:
-            匹配的条目列表 (按优先级降序)
+            匹配的条目列表 (按优先级规则排序)
         """
-        matched: List[tuple] = []  # (priority, entry)
+        matched: List[Tuple[int, int, float, WorldBookEntry]] = []  # (match_type, priority, created_at, entry)
 
         for entry in self.entries:
             if entry.constant:
@@ -124,14 +132,16 @@ class WorldBook:
             if not entry.can_inject(current_round):
                 continue
 
-            if self._match_entry(entry, text):
-                matched.append((entry.priority, entry))
+            match_type = self._match_entry(entry, text)
+            if match_type >= 0:
+                # 优先级取负值以实现降序排列（Python sort 默认升序）
+                matched.append((match_type, -entry.priority, -entry.created_at, entry))
 
-        # 按优先级降序排序
-        matched.sort(key=lambda x: x[0], reverse=True)
+        # 多级排序: match_type 升序 → priority 降序 → created_at 降序
+        matched.sort(key=lambda x: (x[0], x[1], x[2]))
 
         # 取前 max_entries 个
-        result = [entry for _, entry in matched[:max_entries]]
+        result = [entry for _, _, _, entry in matched[:max_entries]]
 
         # 记录注入
         for entry in result:
@@ -139,15 +149,22 @@ class WorldBook:
 
         return result
 
-    def _match_entry(self, entry: WorldBookEntry, text: str) -> bool:
+    def _match_entry(self, entry: WorldBookEntry, text: str) -> int:
         """
         匹配单条条目
 
+        返回匹配类型:
+        -1: 不匹配
+         0: 精确匹配 (最佳)
+         1: 模糊匹配
+         2: 正则匹配
+
         匹配逻辑:
-        1. 正则匹配: regex_keys 中任意一个匹配成功 → 通过
+        1. 正则匹配: regex_keys 中任意一个匹配成功 → 返回 2
         2. 关键词匹配:
            - keys (主关键词): 任意一个匹配 (OR 逻辑)
            - key_secondary (次要关键词): 如果存在, 则必须全部匹配 (AND 逻辑)
+           - 匹配类型取所有关键词中的最佳值 (精确 > 模糊)
         3. 概率检查: 匹配成功后按 probability 概率触发
         """
         # 步骤1: 正则匹配
@@ -163,39 +180,60 @@ class WorldBook:
                         continue
                     flags = 0 if entry.case_sensitive else re.IGNORECASE
                     if re.search(pattern, text, flags):
-                        return self._check_probability(entry)
+                        return 2 if self._check_probability(entry) else -1
                 except re.error as e:
                     logger.warning(f"正则表达式错误 [{entry.id}]: {pattern} - {e}")
 
         # 步骤2: 关键词匹配
         if not entry.keys and not entry.regex_keys:
-            return False  # 没有触发条件
+            return -1  # 没有触发条件
+
+        best_match_type = -1  # 最佳匹配类型: 0=精确, 1=模糊
 
         # 主关键词匹配 (OR 逻辑)
         if entry.keys:
-            matched = False
+            key_matched = False
             for key in entry.keys:
-                if self._keyword_match(key, text, entry.case_sensitive):
-                    matched = True
-                    break
-            if not matched:
-                return False
+                mt = self._keyword_match(key, text, entry.case_sensitive)
+                if mt >= 0:
+                    key_matched = True
+                    if mt == 0:  # 精确匹配已经是最佳
+                        best_match_type = 0
+                        break
+                    best_match_type = 1  # 模糊匹配
+            if not key_matched:
+                return -1
 
         # 次要关键词匹配 (AND 逻辑)
         if entry.key_secondary:
             for key in entry.key_secondary:
-                if not self._keyword_match(key, text, entry.case_sensitive):
-                    return False
+                if self._keyword_match(key, text, entry.case_sensitive) < 0:
+                    return -1
+
+        if best_match_type < 0:
+            return -1
 
         # 步骤3: 概率检查
-        return self._check_probability(entry)
+        return best_match_type if self._check_probability(entry) else -1
 
-    def _keyword_match(self, keyword: str, text: str, case_sensitive: bool) -> bool:
-        """关键词匹配"""
+    def _keyword_match(self, keyword: str, text: str, case_sensitive: bool) -> int:
+        """关键词匹配，返回匹配类型: 0=精确匹配, 1=模糊匹配, -1=不匹配"""
         if case_sensitive:
-            return keyword in text
+            search_text = text
+            search_key = keyword
         else:
-            return keyword.lower() in text.lower()
+            search_text = text.lower()
+            search_key = keyword.lower()
+
+        if search_key not in search_text:
+            return -1
+
+        # 精确匹配: 关键词前后均为非字母数字/中文的字符（或边界）
+        escaped = re.escape(search_key)
+        pattern = r'(?<![a-zA-Z0-9\u4e00-\u9fff])' + escaped + r'(?![a-zA-Z0-9\u4e00-\u9fff])'
+        if re.search(pattern, search_text):
+            return 0  # 精确匹配
+        return 1  # 模糊匹配
 
     def _check_probability(self, entry: WorldBookEntry) -> bool:
         """概率检查"""
@@ -299,7 +337,8 @@ class WorldBookEngine:
                 regex_keys=entry_data.get("regex_keys", []),
                 case_sensitive=entry_data.get("case_sensitive", False),
                 max_injections=entry_data.get("max_injections", 5),
-                cooldown_rounds=entry_data.get("cooldown_rounds", 0)
+                cooldown_rounds=entry_data.get("cooldown_rounds", 0),
+                created_at=entry_data.get("created_at", 0.0),
             )
             entries.append(entry)
 

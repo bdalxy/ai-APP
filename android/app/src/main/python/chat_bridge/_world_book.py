@@ -10,6 +10,7 @@ import json
 import os
 import re
 import threading
+import time
 from pathlib import Path
 
 from ._state import _PYTHON_ROOT  # 复用 _state.py 的路径设置（避免重复）
@@ -292,6 +293,7 @@ def get_world_book(name: str) -> str:
                 "constant": entry.constant,
                 "probability": entry.probability,
                 "priority": entry.priority,
+                "created_at": entry.created_at,
             })
 
         return json.dumps({
@@ -441,6 +443,7 @@ def add_world_book_entry(name: str, entry_json: str) -> str:
             case_sensitive=entry_data.get("case_sensitive", False),
             max_injections=entry_data.get("max_injections", 5),
             cooldown_rounds=entry_data.get("cooldown_rounds", 0),
+            created_at=time.time(),
         )
         book.entries.append(entry)
 
@@ -506,6 +509,7 @@ def update_world_book_entry(name: str, entry_id: str, entry_json: str) -> str:
             case_sensitive=entry_data.get("case_sensitive", False),
             max_injections=entry_data.get("max_injections", 5),
             cooldown_rounds=entry_data.get("cooldown_rounds", 0),
+            created_at=entry_data.get("created_at", book.entries[target_idx].created_at),
         )
         book.entries[target_idx] = new_entry
 
@@ -582,6 +586,7 @@ def _save_book_to_file(book) -> None:
             "case_sensitive": entry.case_sensitive,
             "max_injections": entry.max_injections,
             "cooldown_rounds": entry.cooldown_rounds,
+            "created_at": entry.created_at,
         })
 
     data = {
