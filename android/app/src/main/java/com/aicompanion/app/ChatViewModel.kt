@@ -23,7 +23,9 @@ import com.aicompanion.app.databinding.ActivityMainBinding
 import com.aicompanion.app.utils.UiThread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -52,6 +54,21 @@ class ChatViewModel(
         private const val POLL_WAIT_MS = 30L
         private const val SEARCH_DEBOUNCE_MS = 300L
         private const val MULTI_PART_DELAY_MS = 300L
+
+        /**
+         * 从指定位置查找句子结束位置。
+         * 句子结束标记：。！？!?\n（中文标点 + 英文感叹号/问号 + 换行）
+         * @return 句子结束位置（含标点），未找到返回 -1
+         */
+        fun findSentenceEnd(text: String, startIndex: Int): Int {
+            for (i in startIndex until text.length) {
+                val ch = text[i]
+                if (ch == '。' || ch == '！' || ch == '？' || ch == '!' || ch == '?' || ch == '\n') {
+                    return i + 1
+                }
+            }
+            return -1
+        }
     }
 
     /** 回调接口：通知 MainActivity 执行协调整操作 */
@@ -106,32 +123,147 @@ class ChatViewModel(
 
     // ======================== 初始化 ========================
 
-    init {
-        setupSearchListeners()
-    }
-
-    /** 设置搜索输入监听和清除按钮 */
-    private fun setupSearchListeners() {
-        var searchRunnable: Runnable? = null
-        binding.etSearch?.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                searchRunnable = Runnable {
-                    performSearch(s?.toString() ?: "")
+    /** 搜索辅助类（内部类，访问外部成员） */
+    inner class SearchHelper {
+        fun setupSearchListeners() {
+            var searchRunnable: Runnable? = null
+            binding.etSearch?.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                    searchRunnable = Runnable {
+                        performSearch(s?.toString() ?: "")
+                    }
+                    searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_MS)
                 }
-                searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_MS)
-            }
-        })
+            })
 
-        binding.btnCancel?.setOnClickListener {
-            if (binding.etSearch?.text?.isNotEmpty() == true) {
-                binding.etSearch?.setText("")
-            } else {
-                toggleSearchMode()
+            binding.btnCancel?.setOnClickListener {
+                if (binding.etSearch?.text?.isNotEmpty() == true) {
+                    binding.etSearch?.setText("")
+                } else {
+                    toggleSearchMode()
+                }
             }
         }
+
+        fun toggleSearchMode() {
+            if (isSearchMode) {
+                exitSearchMode()
+            } else {
+                enterSearchMode()
+            }
+        }
+
+        fun enterSearchMode() {
+            isSearchMode = true
+            originalMessages = adapter.getMessages().toList()
+            binding.layoutSearch?.visibility = View.VISIBLE
+            binding.etSearch?.requestFocus()
+            showKeyboard(binding.etSearch!!)
+        }
+
+        fun exitSearchMode() {
+            isSearchMode = false
+            binding.layoutSearch?.visibility = View.GONE
+            binding.tvSearchResultCount?.visibility = View.GONE
+            binding.etSearch?.setText("")
+            adapter.replaceAll(originalMessages.toList())
+            hideKeyboard()
+            if (adapter.itemCount > 0) {
+                binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
+            }
+        }
+
+        fun performSearch(keyword: String) {
+            val module = pythonModule ?: return
+
+            if (keyword.isBlank()) {
+                adapter.replaceAll(originalMessages.toList())
+                binding.tvSearchResultCount?.visibility = View.GONE
+                return
+            }
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val jsonArray = JSONArray()
+                    for (msg in originalMessages) {
+                        val obj = JSONObject()
+                        obj.put("content", msg.content)
+                        obj.put("isUser", msg.isUser)
+                        obj.put("timestamp", msg.timestamp)
+                        jsonArray.put(obj)
+                    }
+
+                    val result = withTimeout(STREAM_TIMEOUT_MS) {
+                        module.callAttr(
+                            "search_conversation", keyword, jsonArray.toString()
+                        ).toString()
+                    }
+                    val resultJson = JSONObject(result)
+
+                    if (resultJson.optString("status") == "ok") {
+                        val matches = resultJson.optJSONArray("matches") ?: JSONArray()
+                        val total = resultJson.optInt("total", 0)
+
+                        val matchedMessages = mutableListOf<Message>()
+                        for (i in 0 until matches.length()) {
+                            val match = matches.getJSONObject(i)
+                            matchedMessages.add(Message(
+                                content = match.optString("content", ""),
+                                isUser = match.optBoolean("isUser", false),
+                                timestamp = match.optLong("timestamp", System.currentTimeMillis())
+                            ))
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            adapter.replaceAll(matchedMessages)
+                            binding.tvSearchResultCount?.text =
+                                context.getString(R.string.search_result_count, total)
+                            binding.tvSearchResultCount?.visibility =
+                                if (total > 0) View.VISIBLE else View.GONE
+                            if (matchedMessages.isNotEmpty()) {
+                                binding.rvMessages.scrollToPosition(0)
+                            }
+                        }
+                    } else {
+                        val errorMsg = resultJson.optString("message", context.getString(R.string.error_unknown))
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.toast_search_failed, errorMsg),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    Log.e(TAG, "搜索对话超时", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_timeout),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "搜索对话失败", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_search_failed, e.message),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+    }
+
+    val searchHelper = SearchHelper()
+
+    init {
+        searchHelper.setupSearchListeners()
     }
 
     // ======================== 发送消息 ========================
@@ -154,191 +286,228 @@ class ChatViewModel(
 
         binding.etInput.text.clear()
         updateSendButton(false)
-        sendMessageStream(text)
+        streamingHelper.sendMessageStream(text)
     }
 
     // ======================== 流式消息发送 ========================
 
-    /**
-     * 流式发送消息（队列+轮询方案）。
-     * 使用 chat_stream_start() 启动后台生成线程，
-     * 然后通过 chat_stream_poll() 轮询获取 token 并实时更新 UI。
-     */
-    private fun sendMessageStream(userInput: String) {
-        val module = pythonModule ?: return
-        isStreaming = true
-        lastUserInput = userInput  // 保存用于重试
-        updateSendButton(false)
-        disableInput()
+    /** 流式对话辅助类（内部类，访问外部成员） */
+    inner class StreamingHelper {
+        /** 当前流式协程的 Job 引用，用于 destroy 时取消 */
+        private var streamJob: kotlinx.coroutines.Job? = null
 
-        // 添加用户消息气泡
-        addUserBubble(userInput)
+        /**
+         * 流式发送消息（callbackFlow 方案）。
+         * 使用 chat_stream_start() 启动后台生成线程，
+         * 然后通过 callbackFlow 包装 chat_stream_poll() 轮询获取 token 并实时更新 UI。
+         */
+        fun sendMessageStream(userInput: String) {
+            val module = pythonModule ?: return
+            isStreaming = true
+            lastUserInput = userInput  // 保存用于重试
+            updateSendButton(false)
+            disableInput()
 
-        // 添加占位 AI 消息（空内容，后续逐 token 填充）
-        val aiMsg = Message(content = "", isUser = false)
-        val aiMsgIndex = adapter.itemCount
-        adapter.addMessage(aiMsg)
-        binding.rvMessages.smoothScrollToPosition(aiMsgIndex)
+            // 添加用户消息气泡
+            addUserBubble(userInput)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // 重置句子边界
-                lastSentenceEnd = 0
+            // 添加占位 AI 消息（空内容，后续逐 token 填充）
+            val aiMsg = Message(content = "", isUser = false)
+            val aiMsgIndex = adapter.itemCount
+            adapter.addMessage(aiMsg)
+            binding.rvMessages.smoothScrollToPosition(aiMsgIndex)
 
-                // 启动流式对话（30秒超时保护）
-                val streamId = withTimeout(STREAM_TIMEOUT_MS) {
-                    module.callAttr("chat_stream_start", userInput)?.toString() ?: "{}"
-                }
-                activeStreamId = streamId
+            streamJob = lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    // 重置句子边界
+                    lastSentenceEnd = 0
 
-                // 检查是否返回了错误
-                if (streamId.startsWith("{")) {
-                    val errorJson = JSONObject(streamId)
-                    Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
+                    // 启动流式对话（30秒超时保护）
+                    val streamId = withTimeout(STREAM_TIMEOUT_MS) {
+                        module.callAttr("chat_stream_start", userInput)?.toString() ?: "{}"
+                    }
+                    activeStreamId = streamId
+
+                    // 检查是否返回了错误
+                    if (streamId.startsWith("{")) {
+                        val errorJson = JSONObject(streamId)
+                        Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
+                        UiThread.run {
+                            adapter.updateMessage(
+                                aiMsgIndex,
+                                aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
+                            )
+                        }
+                        return@launch
+                    }
+
+                    val fullReply = StringBuilder()
+
+                    // 使用 callbackFlow 包装轮询，替代 while 循环
+                    callbackFlow {
+                        var isDone = false
+                        while (!isDone && isStreaming) {
+                            val pollResult = withTimeout(STREAM_TIMEOUT_MS) {
+                                module.callAttr("chat_stream_poll", streamId)?.toString() ?: "{}"
+                            }
+                            trySend(pollResult)
+                            val pollJson = JSONObject(pollResult)
+                            when (pollJson.optString("status", "error")) {
+                                "done", "error" -> {
+                                    close()
+                                    isDone = true
+                                }
+                                "waiting" -> delay(POLL_WAIT_MS)
+                            }
+                        }
+                        awaitClose { }
+                    }.collect { pollResult ->
+                        val pollJson = JSONObject(pollResult)
+                        val status = pollJson.optString("status", "error")
+
+                        when (status) {
+                            "streaming" -> {
+                                val token = pollJson.optString("token", "")
+                                fullReply.append(token)
+                                val now = System.currentTimeMillis()
+                                if (now - lastMessageUpdateTime > MSG_UPDATE_THROTTLE_MS) {
+                                    UiThread.run {
+                                        adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
+                                    }
+                                    lastMessageUpdateTime = now
+                                }
+                                if (now - lastScrollTime > SCROLL_THROTTLE_MS) {
+                                    UiThread.run {
+                                        if (!binding.rvMessages.canScrollVertically(1)) {
+                                            binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                        }
+                                    }
+                                    lastScrollTime = now
+                                }
+                                // 检测完整句子，逐句触发 TTS
+                                val currentText = fullReply.toString()
+                                while (lastSentenceEnd < currentText.length) {
+                                    val sentenceEnd = findSentenceEnd(currentText, lastSentenceEnd)
+                                    if (sentenceEnd < 0) break
+                                    val sentence = currentText.substring(lastSentenceEnd, sentenceEnd)
+                                    lastSentenceEnd = sentenceEnd
+                                    if (sentence.isNotBlank()) {
+                                        UiThread.run {
+                                            callback?.onStreamSentence(sentence)
+                                        }
+                                    }
+                                }
+                            }
+                            "done" -> {
+                                val reply = pollJson.optString("reply", fullReply.toString())
+                                val finalContent = reply.ifEmpty { fullReply.toString() }
+                                // 发送最后可能残留的句子
+                                val remaining = finalContent.substring(
+                                    lastSentenceEnd.coerceAtMost(finalContent.length)
+                                )
+                                if (remaining.isNotBlank()) {
+                                    UiThread.run {
+                                        callback?.onStreamSentence(remaining)
+                                    }
+                                }
+                                // 拆分多条消息
+                                val parts = finalContent
+                                    .replace("\r\n", "\n")
+                                    .split("\n\\s*\n".toRegex())
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+                                if (parts.size > 1) {
+                                    UiThread.run {
+                                        adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
+                                        val handler = Handler(Looper.getMainLooper())
+                                        parts.drop(1).forEachIndexed { idx, part ->
+                                            handler.postDelayed({
+                                                adapter.addMessage(Message(content = part, isUser = false))
+                                                binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                            }, ((idx + 1) * MULTI_PART_DELAY_MS).toLong())
+                                        }
+                                        handler.postDelayed({
+                                            callback?.onConversationNeedSave()
+                                            callback?.onStreamComplete(finalContent)
+                                        }, (parts.size * MULTI_PART_DELAY_MS).toLong())
+                                    }
+                                } else {
+                                    UiThread.run {
+                                        adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
+                                        callback?.onConversationNeedSave()
+                                        callback?.onStreamComplete(finalContent)
+                                    }
+                                }
+                            }
+                            "error" -> {
+                                val errorMsg = pollJson.optString("message", context.getString(R.string.error_unknown))
+                                UiThread.run {
+                                    adapter.updateMessage(
+                                        aiMsgIndex,
+                                        aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorMsg")
+                                    )
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.toast_conversation_failed, errorMsg),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    Log.e(TAG, "Python调用超时", e)
                     UiThread.run {
                         adapter.updateMessage(
                             aiMsgIndex,
-                            aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
+                            aiMsg.copy(content = "${context.getString(R.string.label_error_timeout_prefix)} ${context.getString(R.string.error_timeout_message)}")
                         )
+                        showRetrySnackbar(context.getString(R.string.error_timeout_short))
                     }
-                    return@launch
-                }
-
-                val fullReply = StringBuilder()
-                var isDone = false
-                var shouldContinueLoop = true
-
-                while (!isDone && isStreaming && shouldContinueLoop) {
-                    val pollResult = withTimeout(STREAM_TIMEOUT_MS) {
-                        module.callAttr("chat_stream_poll", streamId)?.toString() ?: "{}"
+                } catch (e: Exception) {
+                    Log.e(TAG, "流式对话失败", e)
+                    UiThread.run {
+                        adapter.updateMessage(
+                            aiMsgIndex,
+                            aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${e.message}")
+                        )
+                        showRetrySnackbar(context.getString(R.string.error_send_failed))
                     }
-                    val pollJson = JSONObject(pollResult)
-                    val status = pollJson.optString("status", "error")
-
-                    when (status) {
-                        "streaming" -> {
-                            val token = pollJson.optString("token", "")
-                            fullReply.append(token)
-                            val now = System.currentTimeMillis()
-                            if (now - lastMessageUpdateTime > MSG_UPDATE_THROTTLE_MS) {
-                                UiThread.run {
-                                    adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
-                                }
-                                lastMessageUpdateTime = now
-                            }
-                            if (now - lastScrollTime > SCROLL_THROTTLE_MS) {
-                                UiThread.run {
-                                    if (!binding.rvMessages.canScrollVertically(1)) {
-                                        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-                                    }
-                                }
-                                lastScrollTime = now
-                            }
-                            // 检测完整句子，逐句触发 TTS
-                            val currentText = fullReply.toString()
-                            while (lastSentenceEnd < currentText.length) {
-                                val sentenceEnd = findSentenceEnd(currentText, lastSentenceEnd)
-                                if (sentenceEnd < 0) break
-                                val sentence = currentText.substring(lastSentenceEnd, sentenceEnd)
-                                lastSentenceEnd = sentenceEnd
-                                if (sentence.isNotBlank()) {
-                                    UiThread.run {
-                                        callback?.onStreamSentence(sentence)
-                                    }
-                                }
-                            }
-                        }
-                        "done" -> {
-                            val reply = pollJson.optString("reply", fullReply.toString())
-                            val finalContent = reply.ifEmpty { fullReply.toString() }
-                            // 发送最后可能残留的句子
-                            val remaining = finalContent.substring(
-                                lastSentenceEnd.coerceAtMost(finalContent.length)
-                            )
-                            if (remaining.isNotBlank()) {
-                                UiThread.run {
-                                    callback?.onStreamSentence(remaining)
-                                }
-                            }
-                            // 拆分多条消息
-                            val parts = finalContent
-                                .replace("\r\n", "\n")
-                                .split("\n\\s*\n".toRegex())
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                            if (parts.size > 1) {
-                                UiThread.run {
-                                    adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
-                                    val handler = Handler(Looper.getMainLooper())
-                                    parts.drop(1).forEachIndexed { idx, part ->
-                                        handler.postDelayed({
-                                            adapter.addMessage(Message(content = part, isUser = false))
-                                            binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-                                        }, ((idx + 1) * MULTI_PART_DELAY_MS).toLong())
-                                    }
-                                    handler.postDelayed({
-                                        callback?.onConversationNeedSave()
-                                        callback?.onStreamComplete(finalContent)
-                                    }, (parts.size * MULTI_PART_DELAY_MS).toLong())
-                                }
-                            } else {
-                                UiThread.run {
-                                    adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
-                                    callback?.onConversationNeedSave()
-                                    callback?.onStreamComplete(finalContent)
-                                }
-                            }
-                            shouldContinueLoop = false
-                            isDone = true
-                        }
-                        "error" -> {
-                            val errorMsg = pollJson.optString("message", context.getString(R.string.error_unknown))
-                            UiThread.run {
-                                adapter.updateMessage(
-                                    aiMsgIndex,
-                                    aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorMsg")
-                                )
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.toast_conversation_failed, errorMsg),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                            shouldContinueLoop = false
-                            isDone = true
-                        }
-                        "waiting" -> {
-                            delay(POLL_WAIT_MS)
-                        }
+                } finally {
+                    isStreaming = false
+                    streamJob = null
+                    UiThread.run {
+                        enableInput()
+                        updateSendButton(binding.etInput.text?.isNotBlank() == true)
                     }
                 }
-            } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "Python调用超时", e)
-                UiThread.run {
-                    adapter.updateMessage(
-                        aiMsgIndex,
-                        aiMsg.copy(content = "${context.getString(R.string.label_error_timeout_prefix)} ${context.getString(R.string.error_timeout_message)}")
-                    )
-                    showRetrySnackbar(context.getString(R.string.error_timeout_short))
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "流式对话失败", e)
-                UiThread.run {
-                    adapter.updateMessage(
-                        aiMsgIndex,
-                        aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${e.message}")
-                    )
-                    showRetrySnackbar(context.getString(R.string.error_send_failed))
-                }
-            } finally {
-                isStreaming = false
-                UiThread.run {
-                    enableInput()
-                    updateSendButton(binding.etInput.text?.isNotBlank() == true)
+            }
+        }
+
+        /** 取消当前活跃的流式对话，释放 Python 流资源和协程 */
+        fun cancelActiveStream() {
+            // 取消流式协程（如果还在运行）
+            streamJob?.cancel()
+            streamJob = null
+            // 取消 Python 流
+            val sid = activeStreamId
+            if (sid != null) {
+                try {
+                    com.chaquo.python.Python.getInstance()
+                        .getModule("chat_bridge")
+                        ?.callAttr("chat_stream_cancel", sid)
+                    Log.d(TAG, "cancelActiveStream: 已取消流 $sid")
+                } catch (e: Exception) {
+                    Log.w(TAG, "cancelActiveStream: 取消流失败 ${e.message}")
+                } finally {
+                    activeStreamId = null
+                    isStreaming = false
                 }
             }
         }
     }
+
+    val streamingHelper = StreamingHelper()
 
     // ======================== 消息气泡辅助 ========================
 
@@ -410,118 +579,8 @@ class ChatViewModel(
 
     // ======================== 对话搜索 ========================
 
-    /** 切换搜索模式（显示/隐藏搜索栏） */
-    fun toggleSearchMode() {
-        if (isSearchMode) {
-            exitSearchMode()
-        } else {
-            enterSearchMode()
-        }
-    }
-
-    private fun enterSearchMode() {
-        isSearchMode = true
-        originalMessages = adapter.getMessages().toList()
-        binding.layoutSearch?.visibility = View.VISIBLE
-        binding.etSearch?.requestFocus()
-        showKeyboard(binding.etSearch!!)
-    }
-
-    private fun exitSearchMode() {
-        isSearchMode = false
-        binding.layoutSearch?.visibility = View.GONE
-        binding.tvSearchResultCount?.visibility = View.GONE
-        binding.etSearch?.setText("")
-        adapter.replaceAll(originalMessages.toList())
-        hideKeyboard()
-        if (adapter.itemCount > 0) {
-            binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
-        }
-    }
-
-    /** 执行搜索（在协程中调用 Python search_conversation） */
-    private fun performSearch(keyword: String) {
-        val module = pythonModule ?: return
-
-        if (keyword.isBlank()) {
-            adapter.replaceAll(originalMessages.toList())
-            binding.tvSearchResultCount?.visibility = View.GONE
-            return
-        }
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val jsonArray = JSONArray()
-                for (msg in originalMessages) {
-                    val obj = JSONObject()
-                    obj.put("content", msg.content)
-                    obj.put("isUser", msg.isUser)
-                    obj.put("timestamp", msg.timestamp)
-                    jsonArray.put(obj)
-                }
-
-                val result = withTimeout(STREAM_TIMEOUT_MS) {
-                    module.callAttr(
-                        "search_conversation", keyword, jsonArray.toString()
-                    ).toString()
-                }
-                val resultJson = JSONObject(result)
-
-                if (resultJson.optString("status") == "ok") {
-                    val matches = resultJson.optJSONArray("matches") ?: JSONArray()
-                    val total = resultJson.optInt("total", 0)
-
-                    val matchedMessages = mutableListOf<Message>()
-                    for (i in 0 until matches.length()) {
-                        val match = matches.getJSONObject(i)
-                        matchedMessages.add(Message(
-                            content = match.optString("content", ""),
-                            isUser = match.optBoolean("isUser", false),
-                            timestamp = match.optLong("timestamp", System.currentTimeMillis())
-                        ))
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        adapter.replaceAll(matchedMessages)
-                        binding.tvSearchResultCount?.text =
-                            context.getString(R.string.search_result_count, total)
-                        binding.tvSearchResultCount?.visibility =
-                            if (total > 0) View.VISIBLE else View.GONE
-                        if (matchedMessages.isNotEmpty()) {
-                            binding.rvMessages.scrollToPosition(0)
-                        }
-                    }
-                } else {
-                    val errorMsg = resultJson.optString("message", context.getString(R.string.error_unknown))
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.toast_search_failed, errorMsg),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "搜索对话超时", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.toast_timeout),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "搜索对话失败", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.toast_search_failed, e.message),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        }
-    }
+    /** 切换搜索模式（显示/隐藏搜索栏），委托给 SearchHelper */
+    fun toggleSearchMode() = searchHelper.toggleSearchMode()
 
     // ======================== 键盘管理 ========================
 
@@ -623,31 +682,18 @@ class ChatViewModel(
 
     // ======================== 生命周期清理 ========================
 
-    /** 释放资源（在 Activity onDestroy 中调用） */
+    /** 释放资源（在 Activity onDestroy 中调用），确保协程和 Python 流被清理 */
     fun destroy() {
+        Log.d(TAG, "destroy: 开始清理资源")
         isStreaming = false
         searchHandler.removeCallbacksAndMessages(null)
-        cancelActiveStream()
+        streamingHelper.cancelActiveStream()
         callback = null
+        Log.d(TAG, "destroy: 资源清理完成")
     }
 
-    /** 取消当前活跃的流式对话（用于 onStop 等场景） */
-    fun cancelActiveStream() {
-        val sid = activeStreamId
-        if (sid != null) {
-            try {
-                com.chaquo.python.Python.getInstance()
-                    .getModule("chat_bridge")
-                    ?.callAttr("chat_stream_cancel", sid)
-                Log.d(TAG, "cancelActiveStream: 已取消流 $sid")
-            } catch (e: Exception) {
-                Log.w(TAG, "cancelActiveStream: 取消流失败 ${e.message}")
-            } finally {
-                activeStreamId = null
-                isStreaming = false
-            }
-        }
-    }
+    /** 取消当前活跃的流式对话（用于 onStop 等场景），委托给 StreamingHelper */
+    fun cancelActiveStream() = streamingHelper.cancelActiveStream()
 
     /** 获取当前消息数量 */
     fun getMessageCount(): Int = adapter.itemCount
@@ -665,7 +711,7 @@ class ChatViewModel(
                 messages.removeAt(messages.lastIndex)
                 adapter.replaceAll(messages)
             }
-            sendMessageStream(input)
+            streamingHelper.sendMessageStream(input)
         }
     }
 
@@ -691,22 +737,5 @@ class ChatViewModel(
     fun clearMessages() {
         adapter.clear()
         binding.tvArchiveHint.visibility = View.GONE
-    }
-
-    // ======================== 工具 ========================
-
-    /**
-     * 从指定位置查找句子结束位置。
-     * 句子结束标记：。！？!?\n（中文标点 + 英文感叹号/问号 + 换行）
-     * @return 句子结束位置（含标点），未找到返回 -1
-     */
-    private fun findSentenceEnd(text: String, startIndex: Int): Int {
-        for (i in startIndex until text.length) {
-            val ch = text[i]
-            if (ch == '。' || ch == '！' || ch == '？' || ch == '!' || ch == '?' || ch == '\n') {
-                return i + 1
-            }
-        }
-        return -1
     }
 }
