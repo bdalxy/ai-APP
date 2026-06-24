@@ -14,7 +14,9 @@ import com.aicompanion.app.speech.SpeechManager
 import com.aicompanion.app.speech.VoicePlayer
 import com.aicompanion.app.speech.VoiceRecorder
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import java.io.File
 
 class VoiceController(
@@ -37,6 +39,8 @@ class VoiceController(
         fun onVoiceInputTriggered()
         /** 语音识别完成，自动发送文本 */
         fun onVoiceInputReady(text: String) = Unit
+        /** 唤醒词检测到 */
+        fun onWakeWordDetected() = Unit
         fun onError(error: String)
     }
 
@@ -54,6 +58,11 @@ class VoiceController(
     private var isVoiceRecordingCancelled = false
     private val recordingHandler = Handler(Looper.getMainLooper())
     private var recordingDurationRunnable: Runnable? = null
+
+    // ── 唤醒词检测 ──
+    private var wakeWordJob: Job? = null
+    private var isWakeWordDetectionActive = false
+    private val wakeWords = listOf("小星", "小星小星", "hey小星", "你好小星")
 
     fun init() {
         initSpeechManager()
@@ -198,6 +207,11 @@ class VoiceController(
 
     fun startVoiceRecognition() {
         try {
+            // 语音打断：用户开始说话时停止 AI 朗读
+            if (speechManager.isSpeaking) {
+                speechManager.interruptForVoiceInput()
+                Log.d(TAG, "语音打断：停止 TTS 后开始语音识别")
+            }
             speechManager.startRecording()
             binding.btnVoice.setColorFilter(Color.parseColor("#FF6B6B"))
             Toast.makeText(context, "正在聆听...", Toast.LENGTH_SHORT).show()
@@ -226,6 +240,11 @@ class VoiceController(
             return
         }
         try {
+            // 语音打断：用户开始录音时停止 AI 朗读
+            if (speechManager.isSpeaking) {
+                speechManager.interruptForVoiceInput()
+                Log.d(TAG, "语音打断：停止 TTS 后开始录音")
+            }
             voiceRecorder.start()
             isVoiceRecordingCancelled = false
             binding.btnVoice.setColorFilter(Color.parseColor("#FF6B6B"))
@@ -361,7 +380,117 @@ class VoiceController(
         recordingDurationRunnable = null
     }
 
+    // ── 唤醒词检测 ──
+
+    /**
+     * 启动唤醒词持续监听。
+     * 在后台循环使用 SpeechRecognizer 监听，检测到唤醒词后触发完整语音识别。
+     * 唤醒词列表：小星、小星小星、hey小星、你好小星
+     */
+    fun startWakeWordDetection() {
+        if (isWakeWordDetectionActive) {
+            Log.d(TAG, "唤醒词检测已在运行中")
+            return
+        }
+        if (!hasRecordPermission()) {
+            Log.w(TAG, "无录音权限，无法启动唤醒词检测")
+            return
+        }
+        isWakeWordDetectionActive = true
+        Log.d(TAG, "唤醒词检测已启动，监听词: $wakeWords")
+
+        wakeWordJob = lifecycleScope.launch {
+            while (isWakeWordDetectionActive && isActive) {
+                try {
+                    // 跳过正在流式回复或 TTS 播放中的情况
+                    if (isStreamingProvider() || speechManager.isSpeaking) {
+                        delay(500)
+                        continue
+                    }
+
+                    // 使用 SpeechManager 进行一轮识别
+                    startWakeWordRound()
+                    // 等待识别完成（最多 3 秒）
+                    var waited = 0L
+                    while (speechManager.isRecording && waited < 3000) {
+                        delay(100)
+                        waited += 100
+                    }
+                    // 轮次间隔
+                    delay(500)
+                } catch (e: Exception) {
+                    Log.e(TAG, "唤醒词检测循环异常: ${e.message}")
+                    delay(1000)
+                }
+            }
+            Log.d(TAG, "唤醒词检测循环已退出")
+        }
+    }
+
+    /**
+     * 执行一轮唤醒词检测。
+     * 启动语音识别，在结果回调中检查是否包含唤醒词。
+     */
+    private fun startWakeWordRound() {
+        if (!this::speechManager.isInitialized) return
+        if (speechManager.isRecording) return
+
+        // 临时设置唤醒词检测回调
+        val originalCallback = speechManager.callback
+        speechManager.callback = object : SpeechManager.SpeechCallback {
+            override fun onSpeechResult(text: String) {
+                Log.d(TAG, "唤醒词轮次识别结果: $text")
+                val detected = wakeWords.any { wakeWord ->
+                    text.contains(wakeWord, ignoreCase = true)
+                }
+                if (detected) {
+                    Log.i(TAG, "✅ 检测到唤醒词: $text")
+                    UiThread.run {
+                        callback?.onWakeWordDetected()
+                        // 唤醒后自动触发语音识别
+                        if (!isStreamingProvider()) {
+                            startVoiceRecognition()
+                        }
+                    }
+                }
+                // 恢复原始回调
+                speechManager.callback = originalCallback
+            }
+
+            override fun onSpeechError(error: String) {
+                Log.d(TAG, "唤醒词轮次识别错误: $error")
+                speechManager.callback = originalCallback
+            }
+
+            override fun onSpeechStart() {}
+            override fun onSpeechDone() {}
+        }
+
+        try {
+            speechManager.startRecording()
+        } catch (e: Exception) {
+            Log.e(TAG, "启动唤醒词识别轮次失败: ${e.message}")
+            speechManager.callback = originalCallback
+        }
+    }
+
+    /**
+     * 停止唤醒词持续监听。
+     */
+    fun stopWakeWordDetection() {
+        isWakeWordDetectionActive = false
+        wakeWordJob?.cancel()
+        wakeWordJob = null
+        Log.d(TAG, "唤醒词检测已停止")
+    }
+
+    /**
+     * 唤醒词检测是否正在运行。
+     */
+    fun isWakeWordDetectionRunning(): Boolean = isWakeWordDetectionActive
+
     fun destroy() {
+        stopWakeWordDetection()
         if (this::speechManager.isInitialized) { speechManager.destroy() }
         if (this::voiceRecorder.isInitialized) { voiceRecorder.destroy() }
         if (this::voicePlayer.isInitialized) { voicePlayer.destroy() }
