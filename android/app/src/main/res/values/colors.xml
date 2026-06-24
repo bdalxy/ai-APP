@@ -81,6 +81,7 @@
     <color name="memory_emotional">#E57399</color>     <!-- 柔和粉 -->
     <color name="memory_summary">#64B5F6</color>      <!-- 柔和蓝 -->
     <color name="memory_default">#9090A0</color>       <!-- 柔和灰 -->
+    <color name="memory_archive_gray">#E8E8E8</color>  <!-- 记忆档案馆褪色灰 -->
 
     <!-- ===== 玻璃糖纸边缘高光 ===== -->
     <color name="glass_edge_white">#FFFFFFFF</color>

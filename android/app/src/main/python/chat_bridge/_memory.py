@@ -114,6 +114,50 @@ def set_memory_extract_mode(mode: str = "rule") -> str:
         return json.dumps({"status": "error", "message": str(e)})
 
 
+def set_memory_config(max_count: int = 1000, dedup_threshold: float = 0.7, decay_half_life: int = 30) -> str:
+    """设置记忆系统配置参数。
+
+    Args:
+        max_count: 记忆容量上限（100-5000）。
+        dedup_threshold: 去重相似度阈值（0.3-1.0）。
+        decay_half_life: 衰减半衰期天数（1-365）。
+
+    Returns:
+        {"status": "ok", "config": {...}} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        config = {
+            "max_memory_count": max(100, min(5000, int(max_count))),
+            "dedup_threshold": max(0.3, min(1.0, float(dedup_threshold))),
+            "decay_half_life_days": max(1, min(365, int(decay_half_life))),
+        }
+        orchestrator.set_config(config)
+        return json.dumps({"status": "ok", "config": orchestrator.get_config()})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+def get_memory_config() -> str:
+    """获取当前记忆系统配置。
+
+    Returns:
+        {"status": "ok", "config": {...}} 或 {"status": "error", "message": str}
+    """
+    orchestrator = _ctx.orchestrator
+    if orchestrator is None:
+        return json.dumps({"status": "error", "message": "记忆系统未初始化，请先调用 init_memory()"})
+
+    try:
+        config = orchestrator.get_config()
+        return json.dumps({"status": "ok", "config": config})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
 def inject_memories(query_text: str = "") -> str:
     """检索相关记忆并注入到 RolePlayer 的 System Prompt。"""
     orchestrator = _ctx.orchestrator

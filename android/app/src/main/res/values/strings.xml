@@ -184,6 +184,7 @@
     <string name="hint_role_anchor">用一句话（30-60字）定义角色本质</string>
     <string name="label_self_identity">自我认同</string>
     <string name="hint_self_identity">角色对自身身份的认知声明</string>
+    <string name="hint_self_identity_sub">角色对自身身份的认知声明</string>
     <!-- 基础版/专业版切换 -->
     <string name="link_switch_to_pro">切换到专业版，编辑更多细节</string>
     <string name="section_pro_fields">── 专业版字段 ──</string>
@@ -236,6 +237,7 @@
     <string name="label_error_prefix">[错误]</string>
     <string name="label_error_timeout_prefix">[超时]</string>
     <string name="action_copy">复制</string>
+    <string name="action_edit">编辑</string>
     <string name="action_retry">重试</string>
     <string name="toast_copied">已复制</string>
     <string name="error_unknown">未知错误</string>
@@ -330,9 +332,11 @@
     <string name="plugin_panel_title">插件面板</string>
     <string name="plugin_image">图片</string>
     <string name="plugin_voice">语音</string>
-    <string name="plugin_game">小游戏</string>
+    <string name="plugin_extension">插件</string>
     <string name="plugin_web">联网</string>
     <string name="plugin_reserved">预留</string>
+    <string name="plugin_web_search_on">已开启</string>
+    <string name="plugin_web_search_off">已关闭</string>
     <string name="plugin_more_coming">更多插件即将推出…</string>
 
     <!-- ===== 语音功能 ===== -->
@@ -422,4 +426,132 @@
     <string name="label_language">界面语言</string>
     <string name="language_dialog_title">选择语言</string>
     <string name="language_restart_message">切换语言后请重启应用以生效</string>
-</resources>
+
+    <!-- ===== SettingsDetailActivity 专用字符串 ===== -->
+    <string name="toast_settings_saved">设置已保存</string>
+    <string name="section_api_config">API 配置</string>
+    <string name="section_model">模型</string>
+    <string name="label_manage_characters">管理角色卡</string>
+    <string name="hint_api_key_input">输入 DeepSeek API Key</string>
+    <string name="dialog_title_select_model">选择模型</string>
+    <string name="btn_confirm">确定</string>
+    <string name="toast_api_key_saved">API Key 已保存</string>
+    <string name="toast_python_sync_failed">Python 同步失败: %s</string>
+    <string name="temp_label_conservative">0.5 保守</string>
+    <string name="temp_label_moderate">0.7 中等</string>
+    <string name="temp_label_creative">0.9 创意</string>
+    <string name="token_label_concise">500（简洁）</string>
+    <string name="token_label_moderate">1000（适中）</string>
+    <string name="token_label_detailed">2000（详细）</string>
+    <string name="section_chat_params">对话参数</string>
+    <string name="label_clear_history">清空当前对话历史</string>
+    <string name="desc_context_size">保留多少对话历史给AI看（单位：token）</string>
+    <string name="label_custom_input">自定义：</string>
+    <string name="suffix_token"> token</string>
+    <string name="desc_temperature">控制AI回复的随机性和想象力</string>
+    <string name="desc_max_tokens">每条AI回复的Token上限</string>
+    <string name="desc_example_dialogues">角色卡中展示的示例对话条数</string>
+    <string name="msg_clear_chat_confirm">将清空当前对话历史。确定继续吗？</string>
+    <string name="toast_chat_cleared">对话已清空</string>
+    <string name="toast_clear_chat_failed">清空对话失败: %s</string>
+    <string name="section_memory_params">记忆参数</string>
+    <string name="label_memory_auto_manage">默认（自动管理）</string>
+    <string name="toast_memory_auto_manage">记忆容量由系统自动管理，后续版本将支持手动调整</string>
+    <string name="label_dedup_auto">默认（自动去重）</string>
+    <string name="toast_dedup_future">去重阈值将在后续版本中开放配置</string>
+    <string name="label_decay_auto">默认（自然衰减）</string>
+    <string name="toast_decay_future">衰减参数将在后续版本中开放配置</string>
+    <string name="section_memory_manage_label">记忆管理</string>
+    <string name="label_browse_memories">浏览和管理AI记忆</string>
+    <string name="label_delete_all_memories_data">删除所有长期记忆数据</string>
+    <string name="dialog_title_clear_long_term_memory">清空长期记忆</string>
+    <string name="msg_clear_long_term_memory_confirm">将删除所有长期记忆数据，无法恢复。确定吗？</string>
+    <string name="toast_memory_cleared">记忆已清空</string>
+    <string name="toast_clear_memory_failed">清空记忆失败: %s</string>
+    <string name="section_proactive_push">主动推送</string>
+    <string name="option_custom">自定义</string>
+    <string name="quiet_time_22_08">22:00 - 08:00</string>
+    <string name="quiet_time_23_07">23:00 - 07:00</string>
+    <string name="quiet_time_00_06">00:00 - 06:00</string>
+    <string name="dialog_title_send_frequency">发送频率</string>
+    <string name="dialog_title_quiet_hours">静默时段</string>
+    <string name="hint_custom_interval">输入小时数（最低 0.5 小时）</string>
+    <string name="dialog_title_custom_interval">自定义发送间隔</string>
+    <string name="msg_min_interval">最低间隔 30 分钟（0.5 小时）</string>
+    <string name="toast_invalid_number">请输入有效的正数</string>
+    <string name="toast_min_interval_warning">最低间隔为 30 分钟（0.5 小时）</string>
+    <string name="hint_start_time">开始时间（如 22:00）</string>
+    <string name="hint_end_time">结束时间（如 08:00）</string>
+    <string name="label_start_time">开始时间</string>
+    <string name="label_end_time">结束时间</string>
+    <string name="dialog_title_custom_quiet">自定义静默时段</string>
+    <string name="toast_invalid_time_format">请输入有效的时间格式（HH:mm）</string>
+    <string name="lang_zh_cn_label">中文（普通话）</string>
+    <string name="section_tts">语音合成（TTS）</string>
+    <string name="section_asr">语音识别（ASR）</string>
+    <string name="dialog_title_tts_rate">TTS 语速</string>
+    <string name="desc_tts_rate">调整AI语音朗读的快慢</string>
+    <string name="dialog_title_tts_pitch">TTS 音调</string>
+    <string name="desc_tts_pitch">调整AI语音的音调高低</string>
+    <string name="dialog_title_voice_lang">语音识别语言</string>
+    <string name="section_app_info">应用信息</string>
+    <string name="label_view_crash_logs">查看应用崩溃记录</string>
+    <string name="toast_open_source">本项目使用以下开源组件：\n- Material Design 3\n- Chaquopy\n- OkHttp\n详情请查看 GitHub 仓库</string>
+    <string name="toast_feedback_future">反馈功能将在后续版本中开放，敬请期待</string>
+    <string name="toast_params_apply_failed">参数应用失败: %s</string>
+    <string name="label_no_display">不展示</string>
+    <string name="label_one_item">1条</string>
+    <string name="label_two_items">2条</string>
+    <string name="label_three_items">3条</string>
+    <string name="temp_label_0_5">0.5</string>
+    <string name="temp_label_0_7">0.7</string>
+    <string name="temp_label_0_9">0.9</string>
+    <string name="desc_conservative">保守</string>
+    <string name="desc_moderate">中等</string>
+    <string name="desc_creative">创意</string>
+    <string name="desc_concise">简洁</string>
+    <string name="desc_detailed">详细</string>
+    <string name="token_label_500">500</string>
+    <string name="token_label_1000">1000</string>
+    <string name="token_label_2000">2000</string>
+    <string name="dialog_label_500">500</string>
+    <string name="dialog_label_4000">4000</string>
+    <string name="dialog_label_8000">8000</string>
+
+    <!-- ===== PluginManageActivity 专用字符串 ===== -->
+    <string name="tab_label_all">全部</string>
+    <string name="toast_plugin_load_failed">加载插件失败: %s</string>
+    <string name="summary_plugins_format">已安装 %1$d 个 · 已启用 %2$d 个</string>
+    <string name="toast_plugin_operation_failed">操作失败，请重试</string>
+    <string name="toast_plugin_toggle_failed">操作失败</string>
+    <string name="toast_python_not_ready">Python 引擎未就绪，无法操作插件</string>
+    <string name="toast_plugin_operation_error">操作失败: %s</string>
+    <string name="label_plugin_version">版本：</string>
+    <string name="label_plugin_author">作者：</string>
+    <string name="label_plugin_category">分类：</string>
+    <string name="label_plugin_builtin">类型：内置插件（不可卸载）\n</string>
+    <string name="label_plugin_status">状态：</string>
+    <string name="label_plugin_stats">\n--- 统计 ---\n</string>
+    <string name="label_plugin_call_count">调用次数：</string>
+    <string name="label_plugin_error_count">异常次数：</string>
+    <string name="label_plugin_last_error">最后错误：</string>
+    <string name="label_plugin_hooks">\n--- 实现钩子 ---\n</string>
+    <string name="dialog_title_plugin_detail">%s 详情</string>
+    <string name="btn_close">关闭</string>
+    <string name="btn_toggle_plugin">启用/禁用</string>
+
+    <!-- ===== WorldBookActivity 专用字符串 ===== -->
+    <string name="toast_entry_content_empty">常识内容不能为空</string>
+    <string name="label_entry_count_format">共 %d 条常识</string>
+
+    <!-- ===== 情感倾向选项 ===== -->
+    <string-array name="emotional_tendency_options">
+        <item>不设置</item>
+        <item>乐观</item>
+        <item>中性</item>
+        <item>悲观</item>
+        <item>热情</item>
+        <item>冷静</item>
+    </string-array>
+
+    </resources>

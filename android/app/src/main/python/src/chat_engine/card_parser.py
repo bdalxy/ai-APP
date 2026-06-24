@@ -45,6 +45,8 @@ class Card:
     taboo_topics: str = ""
     role_anchor: str = ""
     avatar_uri: str = ""
+    emotional_tendency: str = ""
+    self_identity: str = ""
 
     # 兼容属性
     nickname: str = ""
@@ -81,6 +83,10 @@ class Card:
             lines.append(f"【背景故事】{self.backstory}")
         if self.taboo_topics:
             lines.append(f"【禁忌话题】{self.taboo_topics}")
+        if self.emotional_tendency:
+            lines.append(f"【情感倾向】{self.emotional_tendency}")
+        if self.self_identity:
+            lines.append(f"【自我认同】{self.self_identity}")
         if self.greeting:
             lines.append(f"【开场白示例】{self.greeting}")
 
@@ -176,5 +182,7 @@ class CardParser:
             taboo_topics=str(data.get("taboo_topics", data.get("tabooTopics", ""))),
             role_anchor=str(data.get("role_anchor", data.get("roleAnchor", ""))),
             avatar_uri=str(data.get("avatar_uri", data.get("avatarUri", ""))),
+            emotional_tendency=str(data.get("emotional_tendency", data.get("emotionalTendency", ""))),
+            self_identity=str(data.get("self_identity", data.get("selfIdentity", ""))),
             nickname=str(data.get("nickname", data.get("name", ""))),
         )

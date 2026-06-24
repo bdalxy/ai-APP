@@ -104,6 +104,8 @@ class Settings:
         self.CHARACTER_PERSONALITY: str = "温柔、活泼、善解人意"
         self.CHARACTER_SPEAKING_STYLE: str = "语气轻柔，喜欢使用可爱的语气词"
         self.CHARACTER_BACKSTORY: str = "乐于助人的AI助手，喜欢聊天和分享日常趣事"
+        self.CHARACTER_EMOTIONAL_TENDENCY: str = ""
+        self.CHARACTER_SELF_IDENTITY: str = ""
 
     def set_build_type(self, build_type: str) -> None:
         """由 Kotlin 侧调用，显式设置构建类型以控制日志级别。

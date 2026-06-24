@@ -30,8 +30,10 @@ JSON Schema (Tavo 兼容扩展):
 """
 
 import json
+import os
 import random
 import re
+import threading
 import time
 from typing import Dict, Any, Optional, List, Set, Tuple
 from pathlib import Path
@@ -96,6 +98,9 @@ class WorldBook:
     version: str = "1.0"
     entries: List[WorldBookEntry] = field(default_factory=list)
     source_path: str = ""
+
+    def __post_init__(self):
+        self._lock = threading.Lock()
 
     def get_constant_entries(self) -> List[WorldBookEntry]:
         """获取始终注入的条目"""
@@ -273,6 +278,119 @@ class WorldBook:
         """重置所有条目的运行时状态"""
         for entry in self.entries:
             entry.reset_state()
+
+    # ── 运行时 CRUD（线程安全）──
+
+    def add_entry(self, entry: WorldBookEntry) -> None:
+        """动态添加条目到内存并持久化。
+
+        Args:
+            entry: 要添加的 WorldBookEntry 实例
+        """
+        with self._lock:
+            # 检查 ID 重复
+            if any(e.id == entry.id for e in self.entries):
+                raise ValueError(f"条目 ID '{entry.id}' 已存在")
+            self.entries.append(entry)
+            self._save_to_file_locked()
+
+        logger.info(f"[世界书] {self.name}: 已添加条目 {entry.id} (共 {len(self.entries)} 条)")
+
+    def update_entry(self, key: str, **kwargs) -> None:
+        """更新已有条目（按 ID 匹配）并持久化。
+
+        Args:
+            key: 条目的 ID
+            **kwargs: 要更新的字段，如 content="新内容", probability=80
+
+        Raises:
+            ValueError: 条目不存在
+        """
+        with self._lock:
+            for i, entry in enumerate(self.entries):
+                if entry.id == key:
+                    for attr, value in kwargs.items():
+                        if hasattr(entry, attr):
+                            setattr(entry, attr, value)
+                    self._save_to_file_locked()
+                    logger.info(f"[世界书] {self.name}: 已更新条目 {key}")
+                    return
+            raise ValueError(f"条目 '{key}' 不存在")
+
+    def delete_entry(self, key: str) -> None:
+        """删除条目（按 ID 匹配）并持久化。
+
+        Args:
+            key: 条目的 ID
+
+        Raises:
+            ValueError: 条目不存在
+        """
+        with self._lock:
+            before = len(self.entries)
+            self.entries = [e for e in self.entries if e.id != key]
+            if len(self.entries) == before:
+                raise ValueError(f"条目 '{key}' 不存在")
+            self._save_to_file_locked()
+
+        logger.info(f"[世界书] {self.name}: 已删除条目 {key} (共 {len(self.entries)} 条)")
+
+    def save_to_file(self, filepath: str = None) -> None:
+        """将当前内存中的条目持久化回 JSON 文件。
+
+        Args:
+            filepath: 目标文件路径，默认使用 self.source_path
+        """
+        target = filepath or self.source_path
+        if not target:
+            raise ValueError("无法保存：未指定文件路径且 source_path 为空")
+
+        entries_data = []
+        for entry in self.entries:
+            entries_data.append({
+                "id": entry.id,
+                "keys": entry.keys,
+                "key_secondary": entry.key_secondary,
+                "content": entry.content,
+                "comment": entry.comment,
+                "constant": entry.constant,
+                "selective": entry.selective,
+                "probability": entry.probability,
+                "priority": entry.priority,
+                "regex_keys": entry.regex_keys,
+                "case_sensitive": entry.case_sensitive,
+                "max_injections": entry.max_injections,
+                "cooldown_rounds": entry.cooldown_rounds,
+                "created_at": entry.created_at,
+            })
+
+        data = {
+            "version": self.version,
+            "name": self.name,
+            "description": self.description,
+            "entries": entries_data,
+        }
+
+        # 原子写入
+        tmp_path = target + ".tmp"
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, target)
+        except Exception:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+            raise
+
+        logger.debug(f"[世界书] 持久化完成: {target}")
+
+    def _save_to_file_locked(self) -> None:
+        """内部方法：持久化到 self.source_path（调用者需持有 _lock）。"""
+        if self.source_path:
+            self.save_to_file(self.source_path)
 
 
 # ============================================================

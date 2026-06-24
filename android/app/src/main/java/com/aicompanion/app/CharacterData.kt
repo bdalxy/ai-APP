@@ -21,6 +21,8 @@ data class CharacterData(
     val coreTraits: String = "",  // 核心特质（逗号分隔）
     val tabooTopics: String = "",  // 禁忌话题（逗号分隔）
     val roleAnchor: String = "",  // 角色锚点（一句话定义）
+    val emotionalTendency: String = "",  // 情感倾向（乐观/中性/悲观/热情/冷静）
+    val selfIdentity: String = "",  // 自我认同
     val isDefault: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -83,6 +85,8 @@ object CharacterStorage {
                 coreTraits = obj.optString("core_traits", ""),
                 tabooTopics = obj.optString("taboo_topics", ""),
                 roleAnchor = obj.optString("role_anchor", ""),
+                emotionalTendency = obj.optString("emotional_tendency", ""),
+                selfIdentity = obj.optString("self_identity", ""),
                 isDefault = obj.optBoolean("is_default", false),
                 createdAt = obj.optLong("created_at", System.currentTimeMillis())
             ))
@@ -105,6 +109,8 @@ object CharacterStorage {
             obj.put("core_traits", c.coreTraits)
             obj.put("taboo_topics", c.tabooTopics)
             obj.put("role_anchor", c.roleAnchor)
+            obj.put("emotional_tendency", c.emotionalTendency)
+            obj.put("self_identity", c.selfIdentity)
             obj.put("is_default", c.isDefault)
             obj.put("created_at", c.createdAt)
             arr.put(obj)

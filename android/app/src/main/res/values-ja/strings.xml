@@ -330,9 +330,11 @@
     <string name="plugin_panel_title">プラグインパネル</string>
     <string name="plugin_image">画像</string>
     <string name="plugin_voice">音声</string>
-    <string name="plugin_game">ミニゲーム</string>
+    <string name="plugin_extension">プラグイン</string>
     <string name="plugin_web">ネット検索</string>
     <string name="plugin_reserved">予約</string>
+    <string name="plugin_web_search_on">オン</string>
+    <string name="plugin_web_search_off">オフ</string>
     <string name="plugin_more_coming">さらに多くのプラグインが近日登場…</string>
 
     <!-- ===== 音声機能 ===== -->

@@ -51,7 +51,7 @@ class PluginManageActivity : AppCompatActivity() {
 
     private fun setupTabs() {
         val categories = listOf(
-            "all" to "全部",
+            "all" to getString(R.string.tab_label_all),
             PluginType.TOOL.category to PluginType.TOOL.label,
             PluginType.GAME.category to PluginType.GAME.label,
             PluginType.MEMORY.category to PluginType.MEMORY.label,
@@ -65,7 +65,7 @@ class PluginManageActivity : AppCompatActivity() {
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 val idx = tab?.position ?: 0
-                currentCategory = categories.getOrElse(idx) { "all" to "全部" }.first
+                currentCategory = categories.getOrElse(idx) { "all" to getString(R.string.tab_label_all) }.first
                 refreshFilteredList()
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
@@ -82,7 +82,7 @@ class PluginManageActivity : AppCompatActivity() {
             updateUI(allPluginsCache)
         } catch (e: Exception) {
             android.util.Log.e("PluginManage", "加载插件失败", e)
-            Toast.makeText(this, "加载插件失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_plugin_load_failed, e.message), Toast.LENGTH_SHORT).show()
             allPluginsCache = emptyList()
             updateUI(allPluginsCache)
         }
@@ -145,14 +145,14 @@ class PluginManageActivity : AppCompatActivity() {
 
     private fun updateUI(allPlugins: List<PluginItem>) {
         val enabled = allPlugins.count { it.enabled }
-        tvSummary.text = "已安装 ${allPlugins.size} 个 · 已启用 $enabled 个"
+        tvSummary.text = getString(R.string.summary_plugins_format, allPlugins.size, enabled)
         adapter.setAllDisabled(allPlugins.none { it.enabled })
         refreshFilteredList()
     }
 
     private fun refreshFilteredList() {
         val filtered = if (currentCategory == "all") allPluginsCache else allPluginsCache.filter { it.category == currentCategory }
-        tvSummary.text = "已安装 ${allPluginsCache.size} 个 · 已启用 ${allPluginsCache.count { it.enabled }} 个"
+        tvSummary.text = getString(R.string.summary_plugins_format, allPluginsCache.size, allPluginsCache.count { it.enabled })
         adapter.submitList(filtered)
         tvEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
     }
@@ -162,7 +162,7 @@ class PluginManageActivity : AppCompatActivity() {
         val registeredPlugin = PluginRegistry.getPlugin(pluginId)
         if (registeredPlugin != null) {
             val success = if (newEnabled) PluginRegistry.enablePlugin(this, pluginId) else PluginRegistry.disablePlugin(this, pluginId)
-            if (success) loadPlugins() else Toast.makeText(this, "操作失败，请重试", Toast.LENGTH_SHORT).show()
+            if (success) loadPlugins() else Toast.makeText(this, getString(R.string.toast_plugin_operation_failed), Toast.LENGTH_SHORT).show()
             return
         }
         try {
@@ -171,26 +171,26 @@ class PluginManageActivity : AppCompatActivity() {
                 val result = module?.callAttr("toggle_plugin", plugin.name, newEnabled)?.toString() ?: "{}"
                 val json = org.json.JSONObject(result)
                 if (json.optString("status") == "ok") loadPlugins()
-                else Toast.makeText(this, json.optString("message", "操作失败"), Toast.LENGTH_SHORT).show()
-            } else Toast.makeText(this, "Python 引擎未就绪，无法操作插件", Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this, json.optString("message", getString(R.string.toast_plugin_toggle_failed)), Toast.LENGTH_SHORT).show()
+            } else Toast.makeText(this, getString(R.string.toast_python_not_ready), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             android.util.Log.e("PluginManage", "切换插件状态失败", e)
-            Toast.makeText(this, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_plugin_operation_error, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun showDetailDialog(plugin: PluginItem) {
         val message = buildString {
-            append("版本：${plugin.version}\n")
-            append("作者：${plugin.author}\n")
-            append("分类：${plugin.categoryLabel}\n")
-            if (plugin.isBuiltIn) append("类型：内置插件（不可卸载）\n")
-            append("状态：${plugin.statusLabel}\n")
-            append("\n--- 统计 ---\n")
-            append("调用次数：${plugin.callCount}\n")
-            append("异常次数：${plugin.errorCount}\n")
-            if (plugin.lastError.isNotEmpty()) append("最后错误：${plugin.lastError}\n")
-            append("\n--- 实现钩子 ---\n")
+            append(getString(R.string.label_plugin_version)); append(plugin.version); append("\n")
+            append(getString(R.string.label_plugin_author)); append(plugin.author); append("\n")
+            append(getString(R.string.label_plugin_category)); append(plugin.categoryLabel); append("\n")
+            if (plugin.isBuiltIn) append(getString(R.string.label_plugin_builtin))
+            append(getString(R.string.label_plugin_status)); append(plugin.statusLabel); append("\n")
+            append(getString(R.string.label_plugin_stats))
+            append(getString(R.string.label_plugin_call_count)); append(plugin.callCount); append("\n")
+            append(getString(R.string.label_plugin_error_count)); append(plugin.errorCount); append("\n")
+            if (plugin.lastError.isNotEmpty()) { append(getString(R.string.label_plugin_last_error)); append(plugin.lastError); append("\n") }
+            append(getString(R.string.label_plugin_hooks))
             val allHooks = listOf("pre_process", "post_process", "on_turn_end", "on_memory_extracted")
             for (hook in allHooks) {
                 val implemented = hook in plugin.hooks
@@ -202,11 +202,11 @@ class PluginManageActivity : AppCompatActivity() {
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("${plugin.name} 详情")
+            .setTitle(getString(R.string.dialog_title_plugin_detail, plugin.name))
             .setMessage(message)
-            .setPositiveButton("关闭", null)
+            .setPositiveButton(getString(R.string.btn_close), null)
 
-        dialog.setNeutralButton("启用/禁用") { _, _ ->
+        dialog.setNeutralButton(getString(R.string.btn_toggle_plugin)) { _, _ ->
             handleToggle(plugin, !plugin.enabled)
         }
         dialog.show()

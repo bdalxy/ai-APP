@@ -58,6 +58,16 @@
             android:textColor="@color/wb_text_warm"
             android:background="@drawable/bg_bubble_user"
             tools:text="这是一条用户消息示例" />
+        <TextView
+            android:id="@+id/tvEditedTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="(已编辑)"
+            android:textSize="10sp"
+            android:textColor="@color/text_tertiary"
+            android:layout_marginTop="2dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
         <LinearLayout
             android:id="@+id/layoutStatus"
             android:layout_width="wrap_content"

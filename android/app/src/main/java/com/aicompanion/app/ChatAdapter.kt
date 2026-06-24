@@ -83,6 +83,7 @@ class ChatAdapter(
         val tvTimestamp: TextView = view.findViewById(R.id.tvTimestamp)
         val ivStatus: ImageView = view.findViewById(R.id.ivStatus)
         val layoutStatus: View = view.findViewById(R.id.layoutStatus)
+        val tvEditedTag: TextView = view.findViewById(R.id.tvEditedTag)
 
         override fun bind(message: Message) {
             tvContent.text = message.content
@@ -291,6 +292,9 @@ class ChatAdapter(
         } else {
             message.content
         }
+
+        // 编辑标记
+        holder.tvEditedTag.visibility = if (message.isEdited) View.VISIBLE else View.GONE
 
         // 时间戳和状态：组尾显示
         if (message.isGroupEnd) {
@@ -528,7 +532,8 @@ class ChatAdapter(
                 old.msgType == new.msgType &&
                 old.voiceFilePath == new.voiceFilePath &&
                 old.voiceDurationMs == new.voiceDurationMs &&
-                old.voicePlayed == new.voicePlayed
+                old.voicePlayed == new.voicePlayed &&
+                old.isEdited == new.isEdited
         }
     }
 }

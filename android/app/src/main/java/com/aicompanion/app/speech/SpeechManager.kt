@@ -173,6 +173,10 @@ class SpeechManager(private val context: Context) {
 
     fun startSpeaking(text: String, utteranceId: String? = null) {
         if (text.isBlank()) { Log.w(TAG, "播放文本为空"); return }
+        if (sherpaTts?.isAvailable() != true) {
+            Log.w(TAG, "SherpaTtsEngine 不可用（降级模式），跳过 TTS")
+            return
+        }
         if (sherpaTts?.isInitialized != true) {
             Log.w(TAG, "SherpaTtsEngine 尚未初始化，尝试初始化...")
             initTts { ready ->
@@ -195,6 +199,10 @@ class SpeechManager(private val context: Context) {
      */
     fun speakSentenceStreaming(text: String) {
         if (text.isBlank()) return
+        if (sherpaTts?.isAvailable() != true) {
+            Log.w(TAG, "SherpaTtsEngine 不可用（降级模式），静默跳过 TTS 流式句子")
+            return
+        }
         if (sherpaTts?.isInitialized != true) {
             Log.w(TAG, "SherpaTtsEngine 尚未初始化，尝试初始化...")
             initTts { ready ->

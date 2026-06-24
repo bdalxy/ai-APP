@@ -427,7 +427,7 @@ def add_world_book_entry(name: str, entry_json: str) -> str:
                 "status": "error", "message": f"条目 ID '{new_id}' 已存在"
             }, ensure_ascii=False)
 
-        # 构建条目对象
+        # 构建条目对象，委托给 WorldBook.add_entry()（线程安全）
         from src.world_book.world_book import WorldBookEntry
         entry = WorldBookEntry(
             id=new_id,
@@ -445,10 +445,7 @@ def add_world_book_entry(name: str, entry_json: str) -> str:
             cooldown_rounds=entry_data.get("cooldown_rounds", 0),
             created_at=time.time(),
         )
-        book.entries.append(entry)
-
-        # 持久化到文件
-        _save_book_to_file(book)
+        book.add_entry(entry)
         _log.info(f"[世界书] {name}: 已添加条目 {new_id}")
         return json.dumps({
             "status": "ok", "entry_id": new_id,
@@ -456,6 +453,8 @@ def add_world_book_entry(name: str, entry_json: str) -> str:
         }, ensure_ascii=False)
     except json.JSONDecodeError as e:
         return json.dumps({"status": "error", "message": f"条目 JSON 解析失败: {e}"}, ensure_ascii=False)
+    except ValueError as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
     except Exception as e:
         _log.error(f"[世界书] add_world_book_entry({name}) 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
@@ -467,7 +466,7 @@ def update_world_book_entry(name: str, entry_id: str, entry_json: str) -> str:
     Args:
         name: 世界书名称
         entry_id: 要更新的条目 ID
-        entry_json: 新的条目 JSON 字符串
+        entry_json: 新的条目 JSON 字符串，只更新提供的字段
 
     Returns:
         JSON: {"status": "ok", "entry_id": "..."} 或错误
@@ -482,42 +481,15 @@ def update_world_book_entry(name: str, entry_id: str, entry_json: str) -> str:
         entry_data = json.loads(entry_json)
         book = engine.get_book(name)
 
-        # 查找目标条目
-        target_idx = None
-        for i, e in enumerate(book.entries):
-            if e.id == entry_id:
-                target_idx = i
-                break
-        if target_idx is None:
-            return json.dumps({
-                "status": "error", "message": f"条目 '{entry_id}' 不存在"
-            }, ensure_ascii=False)
+        # 委托给 WorldBook.update_entry()（线程安全，自动持久化）
+        book.update_entry(entry_id, **entry_data)
 
-        # 构建新条目（保留 id）
-        from src.world_book.world_book import WorldBookEntry
-        new_entry = WorldBookEntry(
-            id=entry_id,
-            keys=entry_data.get("keys", []),
-            key_secondary=entry_data.get("key_secondary", []),
-            content=entry_data.get("content", ""),
-            comment=entry_data.get("comment", ""),
-            constant=entry_data.get("constant", False),
-            selective=entry_data.get("selective", True),
-            probability=entry_data.get("probability", 100),
-            priority=entry_data.get("priority", 0),
-            regex_keys=entry_data.get("regex_keys", []),
-            case_sensitive=entry_data.get("case_sensitive", False),
-            max_injections=entry_data.get("max_injections", 5),
-            cooldown_rounds=entry_data.get("cooldown_rounds", 0),
-            created_at=entry_data.get("created_at", book.entries[target_idx].created_at),
-        )
-        book.entries[target_idx] = new_entry
-
-        _save_book_to_file(book)
         _log.info(f"[世界书] {name}: 已更新条目 {entry_id}")
         return json.dumps({"status": "ok", "entry_id": entry_id}, ensure_ascii=False)
     except json.JSONDecodeError as e:
         return json.dumps({"status": "error", "message": f"条目 JSON 解析失败: {e}"}, ensure_ascii=False)
+    except ValueError as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
     except Exception as e:
         _log.error(f"[世界书] update_world_book_entry({name}, {entry_id}) 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
@@ -542,20 +514,18 @@ def delete_world_book_entry(name: str, entry_id: str) -> str:
 
         book = engine.get_book(name)
         before = len(book.entries)
-        book.entries = [e for e in book.entries if e.id != entry_id]
+
+        # 委托给 WorldBook.delete_entry()（线程安全，自动持久化）
+        book.delete_entry(entry_id)
+
         after = len(book.entries)
-
-        if before == after:
-            return json.dumps({
-                "status": "error", "message": f"条目 '{entry_id}' 不存在"
-            }, ensure_ascii=False)
-
-        _save_book_to_file(book)
         _log.info(f"[世界书] {name}: 已删除条目 {entry_id}")
         return json.dumps({
             "status": "ok", "entry_id": entry_id,
             "total_entries": after,
         }, ensure_ascii=False)
+    except ValueError as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
     except Exception as e:
         _log.error(f"[世界书] delete_world_book_entry({name}, {entry_id}) 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)

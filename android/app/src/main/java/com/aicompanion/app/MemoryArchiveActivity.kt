@@ -23,6 +23,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
@@ -68,9 +69,9 @@ class MemoryArchiveActivity : AppCompatActivity() {
     private var loadedCount = 0
 
     // ── 色温渐变 ──
-    private val warmColor = Color.parseColor("#FDF0F0")  // 淡樱粉
-    private val coolColor = Color.parseColor("#D4E8F0")  // 淡天蓝
-    private val grayColor = Color.parseColor("#E8E8E8")  // 浅灰
+    private val warmColor by lazy { ContextCompat.getColor(this, R.color.sakura_pink) }  // 淡樱粉
+    private val coolColor by lazy { ContextCompat.getColor(this, R.color.sakura_blue) }  // 淡天蓝
+    private val grayColor by lazy { ContextCompat.getColor(this, R.color.memory_archive_gray) }  // 浅灰
 
     // ── 破碎删除状态 ──
     private var pendingDeleteCard: MemoryCardData? = null

@@ -3,6 +3,7 @@ package com.aicompanion.app
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,6 +12,8 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
 import com.aicompanion.app.views.RecordingOverlayView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,6 +91,17 @@ class MainActivity : AppCompatActivity() {
             voiceController.startVoiceRecognition()
         } else {
             Toast.makeText(this, R.string.toast_voice_permission_denied, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** 图片选择回调 */
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            binding.etInput.setText(binding.etInput.text.toString() + " [图片: $it]")
+            binding.etInput.setSelection(binding.etInput.text.length)
+            Toast.makeText(this, "图片已选择", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -301,6 +316,11 @@ class MainActivity : AppCompatActivity() {
             voiceController.onVoiceButtonTouch(event)
             true
         }
+        // 语音按钮长按 → 打开插件面板
+        binding.btnVoice.setOnLongClickListener {
+            showPluginPanel()
+            true
+        }
 
         // 设置按钮
         binding.btnSettings.setOnClickListener {
@@ -485,6 +505,8 @@ class MainActivity : AppCompatActivity() {
             put("speaking_style", character.speakingStyle)
             put("backstory", character.backstory)
             put("greeting", character.greeting)
+            put("emotional_tendency", character.emotionalTendency)
+            put("self_identity", character.selfIdentity)
         }.toString()
         module.callAttr("set_character_card", charJson)
         return character
@@ -542,6 +564,8 @@ class MainActivity : AppCompatActivity() {
                     put("speaking_style", character.speakingStyle)
                     put("backstory", character.backstory)
                     put("greeting", character.greeting)
+                    put("emotional_tendency", character.emotionalTendency)
+                    put("self_identity", character.selfIdentity)
                 }.toString()
                 pythonModule.callAttr("set_character_card", charJson)
                 pythonModule.callAttr("reload_card")
@@ -575,6 +599,74 @@ class MainActivity : AppCompatActivity() {
                 Log.w("MainActivity", "同步对话历史到 Python 失败: ${e.message}")
             }
         }
+    }
+
+    // ======================== 插件面板 ========================
+
+    /**
+     * 显示插件面板 BottomSheet
+     * 包含：图片、语音、插件管理、联网搜索开关
+     */
+    private fun showPluginPanel() {
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_plugins, null)
+        val dialog = BottomSheetDialog(this)
+        dialog.setContentView(sheetView)
+
+        // 1. 图片：触发图片选择
+        sheetView.findViewById<View>(R.id.pluginImage)?.setOnClickListener {
+            dialog.dismiss()
+            imagePickerLauncher.launch("image/*")
+        }
+
+        // 2. 语音：触发语音识别（短按识别）
+        sheetView.findViewById<View>(R.id.pluginVoice)?.setOnClickListener {
+            dialog.dismiss()
+            if (!voiceController.speechManager.isRecording) {
+                if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    voiceController.startVoiceRecognition()
+                } else {
+                    voicePermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+
+        // 3. 插件管理：跳转 PluginManageActivity
+        sheetView.findViewById<View>(R.id.pluginExtension)?.setOnClickListener {
+            dialog.dismiss()
+            startActivity(Intent(this, PluginManageActivity::class.java))
+        }
+
+        // 4. 联网搜索：切换开关
+        val webIcon = sheetView.findViewById<ImageView>(R.id.pluginWebIcon)
+        val webStatus = sheetView.findViewById<TextView>(R.id.pluginWebStatus)
+        val isWebEnabled = AppConfig.getWebSearchEnabled(this)
+        updateWebSearchUI(webIcon, webStatus, isWebEnabled)
+
+        sheetView.findViewById<View>(R.id.pluginWeb)?.setOnClickListener {
+            val current = AppConfig.getWebSearchEnabled(this)
+            val newState = !current
+            AppConfig.setWebSearchEnabled(this, newState)
+            updateWebSearchUI(webIcon, webStatus, newState)
+            Toast.makeText(
+                this,
+                if (newState) "联网搜索已开启" else "联网搜索已关闭",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        dialog.show()
+    }
+
+    private fun updateWebSearchUI(icon: ImageView?, status: TextView?, enabled: Boolean) {
+        icon?.alpha = if (enabled) 1.0f else 0.5f
+        status?.text = if (enabled) getString(R.string.plugin_web_search_on)
+                       else getString(R.string.plugin_web_search_off)
+        status?.setTextColor(
+            if (enabled) Color.parseColor("#4CAF50")
+            else resources.getColor(R.color.text_tertiary, theme)
+        )
     }
 
     // ======================== 屏幕适配 ========================

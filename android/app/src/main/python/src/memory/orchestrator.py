@@ -68,6 +68,11 @@ class MemoryOrchestrator:
         self.retriever = MemoryRetriever(vector_store, deepseek_client)
         self._turn_count = 0          # 用于 LLM 提取节流
         self._extract_interval = 2    # 每 N 轮启用一次 LLM 提取（降低到2，减少信息丢失）
+        self.config: dict[str, object] = {
+            "max_memory_count": 1000,
+            "dedup_threshold": 0.7,
+            "decay_half_life_days": 30,
+        }
         self._archiver = None          # 懒加载的记忆归档器
         self._consolidator: MemoryConsolidator | None = None  # 懒加载的记忆合并器
         self._lifecycle: MemoryLifecycle | None = None        # 懒加载的生命周期管理器
@@ -102,6 +107,51 @@ class MemoryOrchestrator:
         self._log.info(
             f"[提取间隔] 已更新: {old} -> {n}"
         )
+
+    # =========================================================================
+    # 配置管理
+    # =========================================================================
+
+    def set_config(self, config_dict: dict[str, object]) -> None:
+        """设置记忆系统配置参数。
+
+        支持的配置项：
+            - max_memory_count: 记忆容量上限（默认 1000）
+            - dedup_threshold: 去重相似度阈值（默认 0.7）
+            - decay_half_life_days: 衰减半衰期天数（默认 30）
+
+        Args:
+            config_dict: 配置字典，可以只包含部分键。
+        """
+        for key in ("max_memory_count", "dedup_threshold", "decay_half_life_days"):
+            if key in config_dict:
+                self.config[key] = config_dict[key]
+
+        # 同步去重阈值到 extractor
+        if "dedup_threshold" in config_dict:
+            self.extractor._DEDUP_SIMILARITY_THRESHOLD = float(config_dict["dedup_threshold"])
+
+        # 同步衰减半衰期到 decay 模块
+        if "decay_half_life_days" in config_dict:
+            from src.memory import decay
+            half_life = float(config_dict["decay_half_life_days"])
+            decay.DEFAULT_HALF_LIFE = half_life
+            for key in decay.HALF_LIFE_DAYS:
+                decay.HALF_LIFE_DAYS[key] = half_life
+
+        self._log.info(
+            f"[配置] 已更新: max={self.config['max_memory_count']}, "
+            f"dedup={self.config['dedup_threshold']}, "
+            f"half_life={self.config['decay_half_life_days']}天"
+        )
+
+    def get_config(self) -> dict[str, object]:
+        """获取当前记忆系统配置。
+
+        Returns:
+            配置字典。
+        """
+        return dict(self.config)
 
     # =========================================================================
     # 记忆存储
@@ -194,6 +244,20 @@ class MemoryOrchestrator:
         self._log.info(
             f"[记忆存储] 提取到 {len(entries)} 条记忆 (turn={turn_id})"
         )
+
+        # 检查容量上限：超出时跳过存储并触发维护
+        max_count = int(self.config.get("max_memory_count", 1000))
+        current_count = self.vector_store.count()
+        if current_count >= max_count:
+            self._log.info(
+                f"[记忆存储] 记忆数已达上限 ({current_count}/{max_count})，"
+                f"跳过存储并触发维护"
+            )
+            try:
+                self.run_maintenance()
+            except Exception as e:
+                self._log.warning(f"[记忆存储] 维护触发失败: {e}")
+            return 0
 
         # 3 & 4. 逐条补充向量并存储
         stored_count = 0

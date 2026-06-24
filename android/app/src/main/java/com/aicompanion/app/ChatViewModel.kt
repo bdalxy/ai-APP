@@ -100,6 +100,11 @@ class ChatViewModel(
     /** 上次用户输入（用于网络中断后重试） */
     private var lastUserInput: String = ""
 
+    /** 编辑模式：正在编辑的消息位置，-1 表示非编辑模式 */
+    private var editingPosition: Int = -1
+    /** 编辑模式：正在编辑的消息 ID */
+    private var editingMessageId: String? = null
+
     /** 流式输出滚动节流时间戳 */
     private var lastScrollTime = 0L
     /** 流式消息更新节流时间戳（50ms） */
@@ -283,6 +288,36 @@ class ChatViewModel(
 
         // 通知停止当前 TTS 播放
         callback?.onNewMessageSent()
+
+        // 编辑模式：替换原消息
+        if (editingPosition >= 0) {
+            val messages = adapter.getMessages().toMutableList()
+            if (editingPosition < messages.size && messages[editingPosition].isUser) {
+                val editedMsg = messages[editingPosition].copy(
+                    content = text,
+                    isEdited = true,
+                    timestamp = System.currentTimeMillis()
+                )
+                messages[editingPosition] = editedMsg
+                adapter.replaceAll(messages)
+                binding.etInput.text.clear()
+                updateSendButton(false)
+                // 保存编辑位置（在重置前）
+                val editPos = editingPosition
+                // 退出编辑模式
+                editingPosition = -1
+                editingMessageId = null
+                // 如果编辑位置后面有 AI 回复，移除它并重新发送
+                if (editPos + 1 < messages.size && !messages[editPos + 1].isUser) {
+                    val remaining = messages.subList(0, editPos + 1)
+                    adapter.replaceAll(remaining)
+                    streamingHelper.sendMessageStream(text)
+                } else {
+                    callback?.onConversationNeedSave()
+                }
+            }
+            return
+        }
 
         binding.etInput.text.clear()
         updateSendButton(false)
@@ -554,7 +589,10 @@ class ChatViewModel(
     fun showMessageContextMenu(message: Message, position: Int) {
         if (message.isTyping) return
         val items = mutableListOf(context.getString(R.string.action_copy))
-        if (message.isUser) items.add(context.getString(R.string.btn_delete))
+        if (message.isUser) {
+            items.add(context.getString(R.string.action_edit))
+            items.add(context.getString(R.string.btn_delete))
+        }
 
         MaterialAlertDialogBuilder(context)
             .setItems(items.toTypedArray()) { _, which ->
@@ -565,6 +603,21 @@ class ChatViewModel(
                         Toast.makeText(context, context.getString(R.string.toast_copied), Toast.LENGTH_SHORT).show()
                     }
                     1 -> {
+                        if (message.isUser) {
+                            // 编辑
+                            startEditingMessage(message, position)
+                        } else {
+                            // 删除
+                            val messages = adapter.getMessages().toMutableList()
+                            if (position in messages.indices) {
+                                Log.d(TAG, "删除消息: position=$position, content=${messages[position].content.take(30)}")
+                                messages.removeAt(position)
+                                adapter.replaceAll(messages)
+                            }
+                        }
+                    }
+                    2 -> {
+                        // 删除（用户消息的第3项）
                         val messages = adapter.getMessages().toMutableList()
                         if (position in messages.indices) {
                             Log.d(TAG, "删除消息: position=$position, content=${messages[position].content.take(30)}")
@@ -575,6 +628,18 @@ class ChatViewModel(
                 }
             }
             .show()
+    }
+
+    /** 进入消息编辑模式 */
+    fun startEditingMessage(message: Message, position: Int) {
+        editingPosition = position
+        editingMessageId = message.id
+        binding.etInput.setText(message.content)
+        binding.etInput.setSelection(message.content.length)
+        binding.etInput.requestFocus()
+        showKeyboard(binding.etInput)
+        updateSendButton(true)
+        Toast.makeText(context, "编辑消息中…", Toast.LENGTH_SHORT).show()
     }
 
     // ======================== 对话搜索 ========================

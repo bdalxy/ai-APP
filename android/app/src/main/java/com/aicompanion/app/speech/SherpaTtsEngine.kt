@@ -47,10 +47,19 @@ class SherpaTtsEngine(private val context: Context) {
     @Volatile var isSynthesizing = false
         private set
 
+    /** 降级模式：模型加载失败时设为 true，此时 TTS 不可用 */
+    @Volatile var isFallbackMode = false
+        private set
+
     fun initialize() {
         if (isInitialized) {
             Log.d(TAG, "SherpaTtsEngine 已初始化")
             callback?.onInitSuccess()
+            return
+        }
+        if (isFallbackMode) {
+            Log.w(TAG, "SherpaTtsEngine 处于降级模式，跳过初始化")
+            callback?.onInitError("TTS 模型不可用，语音朗读已禁用")
             return
         }
 
@@ -72,8 +81,9 @@ class SherpaTtsEngine(private val context: Context) {
                     assetManager.open(VOCODER).close()
                 } catch (e: Exception) {
                     Log.e(TAG, "模型文件不完整: ${e.message}")
+                    isFallbackMode = true
                     withContext(Dispatchers.Main) {
-                        callback?.onInitError("TTS 模型文件不完整，请重新安装应用")
+                        callback?.onInitError("TTS 模型文件不完整，语音朗读已禁用")
                     }
                     return@launch
                 }
@@ -93,7 +103,17 @@ class SherpaTtsEngine(private val context: Context) {
                     ),
                 )
 
-                tts = OfflineTts(assetManager = assetManager, config = config)
+                try {
+                    tts = OfflineTts(assetManager = assetManager, config = config)
+                } catch (e: Exception) {
+                    Log.e(TAG, "TTS 模型创建失败，进入降级模式: ${e.message}")
+                    isFallbackMode = true
+                    withContext(Dispatchers.Main) {
+                        callback?.onInitError("TTS 模型加载失败，语音朗读已禁用")
+                    }
+                    return@launch
+                }
+
                 isInitialized = true
                 Log.i(TAG, "Sherpa-ONNX TTS 引擎初始化成功, 采样率=${tts?.sampleRate()}")
 
@@ -101,9 +121,10 @@ class SherpaTtsEngine(private val context: Context) {
                     callback?.onInitSuccess()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Sherpa-ONNX TTS 引擎初始化失败", e)
+                Log.e(TAG, "Sherpa-ONNX TTS 引擎初始化失败，进入降级模式", e)
+                isFallbackMode = true
                 withContext(Dispatchers.Main) {
-                    callback?.onInitError("本地 TTS 引擎初始化失败: ${e.message}")
+                    callback?.onInitError("本地 TTS 引擎初始化失败，语音朗读已禁用")
                 }
             }
         }
@@ -243,6 +264,9 @@ class SherpaTtsEngine(private val context: Context) {
     }
 
     fun isSpeaking(): Boolean = isSpeaking.get()
+
+    /** 返回 TTS 是否可用（初始化成功且未进入降级模式） */
+    fun isAvailable(): Boolean = isInitialized && !isFallbackMode
 
     fun destroy() {
         Log.d(TAG, "释放 SherpaTtsEngine 资源")

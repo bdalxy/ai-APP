@@ -239,7 +239,7 @@ class WorldBookActivity : AppCompatActivity() {
             setOnClickListener {
                 val cat = etCategory.text.toString().trim()
                 val con = etContent.text.toString().trim()
-                if (con.isEmpty()) { Toast.makeText(this@WorldBookActivity, "常识内容不能为空", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                if (con.isEmpty()) { Toast.makeText(this@WorldBookActivity, getString(R.string.toast_entry_content_empty), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
                 onSave(cat, con)
             }
         })
@@ -344,7 +344,7 @@ class WorldBookActivity : AppCompatActivity() {
     }
 
     private fun updateEntryCount() {
-        tvEntryCount.text = if (entries.isNotEmpty()) "共 ${entries.size} 条常识" else ""
+        tvEntryCount.text = if (entries.isNotEmpty()) getString(R.string.label_entry_count_format, entries.size) else ""
     }
 
     private fun startFeatherAnimation() {

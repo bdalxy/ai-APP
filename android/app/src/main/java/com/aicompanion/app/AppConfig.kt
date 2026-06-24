@@ -35,11 +35,26 @@ object AppConfig {
     /** 默认语音识别语言 */
     const val DEFAULT_VOICE_RECOGNITION_LANG = "zh-CN"
 
+    // ── 记忆参数配置（memory）──
+    private const val KEY_MEMORY_MAX_COUNT = "memory_max_count"
+    private const val KEY_MEMORY_DEDUP_THRESHOLD = "memory_dedup_threshold"
+    private const val KEY_MEMORY_DECAY_HALF_LIFE = "memory_decay_half_life"
+
+    /** 默认记忆容量上限 */
+    const val DEFAULT_MEMORY_MAX_COUNT = 1000
+    /** 默认去重相似度阈值 */
+    const val DEFAULT_MEMORY_DEDUP_THRESHOLD = 0.7f
+    /** 默认衰减半衰期（天） */
+    const val DEFAULT_MEMORY_DECAY_HALF_LIFE = 30
+
     // ── 主动消息配置（proactive）──
     private const val KEY_PROACTIVE_ENABLED = "proactive_enabled"
     private const val KEY_PROACTIVE_INTERVAL = "proactive_interval"
     private const val KEY_QUIET_START = "quiet_start"
     private const val KEY_QUIET_END = "quiet_end"
+
+    // ── 联网搜索开关 ──
+    private const val KEY_WEB_SEARCH_ENABLED = "web_search_enabled"
 
     // ── 主动消息间隔选项（公共常量，避免多处重复定义）──
     val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
@@ -243,6 +258,16 @@ object AppConfig {
         getPrefs(context).edit().remove(KEY_QUIET_START).remove(KEY_QUIET_END).apply()
     }
 
+    // ── 联网搜索开关 ──
+
+    fun getWebSearchEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_WEB_SEARCH_ENABLED, false)
+    }
+
+    fun setWebSearchEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_WEB_SEARCH_ENABLED, enabled).apply()
+    }
+
     // ── 应用语言 ──
     private const val KEY_APP_LANGUAGE = "app_language"
     const val DEFAULT_APP_LANGUAGE = "zh"
@@ -253,5 +278,31 @@ object AppConfig {
 
     fun setAppLanguage(context: Context, language: String) {
         getPrefs(context).edit().putString(KEY_APP_LANGUAGE, language).apply()
+    }
+
+    // ── 记忆参数配置（memory）──
+
+    fun getMemoryMaxCount(context: Context): Int {
+        return getPrefs(context).getInt(KEY_MEMORY_MAX_COUNT, DEFAULT_MEMORY_MAX_COUNT)
+    }
+
+    fun setMemoryMaxCount(context: Context, count: Int) {
+        getPrefs(context).edit().putInt(KEY_MEMORY_MAX_COUNT, count).apply()
+    }
+
+    fun getMemoryDedupThreshold(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_MEMORY_DEDUP_THRESHOLD, DEFAULT_MEMORY_DEDUP_THRESHOLD)
+    }
+
+    fun setMemoryDedupThreshold(context: Context, threshold: Float) {
+        getPrefs(context).edit().putFloat(KEY_MEMORY_DEDUP_THRESHOLD, threshold).apply()
+    }
+
+    fun getMemoryDecayHalfLife(context: Context): Int {
+        return getPrefs(context).getInt(KEY_MEMORY_DECAY_HALF_LIFE, DEFAULT_MEMORY_DECAY_HALF_LIFE)
+    }
+
+    fun setMemoryDecayHalfLife(context: Context, days: Int) {
+        getPrefs(context).edit().putInt(KEY_MEMORY_DECAY_HALF_LIFE, days).apply()
     }
 }

@@ -34,7 +34,9 @@ data class Message(
     /** 语音时长（毫秒），仅语音消息有效 */
     val voiceDurationMs: Long = 0L,
     /** 语音是否已播放过（用于未读红点） */
-    val voicePlayed: Boolean = false
+    val voicePlayed: Boolean = false,
+    /** 消息是否已被编辑过 */
+    val isEdited: Boolean = false
 ) {
     /** 消息状态枚举 */
     enum class MessageStatus {

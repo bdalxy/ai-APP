@@ -40,14 +40,15 @@
             android:orientation="vertical"
             android:padding="8dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
 
             <ImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_gallery"
                 android:contentDescription="@string/plugin_image"
-                android:alpha="0.6" />
+                android:alpha="0.8" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -56,13 +57,6 @@
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/plugin_reserved"
-                android:textSize="10sp"
-                android:textColor="@color/text_tertiary" />
         </LinearLayout>
 
         <!-- 语音插件 -->
@@ -75,14 +69,15 @@
             android:orientation="vertical"
             android:padding="8dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
 
             <ImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_btn_speak_now"
                 android:contentDescription="@string/plugin_voice"
-                android:alpha="0.6" />
+                android:alpha="0.8" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -91,18 +86,11 @@
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/plugin_reserved"
-                android:textSize="10sp"
-                android:textColor="@color/text_tertiary" />
         </LinearLayout>
 
-        <!-- 小游戏插件 -->
+        <!-- 插件管理 -->
         <LinearLayout
-            android:id="@+id/pluginGame"
+            android:id="@+id/pluginExtension"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -110,32 +98,26 @@
             android:orientation="vertical"
             android:padding="8dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
 
             <ImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_compass"
-                android:contentDescription="@string/plugin_game"
-                android:alpha="0.6" />
+                android:src="@android:drawable/ic_menu_more"
+                android:contentDescription="@string/plugin_extension"
+                android:alpha="0.8" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/plugin_game"
+                android:text="@string/plugin_extension"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/plugin_reserved"
-                android:textSize="10sp"
-                android:textColor="@color/text_tertiary" />
         </LinearLayout>
 
-        <!-- 联网插件 -->
+        <!-- 联网搜索开关 -->
         <LinearLayout
             android:id="@+id/pluginWeb"
             android:layout_width="0dp"
@@ -145,16 +127,19 @@
             android:orientation="vertical"
             android:padding="8dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
 
             <ImageView
+                android:id="@+id/pluginWebIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_search"
                 android:contentDescription="@string/plugin_web"
-                android:alpha="0.6" />
+                android:alpha="0.8" />
 
             <TextView
+                android:id="@+id/pluginWebLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/plugin_web"
@@ -163,9 +148,10 @@
                 android:layout_marginTop="4dp" />
 
             <TextView
+                android:id="@+id/pluginWebStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/plugin_reserved"
+                android:text="@string/plugin_web_search_off"
                 android:textSize="10sp"
                 android:textColor="@color/text_tertiary" />
         </LinearLayout>

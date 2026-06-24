@@ -1,12 +1,20 @@
 package com.aicompanion.app
 
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory
 import com.aicompanion.app.databinding.ActivityCharacterEditBinding
+import java.io.File
+import java.io.FileOutputStream
 
 class CharacterEditActivity : AppCompatActivity() {
 
@@ -22,6 +30,13 @@ class CharacterEditActivity : AppCompatActivity() {
         }
     }
 
+    /** 头像选择 launcher */
+    private val avatarPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { onAvatarSelected(it) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityCharacterEditBinding.inflate(layoutInflater)
@@ -35,6 +50,10 @@ class CharacterEditActivity : AppCompatActivity() {
             setupCreateMode()
         }
         binding.btnBack.setOnClickListener { finish() }
+        // 头像点击
+        binding.ivAvatar.setOnClickListener {
+            avatarPickerLauncher.launch("image/*")
+        }
         binding.optionBasic.setOnClickListener {
             if (isProMode) {
                 isProMode = false
@@ -68,6 +87,10 @@ class CharacterEditActivity : AppCompatActivity() {
             binding.etCoreTraits.setText(it.coreTraits)
             binding.etTabooTopics.setText(it.tabooTopics)
             binding.etRoleAnchor.setText(it.roleAnchor)
+            binding.etSelfIdentity.setText(it.selfIdentity)
+            setEmotionalTendency(it.emotionalTendency)
+            // 加载已有头像
+            loadAvatar(it.avatarUri)
         }
         binding.btnSave.setOnClickListener { saveCharacter() }
     }
@@ -144,8 +167,79 @@ class CharacterEditActivity : AppCompatActivity() {
             coreTraits = binding.etCoreTraits.text.toString().trim(),
             tabooTopics = binding.etTabooTopics.text.toString().trim(),
             roleAnchor = binding.etRoleAnchor.text.toString().trim(),
+            emotionalTendency = getEmotionalTendency(),
+            selfIdentity = binding.etSelfIdentity.text.toString().trim(),
+            avatarUri = pendingAvatarPath ?: existingChar?.avatarUri ?: "",
             isDefault = false,
             createdAt = existingChar?.createdAt ?: System.currentTimeMillis()
         )
+    }
+
+    /** 临时头像路径（选择后但未保存前） */
+    private var pendingAvatarPath: String? = null
+
+    /** 头像选择回调 */
+    private fun onAvatarSelected(uri: Uri) {
+        try {
+            val inputStream = contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            if (bitmap == null) {
+                Toast.makeText(this, "无法加载图片", Toast.LENGTH_SHORT).show()
+                return
+            }
+            // 圆形裁剪预览
+            val rounded = RoundedBitmapDrawableFactory.create(resources, bitmap)
+            rounded.isCircular = true
+            binding.ivAvatar.setImageDrawable(rounded)
+
+            // 保存到临时文件
+            val avatarDir = File(filesDir, "avatars")
+            avatarDir.mkdirs()
+            val charId = editingId ?: java.util.UUID.randomUUID().toString()
+            val avatarFile = File(avatarDir, "${charId}.jpg")
+            FileOutputStream(avatarFile).use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
+            }
+            pendingAvatarPath = avatarFile.absolutePath
+            Toast.makeText(this, R.string.toast_avatar_saved, Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "加载头像失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** 加载已有头像到 ImageView */
+    private fun loadAvatar(avatarPath: String) {
+        if (avatarPath.isBlank()) return
+        try {
+            val file = File(avatarPath)
+            if (file.exists()) {
+                val bitmap = BitmapFactory.decodeFile(avatarPath)
+                if (bitmap != null) {
+                    val rounded = RoundedBitmapDrawableFactory.create(resources, bitmap)
+                    rounded.isCircular = true
+                    binding.ivAvatar.setImageDrawable(rounded)
+                }
+            }
+        } catch (e: Exception) {
+            // 加载失败静默处理
+        }
+    }
+
+    /** 情感倾向选项列表 */
+    private val emotionalTendencyOptions = arrayOf("", "乐观", "中性", "悲观", "热情", "冷静")
+
+    /** 设置情感倾向下拉选中值 */
+    private fun setEmotionalTendency(value: String) {
+        val idx = emotionalTendencyOptions.indexOf(value)
+        if (idx >= 0 && binding.spEmotionalTendency != null) {
+            binding.spEmotionalTendency.setSelection(idx)
+        }
+    }
+
+    /** 获取当前选中的情感倾向值 */
+    private fun getEmotionalTendency(): String {
+        val pos = binding.spEmotionalTendency?.selectedItemPosition ?: 0
+        return if (pos in emotionalTendencyOptions.indices) emotionalTendencyOptions[pos] else ""
     }
 }

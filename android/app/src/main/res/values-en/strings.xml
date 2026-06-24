@@ -325,9 +325,11 @@
     <string name="plugin_panel_title">Plugin Panel</string>
     <string name="plugin_image">Image</string>
     <string name="plugin_voice">Voice</string>
-    <string name="plugin_game">Game</string>
+    <string name="plugin_extension">Plugins</string>
     <string name="plugin_web">Web</string>
     <string name="plugin_reserved">Reserved</string>
+    <string name="plugin_web_search_on">ON</string>
+    <string name="plugin_web_search_off">OFF</string>
     <string name="plugin_more_coming">More plugins coming soon...</string>
 
     <!-- ===== Voice Features ===== -->
