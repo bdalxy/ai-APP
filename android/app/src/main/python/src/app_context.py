@@ -223,7 +223,7 @@ class AppContext:
             from chat_bridge._state import shutdown_executor
             shutdown_executor()
         except Exception:
-            pass  # 非 Chaquopy 环境可能无法导入
+            self._log.debug("chat_bridge 线程池清理跳过（非 Chaquopy 环境）")
 
     def reset_turn_counter(self) -> None:
         """重置对话轮次计数器。"""

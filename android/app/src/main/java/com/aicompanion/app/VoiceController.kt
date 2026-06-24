@@ -72,7 +72,7 @@ class VoiceController(
     }
 
     private fun initSpeechManager() {
-        speechManager = SpeechManager(context)
+        speechManager = SpeechManager(context, lifecycleScope)
         speechManager.callback = object : SpeechManager.SpeechCallback {
             override fun onSpeechResult(text: String) {
                 UiThread.run {
@@ -372,7 +372,7 @@ class VoiceController(
                 recordingHandler.postDelayed(this, 200)
             }
         }
-        recordingHandler.post(recordingDurationRunnable!!)
+        recordingDurationRunnable?.let { recordingHandler.post(it) }
     }
 
     private fun stopDurationUpdater() {

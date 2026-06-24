@@ -39,7 +39,8 @@ class VoiceRecorder(private val context: Context) {
             val outputDir = File(context.cacheDir, "voice_recordings")
             if (!outputDir.exists()) outputDir.mkdirs()
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            outputFile = File(outputDir, "voice_$timestamp.m4a")
+            val file = File(outputDir, "voice_$timestamp.m4a")
+            outputFile = file
 
             mediaRecorder = MediaRecorder().apply {
                 setAudioSource(DEFAULT_AUDIO_SOURCE)
@@ -47,7 +48,7 @@ class VoiceRecorder(private val context: Context) {
                 setAudioEncoder(DEFAULT_ENCODER)
                 setAudioSamplingRate(DEFAULT_SAMPLE_RATE)
                 setAudioEncodingBitRate(DEFAULT_BIT_RATE)
-                setOutputFile(outputFile!!.absolutePath)
+                setOutputFile(file.absolutePath)
                 prepare()
                 start()
             }
@@ -59,7 +60,6 @@ class VoiceRecorder(private val context: Context) {
             Log.e(TAG, "音频录制器初始化失败", e)
             resetRecorder()
             callback?.onError("音频录制器初始化失败: ${e.message}")
-            throw IOException("音频录制器初始化失败: ${e.message}", e)
         } catch (e: Exception) {
             Log.e(TAG, "启动录制失败", e)
             resetRecorder()

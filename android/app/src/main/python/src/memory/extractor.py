@@ -700,8 +700,8 @@ class MemoryExtractor:
             parsed = False
             for pattern in [
                 r"\[\s*\{[\s\S]*?\}\s*\]",   # 标准 JSON 数组（非贪婪）
-                r"\[[\s\S]*\]",               # 贪婪回退：匹配到最后一个 ]
-                r"\{[\s\S]*\}",               # 最差回退：尝试解析为单个对象
+                r"\[[\s\S]*?\]",             # 非贪婪回退：安全匹配到第一个 ]
+                r"\{[\s\S]*?\}",             # 最差回退：尝试解析为单个对象（非贪婪）
             ]:
                 match = re.search(pattern, raw_text)
                 if not match:
@@ -876,7 +876,7 @@ class MemoryExtractor:
                                 notes=conflict.explanation,
                             )
                         except Exception:
-                            pass  # 关系记录失败不影响主流程
+                            self._log.debug(f"[冲突] 关系记录失败: {conflict.conflict_type}")
                     except Exception as e:
                         self._log.debug(f"[冲突] 归档失败: {e}")
 

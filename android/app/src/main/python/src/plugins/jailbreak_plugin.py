@@ -148,7 +148,7 @@ class JailbreakPlugin(BasePlugin):
             user_input: 用户原始输入
 
         Returns:
-            - 如果是 /jb 命令：返回命令执行结果（不发送给 AI）
+            - 如果是 /jb 命令：返回 __CMD__: 前缀的命令结果（不发送给 AI）
             - 如果破限已启用且不是命令：返回 None（不修改输入，System Prompt 由 core 注入）
             - 其他情况：返回 None
         """
@@ -156,7 +156,7 @@ class JailbreakPlugin(BasePlugin):
 
         # ── 检查是否是 /jb 命令 ──
         if re.match(r"^/(jb|jailbreak)\b", stripped, re.IGNORECASE):
-            return self._handle_command(stripped)
+            return "__CMD__:" + self._handle_command(stripped)
 
         # ── 破限已启用时，注入 System Prompt 到 _current_params ──
         if self._enabled:
@@ -262,15 +262,11 @@ class JailbreakPlugin(BasePlugin):
         return _JAILBREAK_PROMPTS.get(self._level, _JAILBREAK_PROMPTS[3])
 
     def _inject_jailbreak_prompt(self) -> None:
-        """向 chat_bridge._state._current_params 注入破限 System Prompt。"""
+        """向 chat_bridge._state 注入破限 System Prompt。"""
         try:
-            from chat_bridge._state import _current_params, _lock
+            from chat_bridge._state import set_jailbreak_params
             prompt = self._get_jailbreak_prompt()
-            with _lock:
-                _current_params["jailbreak_prompt"] = prompt
-                _current_params["jailbreak_enabled"] = True
-                _current_params["jailbreak_level"] = self._level
-                _current_params["jailbreak_preset"] = self._preset_name
+            set_jailbreak_params(prompt, self._level, self._preset_name)
         except ImportError:
             # 非 Chaquopy 环境（如单元测试），静默跳过
             pass
@@ -278,12 +274,8 @@ class JailbreakPlugin(BasePlugin):
     def _clear_jailbreak_prompt(self) -> None:
         """清除 _current_params 中的破限 System Prompt。"""
         try:
-            from chat_bridge._state import _current_params, _lock
-            with _lock:
-                _current_params.pop("jailbreak_prompt", None)
-                _current_params["jailbreak_enabled"] = False
-                _current_params.pop("jailbreak_level", None)
-                _current_params.pop("jailbreak_preset", None)
+            from chat_bridge._state import clear_jailbreak_params
+            clear_jailbreak_params()
         except ImportError:
             pass
 

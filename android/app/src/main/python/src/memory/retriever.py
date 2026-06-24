@@ -239,14 +239,13 @@ class MemoryRetriever:
             return []
         try:
             embed_resp = self.client.embed_cached(query_text)
-            if embed_resp.embeddings:
-                query_embedding = embed_resp.embeddings[0]
-            else:
-                self._log.error("[检索] Embedding API 返回空数据")
-                raise ValueError("Embedding API 返回空数据")
-        except Exception:
-            self._log.error("[检索] Embedding API 调用失败")
-            raise
+            if not embed_resp.embeddings:
+                self._log.warning("[检索] Embedding API 返回空数据，降级为关键词匹配")
+                return self._keyword_match_entries(typed_entries, query_text, top_k)
+            query_embedding = embed_resp.embeddings[0]
+        except Exception as e:
+            self._log.warning(f"[检索] Embedding API 调用失败，降级为关键词匹配: {e}")
+            return self._keyword_match_entries(typed_entries, query_text, top_k)
         scored: list[tuple[MemoryEntry, float]] = []
         for entry in typed_entries:
             if entry.embedding:
@@ -264,6 +263,33 @@ class MemoryRetriever:
     def get_important(self, min_importance: float = 0.7, top_k: int = 10) -> list[MemoryEntry]:
         """获取重要记忆（SQL 层 WHERE importance >= ? + ORDER BY，避免全量加载）。"""
         return self.vector_store.get_important_entries(min_importance, top_k)
+
+    def _keyword_match_entries(
+        self,
+        entries: list[MemoryEntry],
+        query_text: str,
+        top_k: int,
+    ) -> list[MemoryEntry]:
+        """当 embedding 不可用时，降级为关键词匹配排序。
+        
+        Args:
+            entries: 候选记忆列表。
+            query_text: 查询文本。
+            top_k: 返回的最大记忆数。
+            
+        Returns:
+            按关键词匹配度排序的记忆列表。
+        """
+        from src.memory.vector_store import extract_keywords
+        query_kw = set(extract_keywords(query_text))
+        scored: list[tuple[MemoryEntry, float]] = []
+        for entry in entries:
+            entry_kw = set(entry.keywords) if entry.keywords else set()
+            match_count = len(query_kw & entry_kw)
+            sim = min(match_count / max(len(query_kw), 1), 1.0) if query_kw else 0.0
+            scored.append((entry, sim))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [entry for entry, _ in scored[:top_k]]
 
     # =========================================================================
     # BM25 关键词检索

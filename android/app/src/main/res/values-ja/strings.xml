@@ -72,6 +72,7 @@
     <string name="summary_memory_format">%d件の長期記憶</string>
     <string name="summary_world_book_enabled">%d冊有効</string>
     <string name="summary_plugin_format">%1$d個インストール · %2$d個有効</string>
+    <string name="summary_plugins_format">%1$d個インストール · %2$d個有効</string>
     <string name="summary_quiet_time_format">おやすみモード %1$s-%2$s</string>
     <string name="summary_quiet_time_none">おやすみモードなし</string>
     <string name="summary_proactive_on_format">オン · %1$s · %2$s</string>
@@ -133,7 +134,7 @@
     <string name="world_book_no_books">ワールドブックデータがありません</string>
     <string name="label_world_book_entries">%d件</string>
     <string name="label_version">バージョン番号</string>
-    <string name="app_version">v0.1.0</string>
+    <string name="app_version">v1.0.0</string>
 
     <!-- ロールプリセット名 -->
     <string name="preset_xiaomei">デフォルトキャラクター</string>
@@ -236,6 +237,7 @@
     <string name="label_error_prefix">[エラー]</string>
     <string name="label_error_timeout_prefix">[タイムアウト]</string>
     <string name="action_copy">コピー</string>
+    <string name="action_edit">編集</string>
     <string name="action_retry">再試行</string>
     <string name="toast_copied">コピーしました</string>
     <string name="error_unknown">不明なエラー</string>
@@ -325,6 +327,10 @@
     <string name="section_plugin_manage">プラグイン管理</string>
     <string name="subtitle_plugin_manage">インストール済みプラグインの管理</string>
     <string name="label_builtin">内蔵</string>
+    <string name="toast_python_not_ready">Python環境の準備ができていません</string>
+    <string name="toast_plugin_operation_failed">プラグイン操作に失敗しました</string>
+    <string name="toast_plugin_operation_error">プラグイン操作エラー</string>
+    <string name="toast_plugin_toggle_failed">切り替えに失敗しました</string>
 
     <!-- ===== プラグインパネル (bottom_sheet_plugins) ===== -->
     <string name="plugin_panel_title">プラグインパネル</string>
@@ -363,8 +369,19 @@
     <string name="cd_voice_settings">音声設定</string>
     <string name="label_tts_speech_rate">話速</string>
     <string name="label_tts_pitch">音程</string>
+    <string name="label_tts_voice_timbre">音色選択</string>
     <string name="label_auto_read_aloud">AIの返信を自動読み上げ</string>
     <string name="label_voice_recognition_lang">認識言語</string>
+    <string name="label_wake_word">ウェイクワード検出</string>
+    <string name="label_wake_word_desc">「小星」と呼びかけると音声入力を起動</string>
+
+    <!-- 音色オプション -->
+    <string name="voice_timbre_default">デフォルト</string>
+    <string name="voice_timbre_soft">やわらかい女性</string>
+    <string name="voice_timbre_bright">明るい女性</string>
+    <string name="voice_timbre_deep">落ち着いた男性</string>
+    <string name="dialog_title_voice_timbre">音色を選択</string>
+    <string name="toast_voice_timbre_note">音色の切り替えにはTTSモデルの対応が必要です。現在はデフォルトモデルを使用しています</string>
 
     <!-- ===== ワールドブック画面 (activity_world_book) ===== -->
     <string name="title_world_book">ワールドブック</string>
@@ -420,9 +437,137 @@
     <string name="crash_log_delete_all_confirm">すべてのクラッシュログを削除してもよろしいですか</string>
     <string name="crash_log_detail_title">クラッシュ詳細</string>
 
+    <string name="cd_scroll_to_bottom">一番下へスクロール</string>
+
     <!-- ===== 言語設定 ===== -->
     <string name="section_language">言語 / Language</string>
     <string name="label_language">インターフェース言語</string>
     <string name="language_dialog_title">言語を選択</string>
     <string name="language_restart_message">言語を切り替えるにはアプリを再起動してください</string>
+
+    <!-- ===== SettingsDetailActivity ===== -->
+    <string name="toast_settings_saved">設定を保存しました</string>
+    <string name="section_api_config">API 設定</string>
+    <string name="section_model">モデル</string>
+    <string name="label_manage_characters">キャラクター管理</string>
+    <string name="hint_api_key_input">DeepSeek API キーを入力</string>
+    <string name="dialog_title_select_model">モデルを選択</string>
+    <string name="btn_confirm">確定</string>
+    <string name="toast_api_key_saved">API キーを保存しました</string>
+    <string name="toast_python_sync_failed">Python 同期失敗: %s</string>
+    <string name="temp_label_conservative">0.5 保守的</string>
+    <string name="temp_label_moderate">0.7 普通</string>
+    <string name="temp_label_creative">0.9 クリエイティブ</string>
+    <string name="token_label_concise">500（簡潔）</string>
+    <string name="token_label_moderate">1000（適度）</string>
+    <string name="token_label_detailed">2000（詳細）</string>
+    <string name="section_chat_params">会話パラメータ</string>
+    <string name="label_clear_history">現在の会話履歴をクリア</string>
+    <string name="desc_context_size">AIに表示する会話履歴の量（トークン単位）</string>
+    <string name="label_custom_input">カスタム：</string>
+    <string name="suffix_token"> token</string>
+    <string name="desc_temperature">AIの返信のランダム性と創造性を制御</string>
+    <string name="desc_max_tokens">各AI返信のトークン上限</string>
+    <string name="desc_example_dialogues">キャラクターカードに表示する例文の数</string>
+    <string name="msg_clear_chat_confirm">現在の会話履歴をクリアします。続けますか？</string>
+    <string name="toast_chat_cleared">会話をクリアしました</string>
+    <string name="toast_clear_chat_failed">会話のクリアに失敗: %s</string>
+    <string name="section_memory_params">記憶パラメータ</string>
+    <string name="label_memory_auto_manage">デフォルト（自動管理）</string>
+    <string name="toast_memory_auto_manage">記憶容量はシステムが自動管理します。手動調整は今後のバージョンで対応予定です</string>
+    <string name="label_dedup_auto">デフォルト（自動重複除去）</string>
+    <string name="toast_dedup_future">重複除去閾値は今後のバージョンで設定可能になります</string>
+    <string name="label_decay_auto">デフォルト（自然減衰）</string>
+    <string name="toast_decay_future">減衰パラメータは今後のバージョンで設定可能になります</string>
+    <string name="section_memory_manage_label">記憶管理</string>
+    <string name="label_browse_memories">AIの記憶を閲覧・管理</string>
+    <string name="label_delete_all_memories_data">すべての長期記憶データを削除</string>
+    <string name="dialog_title_clear_long_term_memory">長期記憶をクリア</string>
+    <string name="msg_clear_long_term_memory_confirm">すべての長期記憶データを削除します。元に戻せません。続けますか？</string>
+    <string name="toast_memory_cleared">記憶をクリアしました</string>
+    <string name="toast_clear_memory_failed">記憶のクリアに失敗: %s</string>
+    <string name="section_proactive_push">プロアクティブプッシュ</string>
+    <string name="option_custom">カスタム</string>
+    <string name="quiet_time_22_08">22:00 - 08:00</string>
+    <string name="quiet_time_23_07">23:00 - 07:00</string>
+    <string name="quiet_time_00_06">00:00 - 06:00</string>
+    <string name="dialog_title_send_frequency">送信頻度</string>
+    <string name="dialog_title_quiet_hours">おやすみ時間</string>
+    <string name="hint_custom_interval">時間を入力（最低0.5時間）</string>
+    <string name="dialog_title_custom_interval">カスタム間隔</string>
+    <string name="msg_min_interval">最低間隔は30分（0.5時間）です</string>
+    <string name="toast_invalid_number">有効な正の数を入力してください</string>
+    <string name="toast_min_interval_warning">最低間隔は30分（0.5時間）です</string>
+    <string name="hint_start_time">開始時間（例：22:00）</string>
+    <string name="hint_end_time">終了時間（例：08:00）</string>
+    <string name="label_start_time">開始時間</string>
+    <string name="label_end_time">終了時間</string>
+    <string name="dialog_title_custom_quiet">カスタムおやすみ時間</string>
+    <string name="toast_invalid_time_format">有効な時間形式（HH:mm）を入力してください</string>
+    <string name="lang_zh_cn_label">中国語（標準語）</string>
+    <string name="section_tts">音声合成（TTS）</string>
+    <string name="section_asr">音声認識（ASR）</string>
+    <string name="dialog_title_tts_rate">TTS 速度</string>
+    <string name="desc_tts_rate">AI音声の読み上げ速度を調整</string>
+    <string name="dialog_title_tts_pitch">TTS 音程</string>
+    <string name="desc_tts_pitch">AI音声の音程を調整</string>
+    <string name="dialog_title_voice_lang">音声認識言語</string>
+    <string name="section_app_info">アプリ情報</string>
+    <string name="label_view_crash_logs">クラッシュログを表示</string>
+    <string name="toast_open_source">本プロジェクトは以下のオープンソースコンポーネントを使用しています：\n- Material Design 3\n- Chaquopy\n- OkHttp\n詳細は GitHub リポジトリをご覧ください</string>
+    <string name="toast_feedback_future">フィードバック機能は今後のバージョンで提供予定です</string>
+    <string name="toast_params_apply_failed">パラメータの適用に失敗: %s</string>
+    <string name="label_no_display">非表示</string>
+    <string name="label_one_item">1件</string>
+    <string name="label_two_items">2件</string>
+    <string name="label_three_items">3件</string>
+    <string name="temp_label_0_5">0.5</string>
+    <string name="temp_label_0_7">0.7</string>
+    <string name="temp_label_0_9">0.9</string>
+    <string name="desc_conservative">保守的</string>
+    <string name="desc_moderate">普通</string>
+    <string name="desc_creative">クリエイティブ</string>
+    <string name="desc_concise">簡潔</string>
+    <string name="desc_detailed">詳細</string>
+    <string name="token_label_500">500</string>
+    <string name="token_label_1000">1000</string>
+    <string name="token_label_2000">2000</string>
+    <string name="dialog_label_500">500</string>
+    <string name="dialog_label_4000">4000</string>
+    <string name="dialog_label_8000">8000</string>
+
+    <!-- ===== PluginManageActivity ===== -->
+    <string name="tab_label_all">すべて</string>
+    <string name="toast_plugin_load_failed">プラグインの読み込みに失敗: %s</string>
+    <string name="label_plugin_version">バージョン：</string>
+    <string name="label_plugin_author">作者：</string>
+    <string name="label_plugin_category">分類：</string>
+    <string name="label_plugin_builtin">種類：内蔵プラグイン（アンインストール不可）\n</string>
+    <string name="label_plugin_status">状態：</string>
+    <string name="label_plugin_stats">\n--- 統計 ---\n</string>
+    <string name="label_plugin_call_count">呼び出し回数：</string>
+    <string name="label_plugin_error_count">エラー回数：</string>
+    <string name="label_plugin_last_error">最後のエラー：</string>
+    <string name="label_plugin_hooks">\n--- 実装フック ---\n</string>
+    <string name="dialog_title_plugin_detail">%s 詳細</string>
+    <string name="btn_close">閉じる</string>
+    <string name="btn_toggle_plugin">有効/無効</string>
+
+    <!-- ===== WorldBookActivity ===== -->
+    <string name="toast_entry_content_empty">常識の内容を入力してください</string>
+    <string name="label_entry_count_format">計 %d 件</string>
+
+    <!-- ===== Character Edit ===== -->
+    <string name="hint_self_identity_sub">キャラクターの自己認識に関する声明</string>
+
+    <!-- ===== 感情傾向オプション ===== -->
+    <string-array name="emotional_tendency_options">
+        <item>設定しない</item>
+        <item>楽観的</item>
+        <item>中立的</item>
+        <item>悲観的</item>
+        <item>熱情的</item>
+        <item>冷静</item>
+    </string-array>
+
 </resources>

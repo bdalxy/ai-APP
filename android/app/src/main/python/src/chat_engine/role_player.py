@@ -113,6 +113,7 @@ class RolePlayer:
         self.prompt_builder: PromptBuilder = self._create_prompt_builder()
         self.world_book_entries: list[str] = []
         self.memories: list[str] = []
+        self.jailbreak_prompt: str = ""
         self.temperature: float = temperature
         self.max_tokens: int = max_tokens
         self._parser: CardParser = CardParser()
@@ -330,6 +331,9 @@ class RolePlayer:
             world_book_entries=self.world_book_entries if self.world_book_entries else None,
             memories=self.memories if self.memories else None,
         )
+        # 附加破限 System Prompt（由 JailbreakPlugin 注入）
+        if self.jailbreak_prompt:
+            system_prompt = system_prompt + "\n\n" + self.jailbreak_prompt
 
         # 3. 组装完整 messages
         messages = self.prompt_builder.build_messages(system_prompt, self.context)
@@ -350,6 +354,10 @@ class RolePlayer:
 
             # 5. 将 AI 回复添加到上下文
             self.context.add_message("assistant", ai_reply)
+        except Exception:
+            # API 调用失败，回退已添加的用户消息，保持上下文一致
+            self.context.pop_last()
+            raise
         finally:
             # 无论成功失败都清空本轮注入的记忆，防止残留
             self.memories = []
@@ -401,6 +409,9 @@ class RolePlayer:
             world_book_entries=self.world_book_entries if self.world_book_entries else None,
             memories=self.memories if self.memories else None,
         )
+        # 附加破限 System Prompt（由 JailbreakPlugin 注入）
+        if self.jailbreak_prompt:
+            system_prompt = system_prompt + "\n\n" + self.jailbreak_prompt
 
         # 3. 组装完整 messages
         messages = self.prompt_builder.build_messages(system_prompt, self.context)

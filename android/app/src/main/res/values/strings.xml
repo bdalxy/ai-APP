@@ -133,7 +133,7 @@
     <string name="world_book_no_books">暂无世界书数据</string>
     <string name="label_world_book_entries">%d条</string>
     <string name="label_version">版本号</string>
-    <string name="app_version">v0.1.0</string>
+    <string name="app_version">v1.0.0</string>
 
     <!-- 角色预设名称 -->
     <string name="preset_xiaomei">默认角色</string>
@@ -365,8 +365,19 @@
     <string name="cd_voice_settings">语音设置</string>
     <string name="label_tts_speech_rate">语速</string>
     <string name="label_tts_pitch">音调</string>
+    <string name="label_tts_voice_timbre">音色选择</string>
     <string name="label_auto_read_aloud">自动朗读AI回复</string>
     <string name="label_voice_recognition_lang">识别语言</string>
+    <string name="label_wake_word">唤醒词检测</string>
+    <string name="label_wake_word_desc">说"小星"即可唤醒语音输入</string>
+
+    <!-- 音色选项 -->
+    <string name="voice_timbre_default">默认音色</string>
+    <string name="voice_timbre_soft">柔和女声</string>
+    <string name="voice_timbre_bright">明亮女声</string>
+    <string name="voice_timbre_deep">沉稳男声</string>
+    <string name="dialog_title_voice_timbre">选择音色</string>
+    <string name="toast_voice_timbre_note">音色切换需要 TTS 模型支持，当前使用默认模型</string>
 
     <!-- ===== 世界书页面 (activity_world_book) ===== -->
     <string name="title_world_book">世界书</string>
@@ -420,6 +431,8 @@
     <string name="crash_log_delete_confirm">确认删除</string>
     <string name="crash_log_delete_all_confirm">确认删除全部崩溃日志</string>
     <string name="crash_log_detail_title">崩溃详情</string>
+
+    <string name="cd_scroll_to_bottom">滚动到底部</string>
 
     <!-- ===== 语言设置 ===== -->
     <string name="section_language">语言 / Language</string>

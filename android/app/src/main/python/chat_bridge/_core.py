@@ -87,7 +87,10 @@ def _build_custom_preset(
 
 def _record_params(context_size: int, temperature: float, max_tokens: int,
                    example_dialogues: int, model: str) -> dict:
-    """记录当前生效的参数，并返回确认后的参数字典。"""
+    """记录当前生效的参数，并返回确认后的参数字典。
+
+    注意：只更新对话参数，不覆盖 _current_params 中的其他字段（如破限参数）。
+    """
     actual_model = model or "deepseek-v4-flash"
     params = {
         "context_size": context_size,
@@ -97,7 +100,6 @@ def _record_params(context_size: int, temperature: float, max_tokens: int,
         "model": actual_model,
     }
     with _state._lock:
-        _current_params.clear()
         _current_params.update(params)
     return params
 
@@ -190,6 +192,20 @@ def _inject_context(player, user_input: str, orchestrator) -> None:
         _log.warning(f"[世界书] 注入失败: {e}")
 
 
+def _apply_jailbreak_prompt(player) -> None:
+    """从 _current_params 读取破限提示词并注入到 player。
+
+    由 JailbreakPlugin 在 pre_process() 阶段写入 _current_params，
+    此函数在 chat() 和 chat_stream_start() 中调用，确保破限提示词生效。
+    """
+    with _state._lock:
+        prompt = _current_params.get("jailbreak_prompt", "")
+    if prompt:
+        player.jailbreak_prompt = prompt
+    else:
+        player.jailbreak_prompt = ""
+
+
 def chat(user_input: str) -> dict:
     """发送一条消息，获取 AI 角色回复。
 
@@ -209,7 +225,16 @@ def chat(user_input: str) -> dict:
         user_input = user_input.strip()
 
         # 插件管道：预处理用户输入
-        user_input = _get_plugin_manager().pre_process(user_input)
+        processed = _get_plugin_manager().pre_process(user_input)
+
+        # 如果插件返回 __CMD__: 前缀，说明用户输入是命令，直接返回结果给UI
+        if processed.startswith("__CMD__:"):
+            return json.dumps({"status": "ok", "reply": processed[8:]})
+
+        user_input = processed
+
+        # 应用破限提示词（由 JailbreakPlugin 注入到 _current_params）
+        _apply_jailbreak_prompt(player)
 
         # 注入记忆和世界书上下文（加保护，防止阻塞对话）
         try:
@@ -260,6 +285,9 @@ def chat_stream_start(user_input: str) -> str:
 
     # 插件管道：预处理用户输入
     user_input = _get_plugin_manager().pre_process(user_input)
+
+    # 应用破限提示词（由 JailbreakPlugin 注入到 _current_params）
+    _apply_jailbreak_prompt(player)
 
     # 注入记忆和世界书上下文（加保护，防止阻塞对话）
     try:

@@ -4,8 +4,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.plugin.PluginInfo
@@ -111,15 +111,17 @@ class PluginManageActivity : AppCompatActivity() {
 
     private fun mergePlugins(nativePlugins: List<PluginItem>, pythonPlugins: List<PluginItem>): List<PluginItem> {
         val merged = mutableMapOf<String, PluginItem>()
-        for (plugin in pythonPlugins) { merged[plugin.name] = plugin }
-        for (plugin in nativePlugins) { merged[plugin.name] = plugin }
+        for (plugin in pythonPlugins) { merged[plugin.id] = plugin }
+        for (plugin in nativePlugins) { merged[plugin.id] = plugin }
         return merged.values.toList()
     }
 
     private fun parsePythonPluginItem(json: org.json.JSONObject): PluginItem {
         val stats = json.optJSONObject("stats") ?: org.json.JSONObject()
+        val pluginName = json.optString("name", "")
         return PluginItem(
-            name = json.optString("name", ""),
+            id = pluginName,
+            name = pluginName,
             version = json.optString("version", ""),
             description = json.optString("description", ""),
             category = json.optString("category", "script"),
@@ -158,7 +160,7 @@ class PluginManageActivity : AppCompatActivity() {
     }
 
     private fun handleToggle(plugin: PluginItem, newEnabled: Boolean) {
-        val pluginId = plugin.name
+        val pluginId = plugin.id
         val registeredPlugin = PluginRegistry.getPlugin(pluginId)
         if (registeredPlugin != null) {
             val success = if (newEnabled) PluginRegistry.enablePlugin(this, pluginId) else PluginRegistry.disablePlugin(this, pluginId)
@@ -201,7 +203,7 @@ class PluginManageActivity : AppCompatActivity() {
             if (plugin.dependencies.isNotEmpty()) append("\n依赖：${plugin.dependencies.joinToString(", ")}")
         }
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.dialog_title_plugin_detail, plugin.name))
             .setMessage(message)
             .setPositiveButton(getString(R.string.btn_close), null)
@@ -215,6 +217,7 @@ class PluginManageActivity : AppCompatActivity() {
 
 private fun PluginInfo.toPluginItem(): PluginItem {
     return PluginItem(
+        id = this.id,
         name = this.name,
         version = this.version,
         description = this.description,

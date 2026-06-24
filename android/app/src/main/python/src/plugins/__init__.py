@@ -6,6 +6,7 @@ from .weather_plugin import WeatherPlugin
 from .joke_plugin import JokePlugin
 from .reminder_plugin import ReminderPlugin
 from .memory_stats_plugin import MemoryStatsPlugin
+from .jailbreak_plugin import JailbreakPlugin
 
 __all__ = [
     "BasePlugin",
@@ -15,4 +16,5 @@ __all__ = [
     "JokePlugin",
     "ReminderPlugin",
     "MemoryStatsPlugin",
+    "JailbreakPlugin",
 ]

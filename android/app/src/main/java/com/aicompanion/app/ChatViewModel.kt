@@ -125,6 +125,8 @@ class ChatViewModel(
     private var originalMessages = listOf<Message>()
     /** 搜索防抖 Handler */
     private val searchHandler = Handler(Looper.getMainLooper())
+    /** 多段消息拆分 Handler（需在 destroy 中清理） */
+    private var multiPartHandler: Handler? = null
 
     // ======================== 初始化 ========================
 
@@ -140,7 +142,7 @@ class ChatViewModel(
                     searchRunnable = Runnable {
                         performSearch(s?.toString() ?: "")
                     }
-                    searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_MS)
+                    searchRunnable?.let { searchHandler.postDelayed(it, SEARCH_DEBOUNCE_MS) }
                 }
             })
 
@@ -166,7 +168,7 @@ class ChatViewModel(
             originalMessages = adapter.getMessages().toList()
             binding.layoutSearch?.visibility = View.VISIBLE
             binding.etSearch?.requestFocus()
-            showKeyboard(binding.etSearch!!)
+            binding.etSearch?.let { showKeyboard(it) }
         }
 
         fun exitSearchMode() {
@@ -275,53 +277,74 @@ class ChatViewModel(
 
     /** 发送文本消息入口 */
     fun sendMessage() {
-        val text = binding.etInput.text.toString().trim()
-        if (text.isEmpty() || pythonModule == null || isStreaming) return
+        try {
+            val text = binding.etInput.text.toString().trim()
+            if (text.isEmpty()) return
 
-        // 消息长度限制（2000字符）
-        if (text.length > MAX_MESSAGE_LENGTH) {
-            Toast.makeText(
-                context, R.string.toast_message_too_long, Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-
-        // 通知停止当前 TTS 播放
-        callback?.onNewMessageSent()
-
-        // 编辑模式：替换原消息
-        if (editingPosition >= 0) {
-            val messages = adapter.getMessages().toMutableList()
-            if (editingPosition < messages.size && messages[editingPosition].isUser) {
-                val editedMsg = messages[editingPosition].copy(
-                    content = text,
-                    isEdited = true,
-                    timestamp = System.currentTimeMillis()
-                )
-                messages[editingPosition] = editedMsg
-                adapter.replaceAll(messages)
-                binding.etInput.text.clear()
-                updateSendButton(false)
-                // 保存编辑位置（在重置前）
-                val editPos = editingPosition
-                // 退出编辑模式
-                editingPosition = -1
-                editingMessageId = null
-                // 如果编辑位置后面有 AI 回复，移除它并重新发送
-                if (editPos + 1 < messages.size && !messages[editPos + 1].isUser) {
-                    val remaining = messages.subList(0, editPos + 1)
-                    adapter.replaceAll(remaining)
-                    streamingHelper.sendMessageStream(text)
-                } else {
-                    callback?.onConversationNeedSave()
-                }
+            if (pythonModule == null) {
+                Toast.makeText(context, R.string.toast_python_not_ready, Toast.LENGTH_SHORT).show()
+                return
             }
-            return
-        }
 
-        binding.etInput.text.clear()
-        updateSendButton(false)
-        streamingHelper.sendMessageStream(text)
+            if (isStreaming) return
+
+            // 消息长度限制（2000字符）
+            if (text.length > MAX_MESSAGE_LENGTH) {
+                Toast.makeText(
+                    context, R.string.toast_message_too_long, Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
+
+            // 通知停止当前 TTS 播放
+            callback?.onNewMessageSent()
+
+            // 编辑模式：替换原消息
+            if (editingPosition >= 0) {
+                val messages = adapter.getMessages().toMutableList()
+                if (editingPosition < messages.size && messages[editingPosition].isUser) {
+                    val editedMsg = messages[editingPosition].copy(
+                        content = text,
+                        isEdited = true,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    messages[editingPosition] = editedMsg
+                    adapter.replaceAll(messages)
+                    binding.etInput.text.clear()
+                    updateSendButton(false)
+                    // 保存编辑位置（在重置前）
+                    val editPos = editingPosition
+                    // 退出编辑模式
+                    editingPosition = -1
+                    editingMessageId = null
+                    // 如果编辑位置后面有 AI 回复，移除它并重新发送
+                    if (editPos + 1 < messages.size && !messages[editPos + 1].isUser) {
+                        val remaining = messages.subList(0, editPos + 1)
+                        adapter.replaceAll(remaining)
+                        streamingHelper.sendMessageStream(text)
+                    } else {
+                        callback?.onConversationNeedSave()
+                    }
+                }
+                return
+            }
+
+            binding.etInput.text.clear()
+            updateSendButton(false)
+            streamingHelper.sendMessageStream(text)
+        } catch (e: Exception) {
+            Log.e(TAG, "发送消息失败", e)
+            Toast.makeText(
+                context,
+                context.getString(R.string.toast_conversation_failed, e.message ?: context.getString(R.string.error_unknown)),
+                Toast.LENGTH_SHORT
+            ).show()
+            // 恢复输入状态
+            if (isStreaming) {
+                isStreaming = false
+                enableInput()
+            }
+        }
     }
 
     // ======================== 流式消息发送 ========================
@@ -337,7 +360,13 @@ class ChatViewModel(
          * 然后通过 callbackFlow 包装 chat_stream_poll() 轮询获取 token 并实时更新 UI。
          */
         fun sendMessageStream(userInput: String) {
-            val module = pythonModule ?: return
+            val module = pythonModule
+            if (module == null) {
+                UiThread.run {
+                    Toast.makeText(context, R.string.toast_python_not_ready, Toast.LENGTH_SHORT).show()
+                }
+                return
+            }
             isStreaming = true
             lastUserInput = userInput  // 保存用于重试
             updateSendButton(false)
@@ -359,7 +388,8 @@ class ChatViewModel(
 
                     // 启动流式对话（30秒超时保护）
                     val streamId = withTimeout(STREAM_TIMEOUT_MS) {
-                        module.callAttr("chat_stream_start", userInput)?.toString() ?: "{}"
+                        module.callAttr("chat_stream_start", userInput)?.toString()
+                            ?: """{"status":"error","message":"Python 模块返回 null"}"""
                     }
                     activeStreamId = streamId
 
@@ -383,7 +413,8 @@ class ChatViewModel(
                         var isDone = false
                         while (!isDone && isStreaming) {
                             val pollResult = withTimeout(STREAM_TIMEOUT_MS) {
-                                module.callAttr("chat_stream_poll", streamId)?.toString() ?: "{}"
+                                module.callAttr("chat_stream_poll", streamId)?.toString()
+                                    ?: """{"status":"error","message":"poll 返回 null"}"""
                             }
                             trySend(pollResult)
                             val pollJson = JSONObject(pollResult)
@@ -454,7 +485,9 @@ class ChatViewModel(
                                 if (parts.size > 1) {
                                     UiThread.run {
                                         adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
+                                        multiPartHandler?.removeCallbacksAndMessages(null)
                                         val handler = Handler(Looper.getMainLooper())
+                                        multiPartHandler = handler
                                         parts.drop(1).forEachIndexed { idx, part ->
                                             handler.postDelayed({
                                                 adapter.addMessage(Message(content = part, isUser = false))
@@ -672,7 +705,7 @@ class ChatViewModel(
             context.getString(R.string.export_format_json),
             context.getString(R.string.export_format_txt)
         )
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle(context.getString(R.string.label_choose_export_format))
             .setItems(formats) { _, which ->
                 val format = if (which == 0) "json" else "txt"
@@ -752,6 +785,8 @@ class ChatViewModel(
         Log.d(TAG, "destroy: 开始清理资源")
         isStreaming = false
         searchHandler.removeCallbacksAndMessages(null)
+        multiPartHandler?.removeCallbacksAndMessages(null)
+        multiPartHandler = null
         streamingHelper.cancelActiveStream()
         callback = null
         Log.d(TAG, "destroy: 资源清理完成")
@@ -802,5 +837,33 @@ class ChatViewModel(
     fun clearMessages() {
         adapter.clear()
         binding.tvArchiveHint.visibility = View.GONE
+    }
+
+    /**
+     * 开始新对话：清空消息、重置流式状态、添加角色欢迎语。
+     * 供 ConversationCoordinator 创建新会话后调用。
+     */
+    fun startNewConversation(greeting: String) {
+        // 取消正在进行的流式对话
+        if (isStreaming) {
+            cancelActiveStream()
+        }
+        // 清空消息列表
+        adapter.clear()
+        binding.tvArchiveHint.visibility = View.GONE
+        // 重置编辑模式
+        editingPosition = -1
+        editingMessageId = null
+        // 重置流式状态
+        lastUserInput = ""
+        lastSentenceEnd = 0
+        // 添加角色欢迎语
+        if (greeting.isNotBlank()) {
+            adapter.addMessage(Message(content = greeting, isUser = false))
+        }
+        // 刷新 UI
+        if (adapter.itemCount > 0) {
+            binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
+        }
     }
 }

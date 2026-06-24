@@ -198,7 +198,7 @@ class MemoryLifecycle:
                         elif age_days > 30:
                             new_importance -= 0.02
                     except (ValueError, TypeError):
-                        pass
+                        self._log.debug(f"[重校准] 时间解析失败: {e.created_at}")
 
                     # 限制范围
                     new_importance = max(0.05, min(1.0, new_importance))

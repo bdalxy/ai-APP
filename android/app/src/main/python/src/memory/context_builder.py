@@ -24,8 +24,6 @@
 
 from __future__ import annotations
 
-import math
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -297,7 +295,7 @@ class ContextBuilder:
                                 entries.append(e)
                                 exclude.add(e.id)
                     except Exception:
-                        pass
+                        self._log.debug(f"[上下文构建] 兴趣检索 '{keyword}' 失败，跳过")
 
         except Exception as e:
             self._log.warning(f"[上下文构建] 扩展记忆检索失败: {e}")

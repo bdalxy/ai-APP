@@ -60,8 +60,13 @@ def set_character_card(char_json: str) -> str:
         settings.CHARACTER_PERSONALITY = data.get("personality", "")
         settings.CHARACTER_SPEAKING_STYLE = data.get("speaking_style", data.get("speakingStyle", ""))
         settings.CHARACTER_BACKSTORY = data.get("backstory", data.get("background", ""))
+        settings.CHARACTER_EMOTIONAL_TENDENCY = data.get("emotional_tendency", "")
+        settings.CHARACTER_SELF_IDENTITY = data.get("self_identity", "")
+        settings.CHARACTER_CORE_TRAITS = data.get("core_traits", "")
+        settings.CHARACTER_TABOO_TOPICS = data.get("taboo_topics", "")
+        settings.CHARACTER_ROLE_ANCHOR = data.get("role_anchor", "")
 
-        # 2. 更新 _current_character（完整字段，不只是 4 个）
+        # 2. 更新 _current_character（完整字段）
         _current_character.clear()
         _current_character.update({
             "name": name,
@@ -78,6 +83,11 @@ def set_character_card(char_json: str) -> str:
             "example_dialogues": data.get("example_dialogues", []),
             "creator_notes": data.get("creator_notes", ""),
             "tags": data.get("tags", []),
+            "emotional_tendency": data.get("emotional_tendency", ""),
+            "self_identity": data.get("self_identity", ""),
+            "core_traits": data.get("core_traits", ""),
+            "taboo_topics": data.get("taboo_topics", ""),
+            "role_anchor": data.get("role_anchor", ""),
         })
 
         # 3. 同步到 RolePlayer（关键：让 chat 流程使用最新的 Card）

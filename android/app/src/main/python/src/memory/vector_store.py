@@ -1354,7 +1354,7 @@ class VectorStore:
                 )
                 self._conn.commit()
         except sqlite3.Error as e:
-            self._log.warning(f"创建关系表失败: {e}")
+            raise MemoryStorageError(f"创建关系表失败: {e}", detail=self.db_path) from e
 
     def add_relation(
         self,
@@ -1484,15 +1484,16 @@ class VectorStore:
     def _ensure_tags_tables(self) -> None:
         """确保标签相关表存在。"""
         try:
-            self._conn.execute(self._CREATE_TAGS_TABLE_SQL)
-            self._conn.execute(self._CREATE_TAG_MAP_TABLE_SQL)
-            self._conn.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_tag_map_memory "
-                f"ON {_TAG_MAP_TABLE}(memory_id)"
-            )
-            self._conn.commit()
+            with self._lock:
+                self._conn.execute(self._CREATE_TAGS_TABLE_SQL)
+                self._conn.execute(self._CREATE_TAG_MAP_TABLE_SQL)
+                self._conn.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_tag_map_memory "
+                    f"ON {_TAG_MAP_TABLE}(memory_id)"
+                )
+                self._conn.commit()
         except sqlite3.Error as e:
-            self._log.warning(f"创建标签表失败: {e}")
+            raise MemoryStorageError(f"创建标签表失败: {e}", detail=self.db_path) from e
 
     def add_tag(self, name: str, color: str = "#9B59B6") -> int:
         """添加标签。
@@ -1643,18 +1644,19 @@ class VectorStore:
     def _ensure_changelog_table(self) -> None:
         """确保变更日志表存在。"""
         try:
-            self._conn.execute(self._CREATE_CHANGELOG_TABLE_SQL)
-            self._conn.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_changelog_memory "
-                f"ON {_CHANGELOG_TABLE}(memory_id)"
-            )
-            self._conn.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_changelog_time "
-                f"ON {_CHANGELOG_TABLE}(changed_at DESC)"
-            )
-            self._conn.commit()
+            with self._lock:
+                self._conn.execute(self._CREATE_CHANGELOG_TABLE_SQL)
+                self._conn.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_changelog_memory "
+                    f"ON {_CHANGELOG_TABLE}(memory_id)"
+                )
+                self._conn.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_changelog_time "
+                    f"ON {_CHANGELOG_TABLE}(changed_at DESC)"
+                )
+                self._conn.commit()
         except sqlite3.Error as e:
-            self._log.warning(f"创建变更日志表失败: {e}")
+            raise MemoryStorageError(f"创建变更日志表失败: {e}", detail=self.db_path) from e
 
     def log_change(
         self,

@@ -48,6 +48,16 @@ class CharacterSelectActivity : AppCompatActivity() {
     private fun loadCharacters() {
         characters = CharacterStorage.loadAll(this)
         val currentId = CharacterStorage.getCurrent(this).id
+
+        // 只有一个角色时，自动选中并返回，跳过选择界面
+        if (characters.size == 1) {
+            val singleChar = characters.first()
+            CharacterStorage.setCurrent(this, singleChar.id)
+            setResult(RESULT_OK)
+            finishWithAnimation()
+            return
+        }
+
         if (!::adapter.isInitialized) {
             adapter = CharacterListAdapter(
                 showDelete = false,

@@ -85,3 +85,32 @@ def shutdown_executor() -> None:
             max_workers=_state_inst._MAX_WORKERS,
             thread_name_prefix="chat_bridge",
         )
+
+
+def set_jailbreak_params(prompt: str, level: int, preset_name: str) -> None:
+    """安全地设置破限参数到 _current_params 中。
+
+    供 jailbreak_plugin 调用，避免外部直接访问私有成员。
+
+    Args:
+        prompt: 破限 System Prompt
+        level: 破限等级
+        preset_name: 预设名称
+    """
+    with _state_inst._lock:
+        _state_inst._current_params["jailbreak_prompt"] = prompt
+        _state_inst._current_params["jailbreak_enabled"] = True
+        _state_inst._current_params["jailbreak_level"] = level
+        _state_inst._current_params["jailbreak_preset"] = preset_name
+
+
+def clear_jailbreak_params() -> None:
+    """安全地清除 _current_params 中的破限参数。
+
+    供 jailbreak_plugin 调用，避免外部直接访问私有成员。
+    """
+    with _state_inst._lock:
+        _state_inst._current_params.pop("jailbreak_prompt", None)
+        _state_inst._current_params["jailbreak_enabled"] = False
+        _state_inst._current_params.pop("jailbreak_level", None)
+        _state_inst._current_params.pop("jailbreak_preset", None)

@@ -15,7 +15,10 @@ import kotlinx.coroutines.*
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-class SherpaTtsEngine(private val context: Context) {
+class SherpaTtsEngine(
+    private val context: Context,
+    private val lifecycleScope: CoroutineScope
+) {
 
     companion object {
         private const val TAG = "SherpaTtsEngine"
@@ -40,8 +43,8 @@ class SherpaTtsEngine(private val context: Context) {
     private var tts: OfflineTts? = null
     private var audioTrack: AudioTrack? = null
     private val isSpeaking = AtomicBoolean(false)
-    private val initScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val playScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val initScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job]) + Dispatchers.IO)
+    private val playScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job]) + Dispatchers.IO)
     @Volatile var isInitialized = false
         private set
     @Volatile var isSynthesizing = false

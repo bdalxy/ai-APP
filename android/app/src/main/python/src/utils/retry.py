@@ -2,6 +2,9 @@
 
 支持指数退避（exponential backoff）、随机抖动（jitter）、
 可配置最大重试次数和可重试异常列表。
+
+默认只重试网络相关错误（timeout、connection error、服务端错误），
+不重试认证错误（401）、请求错误（400）等不可恢复错误。
 """
 
 import functools
@@ -16,6 +19,13 @@ logger = get_logger()
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+# 默认可重试异常：网络超时、连接错误、服务端错误（5xx）、频率限制（429）
+_DEFAULT_RETRYABLE = (
+    TimeoutError,
+    ConnectionError,
+    OSError,
+)
+
 
 def retry(
     max_retries: int = 3,
@@ -23,7 +33,7 @@ def retry(
     max_delay: float = 60.0,
     backoff_factor: float = 2.0,
     jitter: bool = True,
-    retryable_exceptions: tuple[type[Exception], ...] = (Exception,),
+    retryable_exceptions: tuple[type[Exception], ...] = _DEFAULT_RETRYABLE,
 ) -> Callable[[F], F]:
     """重试装饰器。
 

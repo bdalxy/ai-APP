@@ -51,7 +51,7 @@ class AICompanionApp : PyApplication() {
                 val latestFile = crashFiles.firstOrNull()
                 val content = latestFile?.readText()?.take(500) ?: ""
 
-                val dialog = android.app.AlertDialog.Builder(context)
+                val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
                     .setTitle("检测到崩溃日志")
                     .setMessage("上次运行应用时发生了崩溃。\n\n时间: ${crashFiles.size} 条崩溃记录\n\n${content}")
                     .setPositiveButton("查看详情") { _, _ ->

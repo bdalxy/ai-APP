@@ -160,6 +160,7 @@ class MemorySummarizer:
                 return json.loads(row[0])
             return default
         except Exception:
+            self._log.debug(f"[摘要] 读取状态键 '{key}' 失败，返回默认值")
             return default
 
     def _set_state(self, key: str, value: Any) -> None:
@@ -200,7 +201,7 @@ class MemorySummarizer:
                     )
                     return True
             except Exception:
-                pass
+                self._log.debug(f"[摘要] 检查类型 '{mem_type}' 记忆数失败，跳过")
 
         # 检查距上次摘要的轮数
         last_summary_turn = self._get_state("last_summary_turn", 0)

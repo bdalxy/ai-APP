@@ -140,6 +140,12 @@
             android:theme="@style/Theme.AICompanion" />
 
         <activity
+            android:name=".LicenseActivity"
+            android:exported="true"
+            android:label="开源许可"
+            android:theme="@style/Theme.AICompanion" />
+
+        <activity
             android:name=".WorldBookActivity"
             android:exported="true"
             android:label="世界书"

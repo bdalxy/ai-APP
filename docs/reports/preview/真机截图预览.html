@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>樱羽 APP — 真机截图预览</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: linear-gradient(135deg, #FDF0F0 0%, #D4E8F0 50%, #B0C4DE 100%);
+  min-height: 100vh;
+  font-family: -apple-system, 'Microsoft YaHei', sans-serif;
+  padding: 20px;
+  color: #4A3B3A;
+}
+h1 {
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 8px;
+  color: #4A3B3A;
+}
+.subtitle {
+  text-align: center;
+  color: #8A7B7A;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.card {
+  background: rgba(255,255,255,0.85);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(176,196,222,0.3);
+  border: 1px solid rgba(176,196,222,0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(176,196,222,0.5);
+}
+.card-header {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(253,240,240,0.9), rgba(212,232,240,0.9));
+  border-bottom: 1px solid rgba(176,196,222,0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-num {
+  background: #D4E8F0;
+  color: #4A3B3A;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: bold;
+  flex-shrink: 0;
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #4A3B3A;
+}
+.card-body {
+  padding: 0;
+}
+.card-body img {
+  width: 100%;
+  display: block;
+  border-bottom: 1px solid rgba(176,196,222,0.3);
+}
+.card-actions {
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #D4E8F0;
+  color: #4A3B3A;
+}
+.tag.must { background: #FFB7C5; color: #7B2D8B; font-weight: 600; }
+.tag.discuss { background: #B0C4DE; color: #4A3B3A; }
+.tag.ok { background: #C8E6C9; color: #2E7D32; }
+</style>
+</head>
+<body>
+<h1>樱羽 AI 伴侣 — 真机截图预览</h1>
+<p class="subtitle">共 13 个页面 | 请逐个查看，指出哪些需要修改</p>
+
+<div class="gallery" id="gallery"></div>
+
+<script>
+const pages = [
+  { num: 1, file: "shot_01_MainActivity.png", title: "对话主页", desc: "主界面，消息列表 + 输入栏" },
+  { num: 2, file: "shot_02_OnboardingActivity.png", title: "新手引导", desc: "首次使用引导页" },
+  { num: 3, file: "shot_03_CharacterActivity.png", title: "角色详情", desc: "角色信息展示" },
+  { num: 4, file: "shot_04_CharacterManageActivity.png", title: "角色管理", desc: "角色列表管理" },
+  { num: 5, file: "shot_05_CharacterEditActivity.png", title: "角色编辑", desc: "创建/编辑角色" },
+  { num: 6, file: "shot_06_CharacterPreviewActivity.png", title: "角色预览", desc: "创建后预览角色" },
+  { num: 7, file: "shot_07_MemoryManageActivity.png", title: "记忆管理", desc: "记忆列表管理" },
+  { num: 8, file: "shot_08_MemoryArchiveActivity.png", title: "记忆档案馆", desc: "记忆归档查看" },
+  { num: 9, file: "shot_09_WorldBookActivity.png", title: "世界书", desc: "世界观设定" },
+  { num: 10, file: "shot_10_PluginManageActivity.png", title: "插件管理", desc: "插件列表" },
+  { num: 11, file: "shot_11_SettingsActivity.png", title: "设置主页", desc: "设置项列表" },
+  { num: 12, file: "shot_12_SettingsDetailActivity.png", title: "设置详情", desc: "模型参数设置" },
+  { num: 13, file: "shot_13_CrashLogViewerActivity.png", title: "崩溃日志", desc: "崩溃记录查看" }
+];
+
+const gallery = document.getElementById('gallery');
+pages.forEach(p => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-header">
+      <div class="card-num">${p.num}</div>
+      <div class="card-title">${p.title}</div>
+    </div>
+    <div class="card-body">
+      <img src="${p.file}" alt="${p.title}" loading="lazy" />
+    </div>
+    <div class="card-actions">
+      <span class="tag">${p.desc}</span>
+    </div>
+  `;
+  gallery.appendChild(card);
+});
+</script>
+</body>
+</html>

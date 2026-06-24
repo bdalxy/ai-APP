@@ -197,8 +197,8 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     pythonModule.callAttr("invalidate_cache")
-                } catch (_: Exception) {
-                    // 缓存失效失败不影响主流程
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "缓存失效失败（不影响主流程）: ${e.message}")
                 }
             }
         }
@@ -418,7 +418,7 @@ class MainActivity : AppCompatActivity() {
      * 获取 Python 模块引用
      * @return chat_bridge 模块的 PyObject
      */
-    private fun initPythonModule(): com.chaquo.python.PyObject {
+    private fun initPythonModule(): com.chaquo.python.PyObject? {
         return com.chaquo.python.Python.getInstance().getModule("chat_bridge")
     }
 
@@ -432,6 +432,13 @@ class MainActivity : AppCompatActivity() {
                     binding.tvStatus.text = getString(R.string.status_initializing)
                 }
                 val module = initPythonModule()
+                if (module == null) {
+                    Log.e("MainActivity", "无法获取 Python chat_bridge 模块")
+                    withContext(Dispatchers.Main) {
+                        binding.tvStatus.text = getString(R.string.error_init_failed, "Python 模块加载失败")
+                    }
+                    return@launch
+                }
                 if (!initChatBridge(module)) return@launch
                 initMemorySystem(module)
                 val character = loadCharacterCard(module)
@@ -490,7 +497,12 @@ class MainActivity : AppCompatActivity() {
      * 初始化记忆系统
      */
     private fun initMemorySystem(module: com.chaquo.python.PyObject) {
-        module.callAttr("init_memory", filesDir.absolutePath)
+        try {
+            if (!filesDir.exists()) filesDir.mkdirs()
+            module.callAttr("init_memory", filesDir.absolutePath)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "初始化记忆系统失败: ${e.message}")
+        }
     }
 
     /**
@@ -507,6 +519,9 @@ class MainActivity : AppCompatActivity() {
             put("greeting", character.greeting)
             put("emotional_tendency", character.emotionalTendency)
             put("self_identity", character.selfIdentity)
+            put("core_traits", character.coreTraits)
+            put("taboo_topics", character.tabooTopics)
+            put("role_anchor", character.roleAnchor)
         }.toString()
         module.callAttr("set_character_card", charJson)
         return character

@@ -131,13 +131,12 @@ class MemoryOrchestrator:
         if "dedup_threshold" in config_dict:
             self.extractor._DEDUP_SIMILARITY_THRESHOLD = float(config_dict["dedup_threshold"])
 
-        # 同步衰减半衰期到 decay 模块
+        # 同步衰减半衰期到 decay 模块（仅更新当前实例相关配置）
         if "decay_half_life_days" in config_dict:
             from src.memory import decay
             half_life = float(config_dict["decay_half_life_days"])
+            # 只更新 decay 模块的默认值，不覆盖 HALF_LIFE_DAYS 中的具体类型配置
             decay.DEFAULT_HALF_LIFE = half_life
-            for key in decay.HALF_LIFE_DAYS:
-                decay.HALF_LIFE_DAYS[key] = half_life
 
         self._log.info(
             f"[配置] 已更新: max={self.config['max_memory_count']}, "

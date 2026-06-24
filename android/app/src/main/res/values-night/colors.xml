@@ -78,7 +78,10 @@
     <color name="memory_episodic">#A29BFE</color>      <!-- 柔和紫 -->
     <color name="memory_semantic">#66BB6A</color>      <!-- 柔和绿 -->
     <color name="memory_user_fact">#FFA726</color>     <!-- 柔和橙 -->
+    <color name="memory_emotional">#FFB74D</color>     <!-- 温暖橙色 -->
+    <color name="memory_summary">#81C784</color>       <!-- 柔和绿色 -->
     <color name="memory_default">#757575</color>       <!-- 柔和灰 -->
+    <color name="memory_archive_gray">#2A2A2A</color>  <!-- 记忆档案馆褪色 -->
 
     <!-- ===== 玻璃糖纸边缘高光（暗色模式） ===== -->
     <color name="glass_edge_white">#2A1E35</color>

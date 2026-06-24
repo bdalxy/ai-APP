@@ -27,6 +27,7 @@ object AppConfig {
     private const val KEY_TTS_PITCH = "tts_pitch"
     private const val KEY_AUTO_READ_ALOUD = "auto_read_aloud"
     private const val KEY_VOICE_RECOGNITION_LANG = "voice_recognition_lang"
+    private const val KEY_TTS_VOICE_TIMBRE = "tts_voice_timbre"
 
     /** 默认 TTS 语速 */
     const val DEFAULT_TTS_SPEECH_RATE = 1.0f
@@ -34,6 +35,8 @@ object AppConfig {
     const val DEFAULT_TTS_PITCH = 1.0f
     /** 默认语音识别语言 */
     const val DEFAULT_VOICE_RECOGNITION_LANG = "zh-CN"
+    /** 默认 TTS 音色 */
+    const val DEFAULT_TTS_VOICE_TIMBRE = "default"
 
     // ── 记忆参数配置（memory）──
     private const val KEY_MEMORY_MAX_COUNT = "memory_max_count"
@@ -188,6 +191,14 @@ object AppConfig {
 
     fun setVoiceRecognitionLang(context: Context, lang: String) {
         getPrefs(context).edit().putString(KEY_VOICE_RECOGNITION_LANG, lang).apply()
+    }
+
+    fun getTtsVoiceTimbre(context: Context): String {
+        return getPrefs(context).getString(KEY_TTS_VOICE_TIMBRE, DEFAULT_TTS_VOICE_TIMBRE) ?: DEFAULT_TTS_VOICE_TIMBRE
+    }
+
+    fun setTtsVoiceTimbre(context: Context, timbre: String) {
+        getPrefs(context).edit().putString(KEY_TTS_VOICE_TIMBRE, timbre).apply()
     }
 
     // ── 主动消息配置（proactive）──

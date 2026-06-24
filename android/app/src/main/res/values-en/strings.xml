@@ -72,6 +72,7 @@
     <string name="summary_memory_format">%d long-term memories</string>
     <string name="summary_world_book_enabled">%d enabled</string>
     <string name="summary_plugin_format">%1$d installed · %2$d enabled</string>
+    <string name="summary_plugins_format">Installed %1$d · Enabled %2$d</string>
     <string name="summary_quiet_time_format">DND %1$s-%2$s</string>
     <string name="summary_quiet_time_none">No quiet time</string>
     <string name="summary_proactive_on_format">On · %1$s · %2$s</string>
@@ -235,6 +236,7 @@
     <string name="label_error_prefix">[Error]</string>
     <string name="label_error_timeout_prefix">[Timeout]</string>
     <string name="action_copy">Copy</string>
+    <string name="action_edit">Edit</string>
     <string name="action_retry">Retry</string>
     <string name="toast_copied">Copied</string>
     <string name="error_unknown">Unknown error</string>
@@ -320,6 +322,10 @@
     <string name="section_plugin_manage">Plugin Management</string>
     <string name="subtitle_plugin_manage">Manage installed plugins</string>
     <string name="label_builtin">Built-in</string>
+    <string name="toast_python_not_ready">Python environment not ready</string>
+    <string name="toast_plugin_operation_failed">Plugin operation failed</string>
+    <string name="toast_plugin_operation_error">Plugin operation error</string>
+    <string name="toast_plugin_toggle_failed">Toggle failed</string>
 
     <!-- ===== Plugin Panel (bottom_sheet_plugins) ===== -->
     <string name="plugin_panel_title">Plugin Panel</string>
@@ -357,8 +363,19 @@
     <string name="cd_voice_settings">Voice Settings</string>
     <string name="label_tts_speech_rate">Speech Rate</string>
     <string name="label_tts_pitch">Pitch</string>
+    <string name="label_tts_voice_timbre">Voice Timbre</string>
     <string name="label_auto_read_aloud">Auto-read AI replies</string>
     <string name="label_voice_recognition_lang">Recognition Language</string>
+    <string name="label_wake_word">Wake Word Detection</string>
+    <string name="label_wake_word_desc">Say \"Xiao Xing\" to activate voice input</string>
+
+    <!-- Voice Timbre Options -->
+    <string name="voice_timbre_default">Default</string>
+    <string name="voice_timbre_soft">Soft Female</string>
+    <string name="voice_timbre_bright">Bright Female</string>
+    <string name="voice_timbre_deep">Deep Male</string>
+    <string name="dialog_title_voice_timbre">Select Voice Timbre</string>
+    <string name="toast_voice_timbre_note">Voice timbre change requires TTS model support, currently using default model</string>
 
     <!-- ===== World Book Page (activity_world_book) ===== -->
     <string name="title_world_book">World Book</string>
@@ -413,9 +430,137 @@
     <string name="crash_log_delete_all_confirm">Delete all crash logs?</string>
     <string name="crash_log_detail_title">Crash Details</string>
 
+    <string name="cd_scroll_to_bottom">Scroll to bottom</string>
+
     <!-- ===== Language Settings ===== -->
     <string name="section_language">Language</string>
     <string name="label_language">Interface Language</string>
     <string name="language_dialog_title">Choose Language</string>
     <string name="language_restart_message">Please restart the app for language change to take effect</string>
+
+    <!-- ===== SettingsDetailActivity ===== -->
+    <string name="toast_settings_saved">Settings saved</string>
+    <string name="section_api_config">API Configuration</string>
+    <string name="section_model">Model</string>
+    <string name="label_manage_characters">Manage Characters</string>
+    <string name="hint_api_key_input">Enter DeepSeek API Key</string>
+    <string name="dialog_title_select_model">Select Model</string>
+    <string name="btn_confirm">Confirm</string>
+    <string name="toast_api_key_saved">API Key saved</string>
+    <string name="toast_python_sync_failed">Python sync failed: %s</string>
+    <string name="temp_label_conservative">0.5 Conservative</string>
+    <string name="temp_label_moderate">0.7 Moderate</string>
+    <string name="temp_label_creative">0.9 Creative</string>
+    <string name="token_label_concise">500 (Concise)</string>
+    <string name="token_label_moderate">1000 (Moderate)</string>
+    <string name="token_label_detailed">2000 (Detailed)</string>
+    <string name="section_chat_params">Chat Parameters</string>
+    <string name="label_clear_history">Clear Current Chat History</string>
+    <string name="desc_context_size">How much chat history to show AI (in tokens)</string>
+    <string name="label_custom_input">Custom:</string>
+    <string name="suffix_token"> token</string>
+    <string name="desc_temperature">Controls randomness and creativity of AI replies</string>
+    <string name="desc_max_tokens">Token limit for each AI reply</string>
+    <string name="desc_example_dialogues">Number of example dialogues shown in character card</string>
+    <string name="msg_clear_chat_confirm">This will clear the current chat history. Continue?</string>
+    <string name="toast_chat_cleared">Chat cleared</string>
+    <string name="toast_clear_chat_failed">Failed to clear chat: %s</string>
+    <string name="section_memory_params">Memory Parameters</string>
+    <string name="label_memory_auto_manage">Default (Auto Manage)</string>
+    <string name="toast_memory_auto_manage">Memory capacity is auto-managed. Manual adjustment coming in future versions.</string>
+    <string name="label_dedup_auto">Default (Auto Dedup)</string>
+    <string name="toast_dedup_future">Dedup threshold will be configurable in future versions</string>
+    <string name="label_decay_auto">Default (Natural Decay)</string>
+    <string name="toast_decay_future">Decay parameters will be configurable in future versions</string>
+    <string name="section_memory_manage_label">Memory Management</string>
+    <string name="label_browse_memories">Browse and manage AI memories</string>
+    <string name="label_delete_all_memories_data">Delete all long-term memory data</string>
+    <string name="dialog_title_clear_long_term_memory">Clear Long-term Memory</string>
+    <string name="msg_clear_long_term_memory_confirm">This will delete all long-term memory data and cannot be undone. Continue?</string>
+    <string name="toast_memory_cleared">Memory cleared</string>
+    <string name="toast_clear_memory_failed">Failed to clear memory: %s</string>
+    <string name="section_proactive_push">Proactive Push</string>
+    <string name="option_custom">Custom</string>
+    <string name="quiet_time_22_08">22:00 - 08:00</string>
+    <string name="quiet_time_23_07">23:00 - 07:00</string>
+    <string name="quiet_time_00_06">00:00 - 06:00</string>
+    <string name="dialog_title_send_frequency">Send Frequency</string>
+    <string name="dialog_title_quiet_hours">Quiet Hours</string>
+    <string name="hint_custom_interval">Enter hours (min 0.5 hours)</string>
+    <string name="dialog_title_custom_interval">Custom Interval</string>
+    <string name="msg_min_interval">Minimum interval is 30 minutes (0.5 hours)</string>
+    <string name="toast_invalid_number">Please enter a valid positive number</string>
+    <string name="toast_min_interval_warning">Minimum interval is 30 minutes (0.5 hours)</string>
+    <string name="hint_start_time">Start time (e.g. 22:00)</string>
+    <string name="hint_end_time">End time (e.g. 08:00)</string>
+    <string name="label_start_time">Start Time</string>
+    <string name="label_end_time">End Time</string>
+    <string name="dialog_title_custom_quiet">Custom Quiet Hours</string>
+    <string name="toast_invalid_time_format">Please enter a valid time format (HH:mm)</string>
+    <string name="lang_zh_cn_label">Chinese (Mandarin)</string>
+    <string name="section_tts">Text-to-Speech (TTS)</string>
+    <string name="section_asr">Speech Recognition (ASR)</string>
+    <string name="dialog_title_tts_rate">TTS Speed</string>
+    <string name="desc_tts_rate">Adjust AI voice reading speed</string>
+    <string name="dialog_title_tts_pitch">TTS Pitch</string>
+    <string name="desc_tts_pitch">Adjust AI voice pitch</string>
+    <string name="dialog_title_voice_lang">Voice Recognition Language</string>
+    <string name="section_app_info">App Info</string>
+    <string name="label_view_crash_logs">View app crash logs</string>
+    <string name="toast_open_source">This project uses the following open-source components:\n- Material Design 3\n- Chaquopy\n- OkHttp\nSee GitHub repository for details</string>
+    <string name="toast_feedback_future">Feedback feature coming in future versions</string>
+    <string name="toast_params_apply_failed">Failed to apply parameters: %s</string>
+    <string name="label_no_display">None</string>
+    <string name="label_one_item">1 item</string>
+    <string name="label_two_items">2 items</string>
+    <string name="label_three_items">3 items</string>
+    <string name="temp_label_0_5">0.5</string>
+    <string name="temp_label_0_7">0.7</string>
+    <string name="temp_label_0_9">0.9</string>
+    <string name="desc_conservative">Conservative</string>
+    <string name="desc_moderate">Moderate</string>
+    <string name="desc_creative">Creative</string>
+    <string name="desc_concise">Concise</string>
+    <string name="desc_detailed">Detailed</string>
+    <string name="token_label_500">500</string>
+    <string name="token_label_1000">1000</string>
+    <string name="token_label_2000">2000</string>
+    <string name="dialog_label_500">500</string>
+    <string name="dialog_label_4000">4000</string>
+    <string name="dialog_label_8000">8000</string>
+
+    <!-- ===== PluginManageActivity ===== -->
+    <string name="tab_label_all">All</string>
+    <string name="toast_plugin_load_failed">Failed to load plugin: %s</string>
+    <string name="label_plugin_version">Version:</string>
+    <string name="label_plugin_author">Author:</string>
+    <string name="label_plugin_category">Category:</string>
+    <string name="label_plugin_builtin">Type: Built-in (cannot uninstall)\n</string>
+    <string name="label_plugin_status">Status:</string>
+    <string name="label_plugin_stats">\n--- Stats ---\n</string>
+    <string name="label_plugin_call_count">Call count:</string>
+    <string name="label_plugin_error_count">Error count:</string>
+    <string name="label_plugin_last_error">Last error:</string>
+    <string name="label_plugin_hooks">\n--- Hooks ---\n</string>
+    <string name="dialog_title_plugin_detail">%s Details</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_toggle_plugin">Enable/Disable</string>
+
+    <!-- ===== WorldBookActivity ===== -->
+    <string name="toast_entry_content_empty">Content cannot be empty</string>
+    <string name="label_entry_count_format">%d entries</string>
+
+    <!-- ===== Character Edit ===== -->
+    <string name="hint_self_identity_sub">The character\'s self-identity statement</string>
+
+    <!-- ===== Emotional Tendency Options ===== -->
+    <string-array name="emotional_tendency_options">
+        <item>Not set</item>
+        <item>Optimistic</item>
+        <item>Neutral</item>
+        <item>Pessimistic</item>
+        <item>Enthusiastic</item>
+        <item>Calm</item>
+    </string-array>
+
 </resources>

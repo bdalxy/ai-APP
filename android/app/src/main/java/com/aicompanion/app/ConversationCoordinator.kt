@@ -5,8 +5,8 @@ import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.LifecycleCoroutineScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,6 +46,11 @@ class ConversationCoordinator(
     var callback: ConversationCallback? = null
 
     // ======================== 保存/加载 ========================
+
+    /** 保存当前会话消息（公开方法，供 ChatViewModel 调用） */
+    fun saveCurrentSession() {
+        saveConversation()
+    }
 
     /** 保存当前会话消息 */
     fun saveConversation() {
@@ -105,7 +110,7 @@ class ConversationCoordinator(
             setText("新会话 $newIndex")
             setSelection(text.length)
         }
-        val dialog = AlertDialog.Builder(context)
+        val dialog = MaterialAlertDialogBuilder(context)
             .setTitle("新建会话")
             .setView(input)
             .setPositiveButton("创建") { _, _ ->
@@ -122,8 +127,8 @@ class ConversationCoordinator(
         }, 200)
     }
 
-    /** 创建新会话并切换到该会话 */
-    private fun createNewSession(name: String) {
+    /** 创建新会话并切换到该会话（公开方法，供 ChatViewModel 调用） */
+    fun createNewSession(name: String) {
         val currentMessages = adapter.getMessages()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -142,6 +147,13 @@ class ConversationCoordinator(
 
                 withContext(Dispatchers.Main) {
                     adapter.clear()
+                    // 添加角色欢迎语
+                    if (character.greeting.isNotBlank()) {
+                        adapter.addMessage(Message(
+                            content = character.greeting,
+                            isUser = false
+                        ))
+                    }
                     callback?.onSessionCreated(session.name)
                 }
             } catch (e: Exception) {
@@ -171,7 +183,7 @@ class ConversationCoordinator(
             "${session.name}$marker\n$preview\n$time"
         }.toTypedArray()
 
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle("会话列表")
             .setItems(displayNames) { _, which ->
                 val selected = sessions[which]
@@ -210,7 +222,7 @@ class ConversationCoordinator(
             if (s.id == currentId) " [当前]" else ""
         }.toTypedArray()
 
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle("选择要删除的会话")
             .setItems(names) { _, which ->
                 val session = sessions[which]
@@ -222,7 +234,7 @@ class ConversationCoordinator(
 
     /** 显示删除确认对话框 */
     private fun showDeleteConfirmDialog(session: ConversationSession) {
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle("删除会话")
             .setMessage("确定要删除「${session.name}」吗？\n该会话的 ${session.messageCount} 条消息将被永久删除，无法恢复。")
             .setPositiveButton("删除") { _, _ ->
@@ -268,7 +280,7 @@ class ConversationCoordinator(
             setSingleLine(true)
             setSelection(text.length)
         }
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle("重命名会话")
             .setView(input)
             .setPositiveButton("确定") { _, _ ->

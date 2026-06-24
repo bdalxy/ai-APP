@@ -38,7 +38,7 @@ object CharacterStorage {
         return File(context.filesDir, FILENAME)
     }
 
-    /** 加载所有角色卡。首次启动时自动创建三个默认角色。 */
+    /** 加载所有角色卡。首次启动时自动创建默认角色（仅小星）。 */
     fun loadAll(context: Context): List<CharacterData> {
         val file = getFile(context)
         if (!file.exists()) {
@@ -50,20 +50,6 @@ object CharacterStorage {
                     speakingStyle = "语气轻柔，喜欢说\"呢\"\"呀\"\"哦\"等可爱的语气词",
                     backstory = "乐于助人的AI助手，喜欢聊天和分享日常趣事",
                     greeting = "你好呀~今天心情怎么样？"
-                ),
-                CharacterData(
-                    name = "小玲",
-                    personality = "活泼开朗、元气满满、偶尔调皮",
-                    speakingStyle = "语速快，喜欢用感叹号，经常发颜文字",
-                    backstory = "充满活力的少女，对世界充满好奇",
-                    greeting = "嘿！！终于等到你啦~今天有啥好玩的事？"
-                ),
-                CharacterData(
-                    name = "小林",
-                    personality = "冷静理性、偶尔毒舌、内心温柔",
-                    speakingStyle = "说话简洁，不爱啰嗦，偶尔怼人但不伤人",
-                    backstory = "看似冷淡的学霸，其实很关心身边的人",
-                    greeting = "...嗯，来了啊。今天有什么事吗？"
                 )
             )
             saveAll(context, defaults)
@@ -90,6 +76,21 @@ object CharacterStorage {
                 isDefault = obj.optBoolean("is_default", false),
                 createdAt = obj.optLong("created_at", System.currentTimeMillis())
             ))
+        }
+        // 清理旧设备上遗留的小玲和小林（仅执行一次）
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("characters_cleaned_v2", false)) {
+            val cleaned = list.filter { it.name != "小玲" && it.name != "小林" }
+            if (cleaned.size != list.size) {
+                saveAll(context, cleaned)
+                // 如果当前选中的角色被清理了，切换为小星
+                val currentId = prefs.getString("current_character_id", null)
+                if (cleaned.none { it.id == currentId }) {
+                    cleaned.firstOrNull()?.let { setCurrent(context, it.id) }
+                }
+                return cleaned
+            }
+            prefs.edit().putBoolean("characters_cleaned_v2", true).apply()
         }
         return list
     }

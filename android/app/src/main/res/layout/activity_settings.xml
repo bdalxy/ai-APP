@@ -330,7 +330,7 @@
                         android:id="@+id/tvDisplaySummary"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="浅色模式"
+                        android:text="@string/theme_light"
                         android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_caption"
                         android:layout_marginTop="2dp" />

@@ -5,6 +5,7 @@ package com.aicompanion.app
  * 对应 Python 端 BasePlugin 的 JSON 序列化数据。
  */
 data class PluginItem(
+    val id: String,
     val name: String,
     val version: String,
     val description: String,

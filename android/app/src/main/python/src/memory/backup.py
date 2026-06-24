@@ -728,16 +728,19 @@ class MemoryBackup:
 
     def _verify_backup(self, backup_path: Path) -> bool:
         """验证备份文件是否可读取。"""
+        conn = None
         try:
             conn = sqlite3.connect(str(backup_path))
             cursor = conn.execute("SELECT COUNT(*) FROM memories")
             count = cursor.fetchone()[0]
-            conn.close()
             self._log.info(f"[验证] 备份文件有效: {count} 条记忆")
             return True
         except sqlite3.Error as e:
             self._log.error(f"[验证] 备份文件无效: {e}")
             return False
+        finally:
+            if conn:
+                conn.close()
 
     # =========================================================================
     # 统计

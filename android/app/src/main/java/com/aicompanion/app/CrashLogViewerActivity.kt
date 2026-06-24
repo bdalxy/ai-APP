@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.aicompanion.app.databinding.ActivityCrashLogViewerBinding
 import java.io.File
 
@@ -43,7 +44,7 @@ class CrashLogViewerActivity : AppCompatActivity() {
     }
 
     private fun showDeleteAllDialog() {
-        android.app.AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("删除全部崩溃日志")
             .setMessage("确定要删除全部 ${crashFiles.size} 条崩溃日志吗？")
             .setPositiveButton("删除") { _, _ ->

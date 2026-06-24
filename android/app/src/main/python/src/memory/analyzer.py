@@ -514,7 +514,7 @@ class MemoryAnalyzer:
                 if (now - created).days < 7:
                     recent_count += 1
             except (ValueError, TypeError):
-                pass
+                self._log.debug(f"[质量分析] 时间解析失败: {e.created_at}")
         freshness = recent_count / max(total, 1)
 
         # 4. 多样性

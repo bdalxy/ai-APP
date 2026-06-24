@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -222,7 +223,7 @@ class CharacterEditActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            // 加载失败静默处理
+            Log.w("CharacterEditActivity", "加载头像失败: ${e.message}")
         }
     }
 

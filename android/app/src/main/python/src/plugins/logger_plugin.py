@@ -28,4 +28,4 @@ class LoggerPlugin(BasePlugin):
         _log.info(f"[对话日志] 回合结束: 用户({len(user_input)}字) → AI({len(ai_reply)}字)")
 
     def on_memory_extracted(self, memory: dict) -> None:
-        _log.info(f"[对话日志] 新记忆: {memory.get('memory_type')} - {memory.get('content', '')[:50]}")
+        _log.info(f"[对话日志] 新记忆: {memory.get('memory_type', 'unknown')} - {memory.get('content', '')[:50]}")

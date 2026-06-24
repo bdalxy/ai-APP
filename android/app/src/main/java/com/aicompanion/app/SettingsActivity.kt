@@ -5,10 +5,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.lifecycle.lifecycleScope
+import com.aicompanion.app.plugin.PluginRegistry
 import com.aicompanion.app.databinding.ActivitySettingsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,9 +68,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.cardExport.setOnClickListener {
             showExportDialog()
         }
-        binding.cardLanguage.setOnClickListener {
-            showLanguageDialog()
-        }
+        // 语言设置已移到「账户设置」详情页
+        binding.cardLanguage.visibility = android.view.View.GONE
+        binding.cardLanguage.setOnClickListener(null)
 
         // 主题切换开关
         val isDark = AppConfig.getThemeMode(this) == AppConfig.THEME_DARK
@@ -134,11 +135,17 @@ class SettingsActivity : AppCompatActivity() {
             try {
                 val result = module?.callAttr("get_plugin_count")?.toString() ?: "{}"
                 val json = JSONObject(result)
-                val total = json.optInt("total", 0)
-                val enabled = json.optInt("enabled", 0)
+                val pyTotal = json.optInt("total", 0)
+                val pyEnabled = json.optInt("enabled", 0)
+                val nativeTotal = PluginRegistry.getPluginCount()
+                val nativeEnabled = PluginRegistry.getEnabledPluginCount()
+                val total = pyTotal + nativeTotal
+                val enabled = pyEnabled + nativeEnabled
                 withContext(Dispatchers.Main) { binding.tvPluginSummary.text = if (total > 0) getString(R.string.summary_plugin_format, total, enabled) else getString(R.string.status_no_plugins) }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { binding.tvPluginSummary.text = getString(R.string.status_no_plugins) }
+                val nativeTotal = PluginRegistry.getPluginCount()
+                val nativeEnabled = PluginRegistry.getEnabledPluginCount()
+                withContext(Dispatchers.Main) { binding.tvPluginSummary.text = if (nativeTotal > 0) getString(R.string.summary_plugin_format, nativeTotal, nativeEnabled) else getString(R.string.status_no_plugins) }
             }
         }
 
@@ -148,46 +155,11 @@ class SettingsActivity : AppCompatActivity() {
         binding.tvVoiceSummary.text = if (autoRead) getString(R.string.summary_voice_auto_read_on, langLabel) else getString(R.string.summary_voice_auto_read_off, langLabel)
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
-        refreshLanguageSummary()
-    }
-
-    private fun refreshLanguageSummary() {
-        val langCode = LocaleHelper.getCurrentLanguage(this)
-        val langName = when (langCode) {
-            "zh" -> getString(R.string.lang_zh)
-            "en" -> getString(R.string.lang_en)
-            "ja" -> getString(R.string.lang_ja)
-            else -> langCode
-        }
-        binding.tvLanguageSummary.text = langName
-    }
-
-    private fun showLanguageDialog() {
-        val languages = LocaleHelper.SUPPORTED_LANGUAGES
-        val langNames = languages.map { it.displayName }.toTypedArray()
-        val currentLang = LocaleHelper.getCurrentLanguage(this)
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.language_dialog_title))
-            .setSingleChoiceItems(langNames, languages.indexOfFirst { it.code == currentLang }) { dialog, which ->
-                val selectedLang = languages[which].code
-                if (selectedLang != currentLang) {
-                    LocaleHelper.setLanguage(this, selectedLang)
-                    dialog.dismiss()
-                    Toast.makeText(this, getString(R.string.language_restart_message), Toast.LENGTH_LONG).show()
-                    // 重启 Activity 使语言生效
-                    recreate()
-                } else {
-                    dialog.dismiss()
-                }
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
     }
 
     private fun showExportDialog() {
         val formats = arrayOf(getString(R.string.export_format_json), getString(R.string.export_format_txt))
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.label_choose_export_format))
             .setItems(formats) { _, which ->
                 val format = if (which == 0) "json" else "txt"

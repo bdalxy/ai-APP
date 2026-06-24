@@ -65,6 +65,7 @@ class SettingsDetailActivity : AppCompatActivity() {
 
         ViewUtils.setupEdgeToEdge(this)
         setContentView(R.layout.activity_settings_detail)
+        ViewUtils.applyInsets(findViewById(R.id.detail_root))
 
         contentLayout = findViewById(R.id.detail_content)
 
@@ -111,6 +112,9 @@ class SettingsDetailActivity : AppCompatActivity() {
         addDivider()
         addSectionTitle(getString(R.string.section_model))
         addClickRow(getString(R.string.label_model_selection), model, iconRes = R.drawable.ic_model) { showModelSelectDialog() }
+        addDivider()
+        addSectionTitle(getString(R.string.section_language))
+        addClickRow(getString(R.string.section_language), getLanguageName(), iconRes = R.drawable.ic_language) { showLanguageDialog() }
         addDivider()
         addSectionTitle(getString(R.string.title_character_manage))
         addClickRow(getString(R.string.title_character_manage), getString(R.string.label_manage_characters), iconRes = R.drawable.ic_settings_account) {
@@ -739,6 +743,8 @@ class SettingsDetailActivity : AppCompatActivity() {
         val autoRead = AppConfig.getAutoReadAloud(this)
         val lang = AppConfig.getVoiceRecognitionLang(this)
         val langLabel = when (lang) { "zh-CN" -> getString(R.string.lang_zh_cn_label); "en-US" -> "English (US)"; "ja-JP" -> "日本語"; else -> lang }
+        val voiceTimbre = AppConfig.getTtsVoiceTimbre(this)
+        val voiceTimbreLabel = getVoiceTimbreLabel(voiceTimbre)
 
         addSectionTitle(getString(R.string.section_tts))
         // 显示 TTS 状态
@@ -749,6 +755,8 @@ class SettingsDetailActivity : AppCompatActivity() {
         addClickRow(getString(R.string.label_tts_speech_rate), "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) { showTtsRateDialog() }
         addDivider()
         addClickRow(getString(R.string.label_tts_pitch), "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) { showTtsPitchDialog() }
+        addDivider()
+        addClickRow(getString(R.string.label_tts_voice_timbre), voiceTimbreLabel, iconRes = R.drawable.ic_speed) { showVoiceTimbreDialog() }
         addDivider()
 
         val toggleCard = LinearLayout(this).apply {
@@ -811,6 +819,38 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
+    /** 获取音色标签文本 */
+    private fun getVoiceTimbreLabel(timbre: String): String {
+        return when (timbre) {
+            "default" -> getString(R.string.voice_timbre_default)
+            "soft" -> getString(R.string.voice_timbre_soft)
+            "bright" -> getString(R.string.voice_timbre_bright)
+            "deep" -> getString(R.string.voice_timbre_deep)
+            else -> getString(R.string.voice_timbre_default)
+        }
+    }
+
+    /** 显示音色选择对话框 */
+    private fun showVoiceTimbreDialog() {
+        val current = AppConfig.getTtsVoiceTimbre(this)
+        val options = arrayOf(
+            getString(R.string.voice_timbre_default),
+            getString(R.string.voice_timbre_soft),
+            getString(R.string.voice_timbre_bright),
+            getString(R.string.voice_timbre_deep)
+        )
+        val values = arrayOf("default", "soft", "bright", "deep")
+        val idx = values.indexOf(current).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.dialog_title_voice_timbre))
+            .setSingleChoiceItems(options, idx) { dialog, which ->
+                AppConfig.setTtsVoiceTimbre(this, values[which])
+                Toast.makeText(this, getString(R.string.toast_voice_timbre_note), Toast.LENGTH_LONG).show()
+                dialog.dismiss(); recreate()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
+    }
+
     private fun buildAboutPage() {
         addSectionTitle(getString(R.string.section_app_info))
         addClickRow(getString(R.string.label_version), "v${BuildConfig.VERSION_NAME}", iconRes = R.drawable.ic_export) {}
@@ -820,7 +860,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
         addDivider()
         addClickRow(getString(R.string.label_open_source_license), "查看开源组件许可", iconRes = R.drawable.ic_export) {
-            Toast.makeText(this, getString(R.string.toast_open_source), Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, LicenseActivity::class.java))
         }
         addDivider()
         addClickRow(getString(R.string.label_feedback), "向我们反馈问题或建议", iconRes = R.drawable.ic_export) {
@@ -1049,5 +1089,37 @@ class SettingsDetailActivity : AppCompatActivity() {
         // TTS 引擎状态在运行时由 SherpaTtsEngine 管理，
         // 此处显示默认就绪状态；实际不可用时语音朗读会静默跳过
         return "TTS 模型已就绪"
+    }
+
+    private fun getLanguageName(): String {
+        val langCode = LocaleHelper.getCurrentLanguage(this)
+        return when (langCode) {
+            "zh" -> "中文"
+            "en" -> "English"
+            "ja" -> "日本語"
+            else -> langCode
+        }
+    }
+
+    private fun showLanguageDialog() {
+        val languages = LocaleHelper.SUPPORTED_LANGUAGES
+        val langNames = languages.map { it.displayName }.toTypedArray()
+        val currentLang = LocaleHelper.getCurrentLanguage(this)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.language_dialog_title))
+            .setSingleChoiceItems(langNames, languages.indexOfFirst { it.code == currentLang }) { dialog, which ->
+                val selectedLang = languages[which].code
+                if (selectedLang != currentLang) {
+                    LocaleHelper.setLanguage(this, selectedLang)
+                    dialog.dismiss()
+                    Toast.makeText(this, getString(R.string.language_restart_message), Toast.LENGTH_LONG).show()
+                    recreate()
+                } else {
+                    dialog.dismiss()
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 }

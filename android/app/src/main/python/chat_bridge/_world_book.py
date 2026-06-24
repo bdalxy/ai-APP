@@ -49,6 +49,10 @@ def _validate_regex_safe(pattern: str) -> None:
         raise ValueError(
             f"正则表达式包含连续量词（如 ++ 或 **），可能导致 ReDoS: {pattern}"
         )
+    if _REDOS_NESTED_PATTERN.search(pattern):
+        raise ValueError(
+            f"正则表达式包含嵌套量词（如 (a+)+ 或 [a-z]+*），可能导致 ReDoS: {pattern}"
+        )
 
 
 def _sanitize_world_book_name(name: str) -> str:
@@ -530,65 +534,6 @@ def delete_world_book_entry(name: str, entry_id: str) -> str:
         _log.error(f"[世界书] delete_world_book_entry({name}, {entry_id}) 失败: {e}")
         return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
-
-def _save_book_to_file(book) -> None:
-    """将世界书持久化到 JSON 文件（原子写入）。
-
-    先写入 .tmp 临时文件，再用 os.replace() 原子替换到目标路径，
-    防止写入过程中崩溃导致文件损坏。
-
-    Args:
-        book: WorldBook 实例，需包含 name/version/description/entries 属性。
-    """
-    entries_data = []
-    for entry in book.entries:
-        entries_data.append({
-            "id": entry.id,
-            "keys": entry.keys,
-            "key_secondary": entry.key_secondary,
-            "content": entry.content,
-            "comment": entry.comment,
-            "constant": entry.constant,
-            "selective": entry.selective,
-            "probability": entry.probability,
-            "priority": entry.priority,
-            "regex_keys": entry.regex_keys,
-            "case_sensitive": entry.case_sensitive,
-            "max_injections": entry.max_injections,
-            "cooldown_rounds": entry.cooldown_rounds,
-            "created_at": entry.created_at,
-        })
-
-    data = {
-        "version": book.version,
-        "name": book.name,
-        "description": book.description,
-        "entries": entries_data,
-    }
-
-    file_path = _PYTHON_ROOT + "/data/world_books/" + book.name + ".json"
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-    # 原子写入：先写入临时文件，再用 os.replace() 原子替换
-    tmp_path = file_path + ".tmp"
-    try:
-        with open(tmp_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, file_path)
-        _log.debug(f"[世界书] 原子写入完成: {file_path}")
-    except Exception:
-        # 清理可能残留的临时文件
-        if os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
-        raise
-
-
-# ============================================================
-# 交叉审核
-# ============================================================
 
 def validate_world_book(name: str) -> str:
     """对指定世界书执行交叉审核（Schema + 语义 + 匹配能力）。

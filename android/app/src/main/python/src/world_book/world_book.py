@@ -180,7 +180,10 @@ class WorldBook:
                     if len(pattern) > _MAX_REGEX_LENGTH:
                         logger.warning(f"[世界书] 正则过长 ({len(pattern)}字符), 已跳过: {pattern[:50]}...")
                         continue
-                    if re.search(r'\+\+|\(\?:.*\)\*\+', pattern):
+                    # ReDoS 防护：检测连续量词（如 ++、**、{2,}+）和嵌套量词（如 (a+)+、[a-z]+*）
+                    if re.search(r'[\+\*\{][\s]*[\+\*\{]', pattern) or \
+                       re.search(r'\([^)]*\)[\s]*[\+\*\{]', pattern) or \
+                       re.search(r'\[[^\]]*\][\s]*[\+\*\{]', pattern):
                         logger.warning(f"[世界书] 正则可能引起 ReDoS, 已跳过: {pattern[:50]}")
                         continue
                     flags = 0 if entry.case_sensitive else re.IGNORECASE

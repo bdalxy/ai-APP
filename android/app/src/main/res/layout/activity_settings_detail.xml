@@ -36,7 +36,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="设置"
+            android:text="@string/title_settings"
             android:textSize="@dimen/text_heading"
             android:textStyle="bold"
             android:textColor="@color/wb_text_warm"

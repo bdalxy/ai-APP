@@ -97,7 +97,7 @@ class Settings:
         try:
             self.DATA_DIR.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError):
-            pass
+            logger.debug(f"数据目录创建跳过（可能为只读环境）: {self.DATA_DIR}")
 
         # 角色卡默认配置（可通过 set_character_card 运行时修改）
         self.CHARACTER_NAME: str = "小星"
@@ -106,6 +106,9 @@ class Settings:
         self.CHARACTER_BACKSTORY: str = "乐于助人的AI助手，喜欢聊天和分享日常趣事"
         self.CHARACTER_EMOTIONAL_TENDENCY: str = ""
         self.CHARACTER_SELF_IDENTITY: str = ""
+        self.CHARACTER_CORE_TRAITS: str = ""
+        self.CHARACTER_TABOO_TOPICS: str = ""
+        self.CHARACTER_ROLE_ANCHOR: str = ""
 
     def set_build_type(self, build_type: str) -> None:
         """由 Kotlin 侧调用，显式设置构建类型以控制日志级别。

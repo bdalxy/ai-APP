@@ -27,10 +27,12 @@ class PluginViewModel(application: Application) : AndroidViewModel(application) 
         val errorMessage: String? = null
     )
 
+    @Volatile
     private var _state = PluginListState()
     val state get() = _state
 
     /** 状态变化回调 */
+    @Volatile
     var onStateChanged: ((PluginListState) -> Unit)? = null
 
     private fun updateState(newState: PluginListState) {
@@ -111,6 +113,7 @@ class PluginViewModel(application: Application) : AndroidViewModel(application) 
     private fun parsePluginItem(json: JSONObject): PluginItem {
         val stats = json.optJSONObject("stats") ?: JSONObject()
         return PluginItem(
+            id = json.optString("id", ""),
             name = json.optString("name", ""),
             version = json.optString("version", ""),
             description = json.optString("description", ""),

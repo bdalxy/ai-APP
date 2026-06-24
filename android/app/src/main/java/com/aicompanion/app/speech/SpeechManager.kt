@@ -8,9 +8,13 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import com.aicompanion.app.AppConfig
+import kotlinx.coroutines.CoroutineScope
 import java.util.Locale
 
-class SpeechManager(private val context: Context) {
+class SpeechManager(
+    private val context: Context,
+    private val lifecycleScope: CoroutineScope
+) {
 
     companion object {
         private const val TAG = "SpeechManager"
@@ -123,7 +127,7 @@ class SpeechManager(private val context: Context) {
         }
 
         if (sherpaTts == null) {
-            sherpaTts = SherpaTtsEngine(context).apply {
+            sherpaTts = SherpaTtsEngine(context, lifecycleScope).apply {
                 callback = object : SherpaTtsEngine.Callback {
                     override fun onInitSuccess() {
                         Log.d(TAG, "SherpaTtsEngine 初始化成功")
@@ -247,6 +251,19 @@ class SpeechManager(private val context: Context) {
         sherpaTts?.stopSpeaking()
         isSpeaking = false
         Log.d(TAG, "语音播放已停止")
+    }
+
+    /**
+     * 语音打断：停止 TTS 播放并清空句子队列。
+     * 用于用户开始说话时打断 AI 朗读。
+     */
+    fun interruptForVoiceInput() {
+        Log.d(TAG, "语音打断：用户开始说话，停止 TTS")
+        synchronized(sentenceQueue) {
+            sentenceQueue.clear()
+            isProcessingQueue = false
+        }
+        stopSpeaking()
     }
 
     fun destroy() {
