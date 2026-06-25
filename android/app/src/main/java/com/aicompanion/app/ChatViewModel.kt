@@ -823,9 +823,13 @@ class ChatViewModel(
 
     /** 显示带重试按钮的 Snackbar */
     private fun showRetrySnackbar(message: String) {
-        Snackbar.make(binding.root, context.getString(R.string.snackbar_retry_format, message), Snackbar.LENGTH_LONG)
-            .setAction(context.getString(R.string.action_retry)) { retryLastMessage() }
-            .show()
+        try {
+            Snackbar.make(binding.root, context.getString(R.string.snackbar_retry_format, message), Snackbar.LENGTH_LONG)
+                .setAction(context.getString(R.string.action_retry)) { retryLastMessage() }
+                .show()
+        } catch (_: Exception) {
+            // Activity 可能已销毁，忽略
+        }
     }
 
     // ======================== 便捷方法 ========================

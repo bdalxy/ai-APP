@@ -4,6 +4,7 @@
 import json
 import os
 import queue
+import re
 import threading
 import time
 import traceback
@@ -46,7 +47,9 @@ def _resolve_card_path() -> str:
         可用的角色卡文件路径字符串。
     """
     name = getattr(settings, 'CHARACTER_NAME', '小美') or '小美'
-    card_path = _CARD_DIR / f"{name}.json"
+    # 过滤文件名非法字符，防止路径创建失败
+    safe_name = re.sub(r'[<>:"/\\|?*]', '_', name)
+    card_path = _CARD_DIR / f"{safe_name}.json"
     if card_path.exists():
         return str(card_path)
     # 兜底：使用默认角色卡
@@ -296,7 +299,7 @@ def chat_stream_start(user_input: str) -> str:
         _log.warning(f"[chat] 上下文注入失败（不影响对话）: {e}")
 
     stream_id = str(uuid.uuid4())
-    token_queue = queue.Queue(maxsize=100)
+    token_queue = queue.Queue(maxsize=200)
 
     with _streams_lock:
         _streams[stream_id] = {
@@ -321,10 +324,16 @@ def chat_stream_start(user_input: str) -> str:
                     error_msg = token[len("__ERROR__:"):]
                     _log.debug(f"[流式对话] 角色扮演器返回错误: {error_msg}")
                     stream["error"] = error_msg
-                    token_queue.put(json.dumps({"status": "error", "message": error_msg}))
+                    try:
+                        token_queue.put_nowait(json.dumps({"status": "error", "message": error_msg}))
+                    except queue.Full:
+                        _log.warning("[流式对话] 队列满，丢弃错误消息")
                     return
                 else:
-                    token_queue.put(json.dumps({"status": "streaming", "token": token}))
+                    try:
+                        token_queue.put_nowait(json.dumps({"status": "streaming", "token": token}))
+                    except queue.Full:
+                        _log.warning("[流式对话] 队列满，丢弃 token")
 
             # 记忆存储：使用线程池异步执行，不阻塞对话回复
             if orchestrator is not None and full_reply:
@@ -335,17 +344,26 @@ def chat_stream_start(user_input: str) -> str:
             _get_plugin_manager().on_turn_end(user_input, full_reply)
 
             stream["full_reply"] = full_reply
-            token_queue.put(json.dumps({"status": "done", "reply": full_reply}))
+            try:
+                token_queue.put_nowait(json.dumps({"status": "done", "reply": full_reply}))
+            except queue.Full:
+                _log.warning("[流式对话] 队列满，丢弃 done 消息")
             _log.debug(f"[流式对话] 线程完成: reply_len={len(full_reply)}, error={stream.get('error')}")
         except RolePlayerError as e:
             _log.debug(f"[流式对话] RolePlayerError: {e}")
             stream["error"] = str(e)
-            token_queue.put(json.dumps({"status": "error", "message": str(e)}))
+            try:
+                token_queue.put_nowait(json.dumps({"status": "error", "message": str(e)}))
+            except queue.Full:
+                _log.warning("[流式对话] 队列满，丢弃错误消息")
         except Exception as e:
             _log.debug(f"[流式对话] 后台线程未知错误: {e}")
             _log.debug(f"[流式对话] 异常详情: {traceback.format_exc()}")
             stream["error"] = str(e)
-            token_queue.put(json.dumps({"status": "error", "message": f"内部错误: {e}"}))
+            try:
+                token_queue.put_nowait(json.dumps({"status": "error", "message": f"内部错误: {e}"}))
+            except queue.Full:
+                _log.warning("[流式对话] 队列满，丢弃错误消息")
         finally:
             stream["done"] = True
             _log.debug(f"[流式对话] 流结束: done={stream['done']}, error={stream.get('error')}")
