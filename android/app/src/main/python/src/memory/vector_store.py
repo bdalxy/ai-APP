@@ -42,6 +42,8 @@ from src.utils.time_utils import format_timestamp_iso
 # 加密密钥（懒加载，首次调用 _encrypt/_decrypt 时初始化）
 _ENCRYPTION_KEY: bytes | None = None
 _USE_FERNET: bool = False
+_ENCRYPTION_INITIALIZED: bool = False
+_ENCRYPTION_LOCK: Lock = Lock()
 # 加密标记前缀：F:0: = Fernet, X:0: = XOR, 无前缀 = 旧数据
 _ENCRYPT_PREFIX_FERNET: str = "F:0:"
 _ENCRYPT_PREFIX_XOR: str = "X:0:"
@@ -58,7 +60,7 @@ def _init_encryption(key_dir: str = "") -> None:
     Args:
         key_dir: 密钥文件存储目录（通常为数据库所在目录）。空字符串表示不持久化。
     """
-    global _ENCRYPTION_KEY, _USE_FERNET
+    global _ENCRYPTION_KEY, _USE_FERNET, _ENCRYPTION_INITIALIZED
     _logger = get_logger()
 
     has_fernet = False
@@ -81,6 +83,7 @@ def _init_encryption(key_dir: str = "") -> None:
                 else:
                     _USE_FERNET = False
                     _logger.info(f"[加密] 已从持久化文件加载 XOR 密钥 ({len(_ENCRYPTION_KEY)} 字节)")
+                _ENCRYPTION_INITIALIZED = True
                 return
             except Exception as e:
                 _logger.warning(f"[加密] 加载持久化密钥失败: {e}，将重新生成")
@@ -102,6 +105,7 @@ def _init_encryption(key_dir: str = "") -> None:
                         "[加密] 已生成临时 Fernet 密钥，重启后旧数据将无法解密。"
                     )
             _logger.info(f"[加密] 使用 Fernet (AES-CBC) 模式, 密钥={len(_ENCRYPTION_KEY)}字节")
+            _ENCRYPTION_INITIALIZED = True
             return
         except Exception as e:
             _logger.warning(f"[加密] Fernet 初始化失败: {e}，回退 XOR")
@@ -121,6 +125,7 @@ def _init_encryption(key_dir: str = "") -> None:
         _logger.warning(
             "[加密] 已生成临时 XOR 密钥，重启后旧数据将无法解密。"
         )
+    _ENCRYPTION_INITIALIZED = True
 
 
 def _save_key_to_file(key_dir: str, key: bytes) -> None:
@@ -133,6 +138,17 @@ def _save_key_to_file(key_dir: str, key: bytes) -> None:
         get_logger().warning(f"[加密] 保存密钥失败: {e}")
 
 
+def _ensure_encryption_initialized() -> None:
+    """线程安全地确保加密密钥已初始化（双重检查锁定）。"""
+    global _ENCRYPTION_INITIALIZED
+    if _ENCRYPTION_INITIALIZED:
+        return
+    with _ENCRYPTION_LOCK:
+        if not _ENCRYPTION_INITIALIZED:
+            _init_encryption()
+            _ENCRYPTION_INITIALIZED = True
+
+
 def _encrypt(text: str) -> str:
     """加密文本内容，返回带前缀标记的密文。
 
@@ -142,9 +158,7 @@ def _encrypt(text: str) -> str:
     """
     if not text:
         return text
-    global _ENCRYPTION_KEY
-    if _ENCRYPTION_KEY is None:
-        _init_encryption()
+    _ensure_encryption_initialized()
 
     if _USE_FERNET:
         from cryptography.fernet import Fernet  # type: ignore[import-untyped]
@@ -170,9 +184,7 @@ def _decrypt(encoded: str) -> str:
     """
     if not encoded:
         return encoded
-    global _ENCRYPTION_KEY
-    if _ENCRYPTION_KEY is None:
-        _init_encryption()
+    _ensure_encryption_initialized()
 
     # 检测前缀标记
     if encoded.startswith(_ENCRYPT_PREFIX_FERNET):

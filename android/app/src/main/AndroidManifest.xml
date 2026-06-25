@@ -83,49 +83,49 @@
         <activity
             android:name=".MemoryArchiveActivity"
             android:exported="true"
-            android:label="记忆档案馆"
+            android:label="@string/title_memory_archive"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
-            android:label="设置"
+            android:label="@string/title_settings"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".SettingsDetailActivity"
             android:exported="true"
-            android:label="设置详情"
+            android:label="@string/title_settings_detail"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterManageActivity"
             android:exported="true"
-            android:label="角色管理"
+            android:label="@string/title_character_manage"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterSelectActivity"
             android:exported="true"
-            android:label="选择角色"
+            android:label="@string/title_character_select"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterActivity"
             android:exported="true"
-            android:label="角色详情"
+            android:label="@string/title_character_detail"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterEditActivity"
             android:exported="true"
-            android:label="编辑角色"
+            android:label="@string/title_character_edit"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CharacterPreviewActivity"
             android:exported="true"
-            android:label="角色预览"
+            android:label="@string/title_character_preview"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
@@ -136,25 +136,25 @@
         <activity
             android:name=".PluginManageActivity"
             android:exported="true"
-            android:label="插件管理"
+            android:label="@string/title_plugin_manage"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".LicenseActivity"
             android:exported="true"
-            android:label="开源许可"
+            android:label="@string/title_oss_license"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".WorldBookActivity"
             android:exported="true"
-            android:label="世界书"
+            android:label="@string/title_world_book"
             android:theme="@style/Theme.AICompanion" />
 
         <activity
             android:name=".CrashLogViewerActivity"
             android:exported="true"
-            android:label="崩溃日志"
+            android:label="@string/title_crash_log"
             android:theme="@style/Theme.AICompanion" />
 
         <!-- FileProvider：用于分享导出的对话文件 -->

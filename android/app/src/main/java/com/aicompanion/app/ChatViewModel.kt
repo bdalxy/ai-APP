@@ -176,7 +176,8 @@ class ChatViewModel(
             binding.layoutSearch?.visibility = View.GONE
             binding.tvSearchResultCount?.visibility = View.GONE
             binding.etSearch?.setText("")
-            adapter.replaceAll(originalMessages.toList())
+            // 使用当前实际消息列表，而非缓存的旧快照（防止搜索期间新消息丢失）
+            adapter.replaceAll(adapter.getMessages().toList())
             hideKeyboard()
             if (adapter.itemCount > 0) {
                 binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
@@ -360,6 +361,10 @@ class ChatViewModel(
          * 然后通过 callbackFlow 包装 chat_stream_poll() 轮询获取 token 并实时更新 UI。
          */
         fun sendMessageStream(userInput: String) {
+            // 搜索模式下先退出，防止流式消息操作搜索结果列表导致崩溃
+            if (isSearchMode) {
+                exitSearchMode()
+            }
             val module = pythonModule
             if (module == null) {
                 UiThread.run {
@@ -685,6 +690,9 @@ class ChatViewModel(
 
     /** 切换搜索模式（显示/隐藏搜索栏），委托给 SearchHelper */
     fun toggleSearchMode() = searchHelper.toggleSearchMode()
+
+    /** 退出搜索模式，委托给 SearchHelper */
+    fun exitSearchMode() = searchHelper.exitSearchMode()
 
     // ======================== 键盘管理 ========================
 

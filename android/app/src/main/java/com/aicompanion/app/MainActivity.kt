@@ -228,7 +228,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onStreamComplete(fullContent: String) {
-                voiceController.speakAIContentIfNeeded(fullContent)
+                // 如果开启了自动朗读，逐句模式已在 onStreamSentence 中处理，
+                // 跳过全文朗读避免与逐句队列冲突
+                if (!AppConfig.getAutoReadAloud(this@MainActivity)) {
+                    voiceController.speakAIContentIfNeeded(fullContent)
+                }
             }
 
             override fun onStreamSentence(sentence: String) {

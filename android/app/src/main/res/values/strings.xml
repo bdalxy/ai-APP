@@ -16,6 +16,7 @@
     <string name="btn_edit">✎</string>
     <string name="icon_chevron">›</string>
     <string name="btn_new_character">+ 新建</string>
+    <string name="fab_icon_plus">+</string>
 
     <!-- ===== 通用 Content Description ===== -->
     <string name="cd_back">返回</string>
@@ -47,6 +48,7 @@
 
     <!-- ===== 设置页 (activity_settings) ===== -->
     <string name="title_settings">设置</string>
+    <string name="title_settings_detail">设置详情</string>
 
     <!-- 状态标签 -->
     <string name="status_configured">已配置</string>
@@ -125,6 +127,7 @@
     <string name="section_about">关于</string>
     <string name="section_about_settings">关于</string>
     <string name="label_open_source_license">开源许可</string>
+    <string name="title_oss_license">开源许可</string>
     <string name="label_feedback">意见反馈</string>
     <string name="label_export_data">导出对话记录</string>
     <string name="cd_about_settings">关于</string>
@@ -151,6 +154,9 @@
 
     <!-- ===== 角色管理页 (activity_character_manage) ===== -->
     <string name="title_character_manage">角色管理</string>
+    <string name="title_character_select">选择角色</string>
+    <string name="title_character_detail">角色详情</string>
+    <string name="title_character_edit">编辑角色</string>
     <string name="empty_character_guide">还没有角色</string>
     <string name="empty_character_desc">点击下方按钮创建你的第一个角色</string>
 

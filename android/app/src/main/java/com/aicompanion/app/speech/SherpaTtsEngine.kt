@@ -42,6 +42,7 @@ class SherpaTtsEngine(
 
     private var tts: OfflineTts? = null
     private var audioTrack: AudioTrack? = null
+    private val audioTrackLock = Any()
     private val isSpeaking = AtomicBoolean(false)
     private val initScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job]) + Dispatchers.IO)
     private val playScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job]) + Dispatchers.IO)
@@ -218,7 +219,9 @@ class SherpaTtsEngine(
                 attr, format, bufLength, AudioTrack.MODE_STREAM,
                 AudioManager.AUDIO_SESSION_ID_GENERATE
             )
-            audioTrack = track
+            synchronized(audioTrackLock) {
+                audioTrack = track
+            }
 
             track.play()
             withContext(Dispatchers.Main) { callback?.onPlayStart() }
@@ -235,7 +238,9 @@ class SherpaTtsEngine(
 
             track.stop()
             track.release()
-            audioTrack = null
+            synchronized(audioTrackLock) {
+                audioTrack = null
+            }
 
             isSpeaking.set(false)
             withContext(Dispatchers.Main) { callback?.onPlayDone() }
@@ -253,16 +258,18 @@ class SherpaTtsEngine(
 
     fun stopSpeaking() {
         isSpeaking.set(false)
-        try {
-            audioTrack?.apply {
-                pause()
-                flush()
-                stop()
-                release()
+        synchronized(audioTrackLock) {
+            try {
+                audioTrack?.apply {
+                    pause()
+                    flush()
+                    stop()
+                    release()
+                }
+                audioTrack = null
+            } catch (e: Exception) {
+                Log.w(TAG, "停止播放异常: ${e.message}")
             }
-            audioTrack = null
-        } catch (e: Exception) {
-            Log.w(TAG, "停止播放异常: ${e.message}")
         }
     }
 

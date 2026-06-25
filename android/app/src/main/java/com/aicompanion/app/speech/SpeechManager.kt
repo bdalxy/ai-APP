@@ -214,10 +214,15 @@ class SpeechManager(
             }
             return
         }
+        var shouldProcess = false
         synchronized(sentenceQueue) {
             sentenceQueue.add(text)
+            if (!isProcessingQueue) {
+                isProcessingQueue = true
+                shouldProcess = true
+            }
         }
-        if (!isProcessingQueue) {
+        if (shouldProcess) {
             processNextSentence()
         }
     }

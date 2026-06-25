@@ -99,7 +99,7 @@
         android:layout_height="56dp"
         android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
-        android:text="+"
+        android:text="@string/fab_icon_plus"
         android:textSize="28sp"
         android:textColor="@color/wb_fab_icon"
         android:gravity="center"
