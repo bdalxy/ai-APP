@@ -51,3 +51,6 @@ Thumbs.db
 
 # Trae IDE
 .trae/
+
+# 参考项目（仅保留报告，不追踪仓库本身）
+Hermes Agent/hermes-agent-repo/
