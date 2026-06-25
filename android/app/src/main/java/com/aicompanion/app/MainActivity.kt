@@ -462,6 +462,7 @@ class MainActivity : AppCompatActivity() {
         if (apiKey.isNullOrBlank()) {
             withContext(Dispatchers.Main) {
                 binding.tvStatus.text = getString(R.string.error_init_api_key)
+                Toast.makeText(this@MainActivity, R.string.error_init_api_key, Toast.LENGTH_LONG).show()
             }
             return false
         }

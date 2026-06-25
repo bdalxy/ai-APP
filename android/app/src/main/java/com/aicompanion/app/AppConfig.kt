@@ -2,6 +2,7 @@ package com.aicompanion.app
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -75,20 +76,27 @@ object AppConfig {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    /** 加密配置（API Key 等敏感数据，带缓存） */
+    /** 加密配置（API Key 等敏感数据，带缓存）
+     * 如果加密存储初始化失败（如旧设备Keystore异常），降级为普通SharedPreferences。 */
     private fun getSecurePrefs(context: Context): SharedPreferences {
         return cachedSecurePrefs ?: synchronized(securePrefsLock) {
             cachedSecurePrefs ?: run {
-                val masterKey = MasterKey.Builder(context.applicationContext)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-                EncryptedSharedPreferences.create(
-                    context.applicationContext,
-                    SECURE_PREFS_NAME,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                ).also { cachedSecurePrefs = it }
+                try {
+                    val masterKey = MasterKey.Builder(context.applicationContext)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+                    EncryptedSharedPreferences.create(
+                        context.applicationContext,
+                        SECURE_PREFS_NAME,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    ).also { cachedSecurePrefs = it }
+                } catch (e: Exception) {
+                    Log.w("AppConfig", "加密存储初始化失败，降级为普通存储: ${e.message}")
+                    cachedSecurePrefs = context.getSharedPreferences(SECURE_PREFS_NAME, Context.MODE_PRIVATE)
+                }
+                cachedSecurePrefs!!
             }
         }
     }

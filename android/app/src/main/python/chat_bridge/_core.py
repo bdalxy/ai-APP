@@ -549,18 +549,23 @@ def apply_params(
     example_dialogues: int = 1,
     model: str = "",
 ) -> dict:
-    """运行时应用对话参数（重新初始化聊天引擎）。"""
+    """运行时更新对话参数（不重建引擎，保留对话上下文）。"""
     try:
         if not settings.DEEPSEEK_API_KEY:
             return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
-        custom_preset = _build_custom_preset(context_size, temperature, max_tokens, example_dialogues, model)
-        player = _ctx.initialize(preset=custom_preset, model=model if model else "")
-        player.load_card(_resolve_card_path())
+        player = _ctx.player
+        if player is None:
+            return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+
+        player.temperature = temperature
+        player.max_tokens = max_tokens
+        if model:
+            player.client.set_model(model)
 
         params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
         _log.info(
-            f"[参数应用] context={context_size}, temp={temperature}, "
+            f"[参数更新] context={context_size}, temp={temperature}, "
             f"max_tokens={max_tokens}, dialogues={example_dialogues}, model={model or '默认'}"
         )
         return json.dumps({"status": "ok", "params": params})

@@ -557,19 +557,21 @@ class ChatViewModel(
             // 取消流式协程（如果还在运行）
             streamJob?.cancel()
             streamJob = null
-            // 取消 Python 流
+            // 取消 Python 流（必须在 IO 线程，Python.getInstance() 不应在主线程调用）
             val sid = activeStreamId
             if (sid != null) {
-                try {
-                    com.chaquo.python.Python.getInstance()
-                        .getModule("chat_bridge")
-                        ?.callAttr("chat_stream_cancel", sid)
-                    Log.d(TAG, "cancelActiveStream: 已取消流 $sid")
-                } catch (e: Exception) {
-                    Log.w(TAG, "cancelActiveStream: 取消流失败 ${e.message}")
-                } finally {
-                    activeStreamId = null
-                    isStreaming = false
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        com.chaquo.python.Python.getInstance()
+                            .getModule("chat_bridge")
+                            ?.callAttr("chat_stream_cancel", sid)
+                        Log.d(TAG, "cancelActiveStream: 已取消流 $sid")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "cancelActiveStream: 取消流失败 ${e.message}")
+                    } finally {
+                        activeStreamId = null
+                        isStreaming = false
+                    }
                 }
             }
         }
@@ -598,7 +600,11 @@ class ChatViewModel(
         binding.etInput.isEnabled = true
         updateSendButton(binding.etInput.text?.isNotBlank() == true)
         if (!isSearchMode) {
-            binding.etInput.requestFocus()
+            try {
+                binding.etInput.requestFocus()
+            } catch (_: Exception) {
+                // Activity 可能已销毁，忽略
+            }
         }
     }
 

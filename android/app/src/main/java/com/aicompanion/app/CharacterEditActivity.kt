@@ -197,7 +197,11 @@ class CharacterEditActivity : AppCompatActivity() {
             // 保存到临时文件
             val avatarDir = File(filesDir, "avatars")
             avatarDir.mkdirs()
-            val charId = editingId ?: java.util.UUID.randomUUID().toString()
+            // 如果 editingId 为空（新建模式），生成一个固定 ID 并回写，防止与 saveCharacter() 中生成的 UUID 不一致
+            if (editingId == null) {
+                editingId = java.util.UUID.randomUUID().toString()
+            }
+            val charId = editingId!!
             val avatarFile = File(avatarDir, "${charId}.jpg")
             FileOutputStream(avatarFile).use { out ->
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)

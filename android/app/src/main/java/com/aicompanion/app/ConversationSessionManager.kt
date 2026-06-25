@@ -239,7 +239,8 @@ object ConversationSessionManager {
 
     /** 获取指定会话的消息文件。 */
     private fun getSessionFile(sessionId: String): File {
-        return File(filesDir, "$SESSION_FILE_PREFIX$sessionId$SESSION_FILE_SUFFIX")
+        val dir = filesDir ?: throw IllegalStateException("ConversationSessionManager 未初始化，请先调用 init()")
+        return File(dir, "$SESSION_FILE_PREFIX$sessionId$SESSION_FILE_SUFFIX")
     }
 
     /** 内部创建会话方法（不切换当前会话）。 */

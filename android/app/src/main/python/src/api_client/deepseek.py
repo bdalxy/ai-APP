@@ -205,11 +205,21 @@ class DeepSeekClient:
             raise APIConnectionError(f"Chat API 连接失败: {e}")
         if response.status_code != 200:
             self._handle_http_error(response)
-        data = response.json()
-        choice = data["choices"][0]
+        try:
+            data = response.json()
+        except json.JSONDecodeError as e:
+            raise APIServerError(f"Chat API 返回了无效的 JSON: {e}")
+        choices = data.get("choices", [])
+        if not choices:
+            raise APIServerError("Chat API 返回空的 choices 列表")
+        choice = choices[0]
+        message = choice.get("message", {})
+        content = message.get("content")
+        if content is None:
+            raise APIServerError("Chat API 返回的 message.content 为 None")
         usage_raw = data.get("usage", {})
         result = ChatResponse(
-            content=choice["message"]["content"],
+            content=content,
             model=data.get("model", self._chat_model),
             usage={"prompt_tokens": usage_raw.get("prompt_tokens", 0), "completion_tokens": usage_raw.get("completion_tokens", 0), "total_tokens": usage_raw.get("total_tokens", 0)},
             finish_reason=choice.get("finish_reason", "unknown"),
@@ -276,36 +286,39 @@ class DeepSeekClient:
         model = self._chat_model
         usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-        for line in response.iter_lines(decode_unicode=True):
-            if not line or line.startswith(":"):
-                continue
-            if line.startswith("data: "):
-                data_str = line[6:]
-                if data_str == "[DONE]":
-                    break
-                try:
-                    obj = json.loads(data_str)
-                    choices = obj.get("choices", [])
-                    if choices:
-                        delta = choices[0].get("delta", {})
-                        content = delta.get("content", "")
-                        if content:
-                            full_content += content
-                            yield content
-                        if choices[0].get("finish_reason"):
-                            finish_reason = choices[0]["finish_reason"]
-                    # 从最后一个 chunk 获取 usage 信息
-                    chunk_usage = obj.get("usage")
-                    if chunk_usage:
-                        usage = {
-                            "prompt_tokens": chunk_usage.get("prompt_tokens", 0),
-                            "completion_tokens": chunk_usage.get("completion_tokens", 0),
-                            "total_tokens": chunk_usage.get("total_tokens", 0),
-                        }
-                    model = obj.get("model", model)
-                except json.JSONDecodeError:
-                    self._log.debug(f"[Chat Stream] JSON 解析失败，跳过: {data_str[:50]}...")
+        try:
+            for line in response.iter_lines(decode_unicode=True):
+                if not line or line.startswith(":"):
                     continue
+                if line.startswith("data: "):
+                    data_str = line[6:]
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(data_str)
+                        choices = obj.get("choices", [])
+                        if choices:
+                            delta = choices[0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                full_content += content
+                                yield content
+                            if choices[0].get("finish_reason"):
+                                finish_reason = choices[0]["finish_reason"]
+                        # 从最后一个 chunk 获取 usage 信息
+                        chunk_usage = obj.get("usage")
+                        if chunk_usage:
+                            usage = {
+                                "prompt_tokens": chunk_usage.get("prompt_tokens", 0),
+                                "completion_tokens": chunk_usage.get("completion_tokens", 0),
+                                "total_tokens": chunk_usage.get("total_tokens", 0),
+                            }
+                        model = obj.get("model", model)
+                    except json.JSONDecodeError:
+                        self._log.debug(f"[Chat Stream] JSON 解析失败，跳过: {data_str[:50]}...")
+                        continue
+        finally:
+            response.close()
 
         result = ChatResponse(
             content=full_content,
