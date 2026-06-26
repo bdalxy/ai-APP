@@ -9,6 +9,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * 录音器。
+ *
+ * TODO: 录音文件存储在 app-private cacheDir，当前未加密。
+ * 后续可考虑使用 Android Keystore + AES-GCM 加密存储。
+ */
 class VoiceRecorder(private val context: Context) {
 
     companion object {

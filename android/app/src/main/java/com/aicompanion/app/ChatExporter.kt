@@ -56,6 +56,9 @@ object ChatExporter {
             sb.appendLine("（已截断，完整消息数：${messages.size}）")
         }
         sb.appendLine()
+        sb.appendLine("--- 隐私提醒 ---")
+        sb.appendLine("本文件包含与 AI 角色的私人对话内容，请妥善保管，不要分享给他人。")
+        sb.appendLine()
         sb.appendLine("--- 对话内容 ---")
         sb.appendLine()
         for (msg in limitedMessages) {

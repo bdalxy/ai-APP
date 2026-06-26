@@ -43,7 +43,7 @@ class ChatAdapter(
         /** 语音消息 viewType */
         private const val VIEW_TYPE_AI_VOICE = 3
         private const val VIEW_TYPE_USER_VOICE = 4
-        private const val MAX_MESSAGES = 50
+        private val MAX_MESSAGES = AppConfig.MAX_MESSAGES
         private const val TAG = "ChatAdapter"
 
         private val timeFormat = ThreadLocal.withInitial {

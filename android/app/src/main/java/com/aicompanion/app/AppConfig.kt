@@ -28,6 +28,10 @@ object AppConfig {
     private const val KEY_TTS_PITCH = "tts_pitch"
     private const val KEY_AUTO_READ_ALOUD = "auto_read_aloud"
     private const val KEY_VOICE_RECOGNITION_LANG = "voice_recognition_lang"
+
+    // ── 聊天常量 ──
+    /** 消息列表最大保留条数 */
+    const val MAX_MESSAGES = 50
     private const val KEY_TTS_VOICE_TIMBRE = "tts_voice_timbre"
 
     /** 默认 TTS 语速 */
