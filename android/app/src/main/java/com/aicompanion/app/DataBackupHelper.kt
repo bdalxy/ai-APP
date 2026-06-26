@@ -148,24 +148,68 @@ object DataBackupHelper {
                 return false
             }
 
-            // 3. 复制到 App 数据目录
-            for (dirName in BACKUP_DIRS) {
-                val srcDir = File(tempDir, dirName)
-                if (srcDir.exists() && srcDir.isDirectory) {
-                    val destDir = File(filesDir, dirName)
-                    copyDirectory(srcDir, destDir)
+            // 2.5 恢复前备份当前数据（防止恢复失败导致数据丢失）
+            val backupDir = File(filesDir, "_restore_backup")
+            backupDir.deleteRecursively()
+            try {
+                for (dirName in BACKUP_DIRS) {
+                    val srcDir = File(filesDir, dirName)
+                    if (srcDir.exists() && srcDir.isDirectory) {
+                        val destDir = File(backupDir, dirName)
+                        copyDirectory(srcDir, destDir)
+                    }
                 }
+                val currentDb = File(filesDir, "memories.db")
+                if (currentDb.exists()) {
+                    currentDb.copyTo(File(backupDir, "memories.db"), overwrite = true)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "恢复前备份失败（不影响恢复）: ${e.message}")
+                backupDir.deleteRecursively()
             }
 
-            // 恢复 memories.db
-            val srcDb = File(tempDir, "memories.db")
-            if (srcDb.exists()) {
-                val destDb = File(filesDir, "memories.db")
-                srcDb.copyTo(destDb, overwrite = true)
+            // 3. 复制到 App 数据目录
+            try {
+                for (dirName in BACKUP_DIRS) {
+                    val srcDir = File(tempDir, dirName)
+                    if (srcDir.exists() && srcDir.isDirectory) {
+                        val destDir = File(filesDir, dirName)
+                        copyDirectory(srcDir, destDir)
+                    }
+                }
+
+                // 恢复 memories.db
+                val srcDb = File(tempDir, "memories.db")
+                if (srcDb.exists()) {
+                    val destDb = File(filesDir, "memories.db")
+                    srcDb.copyTo(destDb, overwrite = true)
+                }
+            } catch (e: Exception) {
+                // 回滚：恢复备份数据
+                Log.e(TAG, "恢复失败，尝试回滚: ${e.message}", e)
+                try {
+                    for (dirName in BACKUP_DIRS) {
+                        val bkDir = File(backupDir, dirName)
+                        if (bkDir.exists() && bkDir.isDirectory) {
+                            val destDir = File(filesDir, dirName)
+                            copyDirectory(bkDir, destDir)
+                        }
+                    }
+                    val bkDb = File(backupDir, "memories.db")
+                    if (bkDb.exists()) {
+                        bkDb.copyTo(File(filesDir, "memories.db"), overwrite = true)
+                    }
+                } catch (rollbackErr: Exception) {
+                    Log.e(TAG, "回滚也失败: ${rollbackErr.message}", rollbackErr)
+                }
+                tempDir.deleteRecursively()
+                backupDir.deleteRecursively()
+                return false
             }
 
-            // 4. 清理临时目录
+            // 4. 清理临时目录和备份
             tempDir.deleteRecursively()
+            backupDir.deleteRecursively()
 
             Log.i(TAG, "恢复完成")
             true

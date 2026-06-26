@@ -17,3 +17,8 @@ local.properties
 # 签名密钥
 *.jks
 *.keystore
+keystore.properties
+
+# 环境变量
+*.env
+.env

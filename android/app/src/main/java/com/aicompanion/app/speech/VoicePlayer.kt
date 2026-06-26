@@ -23,11 +23,13 @@ class VoicePlayer(private val context: Context) {
 
     var callback: Callback? = null
     private var mediaPlayer: MediaPlayer? = null
+    @Volatile private var destroyed = false
     @Volatile var state: State = State.IDLE
         private set
     private var currentFilePath: String? = null
 
     fun play(filePath: String) {
+        if (destroyed) return
         val file = File(filePath)
         if (!file.exists()) { callback?.onError("音频文件不存在: $filePath"); return }
         if (!file.canRead()) { callback?.onError("无法读取音频文件: $filePath"); return }
@@ -36,8 +38,14 @@ class VoicePlayer(private val context: Context) {
             currentFilePath = filePath
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(context, Uri.fromFile(file))
-                setOnPreparedListener { mp -> mp.start(); state = State.PLAYING; callback?.onStart() }
-                setOnCompletionListener { state = State.COMPLETED; callback?.onComplete() }
+                setOnPreparedListener { mp ->
+                    if (destroyed) { mp.release(); return@setOnPreparedListener }
+                    mp.start(); state = State.PLAYING; callback?.onStart()
+                }
+                setOnCompletionListener {
+                    if (destroyed) return@setOnCompletionListener
+                    state = State.COMPLETED; callback?.onComplete()
+                }
                 setOnErrorListener { _, what, extra ->
                     state = State.IDLE; callback?.onError("音频播放错误 (what=$what, extra=$extra)"); true
                 }
@@ -77,5 +85,5 @@ class VoicePlayer(private val context: Context) {
         catch (e: Exception) { mediaPlayer = null; currentFilePath = null }
     }
 
-    fun destroy() { Log.d(TAG, "释放播放器资源"); releasePlayer(); state = State.IDLE; callback = null }
+    fun destroy() { Log.d(TAG, "释放播放器资源"); destroyed = true; releasePlayer(); state = State.IDLE; callback = null }
 }

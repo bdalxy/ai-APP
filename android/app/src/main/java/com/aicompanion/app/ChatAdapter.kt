@@ -46,8 +46,12 @@ class ChatAdapter(
         private const val MAX_MESSAGES = 50
         private const val TAG = "ChatAdapter"
 
-        private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        private val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        private val timeFormat = ThreadLocal.withInitial {
+            SimpleDateFormat("HH:mm", Locale.getDefault())
+        }
+        private val dateFormat = ThreadLocal.withInitial {
+            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        }
 
         /** 格式化语音时长（毫秒 -> MM:SS） */
         fun formatVoiceDuration(durationMs: Long): String {
@@ -502,12 +506,12 @@ class ChatAdapter(
         return when {
             diff < 60_000 -> "刚刚"
             diff < 3600_000 -> "${diff / 60_000}分钟前"
-            diff < 86400_000 -> timeFormat.format(Date(timestamp))
+            diff < 86400_000 -> timeFormat.get()!!.format(Date(timestamp))
             diff < 604800_000 -> {
                 val days = diff / 86400_000
-                "${days}天前 ${timeFormat.format(Date(timestamp))}"
+                "${days}天前 ${timeFormat.get()!!.format(Date(timestamp))}"
             }
-            else -> dateFormat.format(Date(timestamp))
+            else -> dateFormat.get()!!.format(Date(timestamp))
         }
     }
 

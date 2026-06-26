@@ -222,6 +222,7 @@ object ConversationSessionManager {
 
     /** 更新会话预览信息（最后一条消息和时间戳）。 */
     fun updateSessionPreview(sessionId: String, lastMessage: String, messageCount: Int) {
+        var needSave = false
         synchronized(lock) {
             val index = sessions.indexOfFirst { it.id == sessionId }
             if (index >= 0) {
@@ -230,8 +231,11 @@ object ConversationSessionManager {
                     messageCount = messageCount,
                     updatedAt = System.currentTimeMillis()
                 )
-                saveSessionsToFile()
+                needSave = true
             }
+        }
+        if (needSave) {
+            saveSessionsToFile()
         }
     }
 

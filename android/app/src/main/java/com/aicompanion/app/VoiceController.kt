@@ -58,6 +58,8 @@ class VoiceController(
     private var isVoiceRecordingCancelled = false
     private val recordingHandler = Handler(Looper.getMainLooper())
     private var recordingDurationRunnable: Runnable? = null
+    /** 语音识别等待协程 Job（用于取消） */
+    private var recordingWaitJob: Job? = null
 
     // ── 唤醒词检测 ──
     private var wakeWordJob: Job? = null
@@ -222,7 +224,7 @@ class VoiceController(
                     wasVoiceInput = true
                     callback?.onVoiceInputTriggered()
                 }
-            }
+            }.also { recordingWaitJob = it }
         } catch (e: Exception) {
             Log.e(TAG, "启动语音识别失败", e)
             Toast.makeText(context, "启动语音识别失败: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -491,6 +493,7 @@ class VoiceController(
 
     fun destroy() {
         stopWakeWordDetection()
+        recordingWaitJob?.cancel()
         if (this::speechManager.isInitialized) { speechManager.destroy() }
         if (this::voiceRecorder.isInitialized) { voiceRecorder.destroy() }
         if (this::voicePlayer.isInitialized) { voicePlayer.destroy() }

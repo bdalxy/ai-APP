@@ -16,16 +16,22 @@ import java.util.Locale
 
 object ChatExporter {
 
+    private const val MAX_EXPORT_MESSAGES = 5000
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     private val fileNameFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
 
     fun exportToJson(messages: List<Message>, characterName: String): String {
+        val limitedMessages = messages.take(MAX_EXPORT_MESSAGES)
         val root = JSONObject()
         root.put("character_name", characterName)
         root.put("export_time", dateFormat.format(Date()))
-        root.put("message_count", messages.count { !it.isTyping })
+        root.put("message_count", limitedMessages.count { !it.isTyping })
+        if (messages.size > MAX_EXPORT_MESSAGES) {
+            root.put("truncated", true)
+            root.put("total_messages", messages.size)
+        }
         val msgArray = JSONArray()
-        for (msg in messages) {
+        for (msg in limitedMessages) {
             if (msg.isTyping) continue
             val obj = JSONObject()
             obj.put("sender", if (msg.isUser) "我" else (msg.senderName.ifEmpty { characterName }))
@@ -40,15 +46,19 @@ object ChatExporter {
     }
 
     fun exportToTxt(messages: List<Message>, characterName: String): String {
+        val limitedMessages = messages.take(MAX_EXPORT_MESSAGES)
         val sb = StringBuilder()
         sb.appendLine("=== 对话记录 ===")
         sb.appendLine("角色：$characterName")
         sb.appendLine("导出时间：${dateFormat.format(Date())}")
-        sb.appendLine("消息总数：${messages.count { !it.isTyping }}")
+        sb.appendLine("消息总数：${limitedMessages.count { !it.isTyping }}")
+        if (messages.size > MAX_EXPORT_MESSAGES) {
+            sb.appendLine("（已截断，完整消息数：${messages.size}）")
+        }
         sb.appendLine()
         sb.appendLine("--- 对话内容 ---")
         sb.appendLine()
-        for (msg in messages) {
+        for (msg in limitedMessages) {
             if (msg.isTyping) continue
             val time = dateFormat.format(Date(msg.timestamp))
             val sender = if (msg.isUser) "我" else (msg.senderName.ifEmpty { characterName })
