@@ -55,8 +55,9 @@ Thumbs.db
 # Trae IDE
 .trae/
 
-# 参考项目（仅保留报告，不追踪仓库本身）
-Hermes Agent/hermes-agent-repo/
+# 参考项目（已清理）
+# 外部参考资源（UI设计参考，不追踪）
+docs/references/taste-skill/
 
 # 文档归档（历史报告，不推送至仓库）
 docx/
