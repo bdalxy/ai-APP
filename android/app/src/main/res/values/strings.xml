@@ -573,4 +573,11 @@
         <item>冷静</item>
     </string-array>
 
+    <!-- ===== 通用 UI 字符串 ===== -->
+    <string name="toast_image_selected">图片已选择</string>
+    <string name="label_editing_message">编辑消息中…</string>
+    <string name="dialog_session_name">输入会话名称</string>
+    <string name="default_session_name">新会话</string>
+    <string name="toast_recording_failed">录制失败</string>
+
     </resources>

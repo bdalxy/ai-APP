@@ -683,7 +683,7 @@ class ChatViewModel(
         binding.etInput.requestFocus()
         showKeyboard(binding.etInput)
         updateSendButton(true)
-        Toast.makeText(context, "编辑消息中…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, R.string.label_editing_message, Toast.LENGTH_SHORT).show()
     }
 
     // ======================== 对话搜索 ========================

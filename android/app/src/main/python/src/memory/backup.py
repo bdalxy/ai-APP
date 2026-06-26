@@ -494,8 +494,12 @@ class MemoryBackup:
             # 尝试重新打开连接，确保 VectorStore 不会被遗留在关闭状态
             try:
                 self._store.reopen()
-            except Exception:
-                pass
+                self._log.info("[恢复] VectorStore 连接已重新打开")
+            except Exception as reopen_err:
+                self._log.critical(
+                    f"[恢复] VectorStore 重新打开失败，记忆系统将不可用！"
+                    f" 请重启应用。错误: {reopen_err}"
+                )
             return False
 
     def _restore_from_json(self, backup_path: Path) -> bool:

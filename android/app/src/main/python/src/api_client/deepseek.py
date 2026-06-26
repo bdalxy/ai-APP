@@ -12,6 +12,7 @@
 """
 
 import json
+import threading
 from dataclasses import dataclass
 from typing import Any, Generator
 
@@ -63,6 +64,7 @@ class CostTracker:
     }
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._total_input_tokens: int = 0
         self._total_output_tokens: int = 0
         self._total_cost: float = 0.0
@@ -73,25 +75,29 @@ class CostTracker:
         input_cost = prompt_tokens * pricing["input"] / 1_000_000
         output_cost = completion_tokens * pricing["output"] / 1_000_000
         call_cost = input_cost + output_cost
-        self._total_input_tokens += prompt_tokens
-        self._total_output_tokens += completion_tokens
-        self._total_cost += call_cost
+        with self._lock:
+            self._total_input_tokens += prompt_tokens
+            self._total_output_tokens += completion_tokens
+            self._total_cost += call_cost
         self._log.debug(f"[成本] 本次: input={prompt_tokens}, output={completion_tokens}, 费用={call_cost:.6f} | 累计: {self._total_cost:.6f}")
 
     def get_total_cost(self) -> float:
-        return self._total_cost
+        with self._lock:
+            return self._total_cost
 
     def get_total_tokens(self) -> dict[str, int]:
-        return {
-            "input_tokens": self._total_input_tokens,
-            "output_tokens": self._total_output_tokens,
-            "total_tokens": self._total_input_tokens + self._total_output_tokens,
-        }
+        with self._lock:
+            return {
+                "input_tokens": self._total_input_tokens,
+                "output_tokens": self._total_output_tokens,
+                "total_tokens": self._total_input_tokens + self._total_output_tokens,
+            }
 
     def reset(self) -> None:
-        self._total_input_tokens = 0
-        self._total_output_tokens = 0
-        self._total_cost = 0.0
+        with self._lock:
+            self._total_input_tokens = 0
+            self._total_output_tokens = 0
+            self._total_cost = 0.0
         self._log.info("[成本] 成本追踪已重置")
 
 

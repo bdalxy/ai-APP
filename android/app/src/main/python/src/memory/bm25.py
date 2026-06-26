@@ -20,6 +20,7 @@ BM25 相比 TF-IDF 的优势:
 from __future__ import annotations
 
 import math
+import threading
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -128,6 +129,7 @@ class BM25Scorer:
         Args:
             config: BM25 参数配置。为 None 时使用默认配置。
         """
+        self._lock = threading.Lock()
         self._config = config or BM25Config()
         self._documents: dict[str, str] = {}          # doc_id -> 原始文本
         self._doc_tokens: dict[str, list[str]] = {}   # doc_id -> 分词结果
@@ -153,33 +155,34 @@ class BM25Scorer:
         if not text or not text.strip():
             return
 
-        # 如果已存在，先移除
-        if doc_id in self._documents:
-            self.remove_document(doc_id)
+        with self._lock:
+            # 如果已存在，先移除（内部方法，不加锁）
+            if doc_id in self._documents:
+                self._remove_document_locked(doc_id)
 
-        # 分词
-        tokens = _tokenize_cn(text)
-        if not tokens:
-            return
+            # 分词
+            tokens = _tokenize_cn(text)
+            if not tokens:
+                return
 
-        # 存储文档
-        self._documents[doc_id] = text
-        self._doc_tokens[doc_id] = tokens
-        self._doc_lengths[doc_id] = len(tokens)
-        self._total_docs += 1
+            # 存储文档
+            self._documents[doc_id] = text
+            self._doc_tokens[doc_id] = tokens
+            self._doc_lengths[doc_id] = len(tokens)
+            self._total_docs += 1
 
-        # 更新平均文档长度
-        self._avg_doc_length = (
-            sum(self._doc_lengths.values()) / self._total_docs
-        )
+            # 更新平均文档长度
+            self._avg_doc_length = (
+                sum(self._doc_lengths.values()) / self._total_docs
+            )
 
-        # 更新倒排索引
-        term_counts = Counter(tokens)
-        for term, tf in term_counts.items():
-            if term not in self._inverted_index:
-                self._inverted_index[term] = {}
-            self._inverted_index[term][doc_id] = tf
-            self._doc_freq[term] = self._doc_freq.get(term, 0) + 1
+            # 更新倒排索引
+            term_counts = Counter(tokens)
+            for term, tf in term_counts.items():
+                if term not in self._inverted_index:
+                    self._inverted_index[term] = {}
+                self._inverted_index[term][doc_id] = tf
+                self._doc_freq[term] = self._doc_freq.get(term, 0) + 1
 
     def add_documents(self, docs: dict[str, str]) -> None:
         """批量添加文档。
@@ -196,6 +199,11 @@ class BM25Scorer:
         Args:
             doc_id: 要移除的文档 ID。
         """
+        with self._lock:
+            self._remove_document_locked(doc_id)
+
+    def _remove_document_locked(self, doc_id: str) -> None:
+        """内部方法：移除文档（需持有 _lock）。"""
         if doc_id not in self._documents:
             return
 
@@ -225,13 +233,14 @@ class BM25Scorer:
 
     def clear(self) -> None:
         """清空索引。"""
-        self._documents.clear()
-        self._doc_tokens.clear()
-        self._doc_lengths.clear()
-        self._total_docs = 0
-        self._avg_doc_length = 0.0
-        self._inverted_index.clear()
-        self._doc_freq.clear()
+        with self._lock:
+            self._documents.clear()
+            self._doc_tokens.clear()
+            self._doc_lengths.clear()
+            self._total_docs = 0
+            self._avg_doc_length = 0.0
+            self._inverted_index.clear()
+            self._doc_freq.clear()
 
     # =========================================================================
     # 查询评分

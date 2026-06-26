@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
         uri?.let {
             binding.etInput.setText(binding.etInput.text.toString() + " [图片: $it]")
             binding.etInput.setSelection(binding.etInput.text.length)
-            Toast.makeText(this, "图片已选择", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.toast_image_selected, Toast.LENGTH_SHORT).show()
         }
     }
 

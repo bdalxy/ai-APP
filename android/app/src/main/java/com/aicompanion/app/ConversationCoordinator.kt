@@ -103,18 +103,18 @@ class ConversationCoordinator(
     /** 显示新建会话对话框 */
     fun showNewChatDialog() {
         val input = EditText(context).apply {
-            hint = "输入会话名称"
+            hint = context.getString(R.string.dialog_session_name)
             setSingleLine(true)
             val sessions = ConversationSessionManager.getSessions()
-            val newIndex = sessions.count { it.name.startsWith("新会话") } + 1
-            setText("新会话 $newIndex")
+            val newIndex = sessions.count { it.name.startsWith(context.getString(R.string.default_session_name)) } + 1
+            setText(context.getString(R.string.default_session_name) + " $newIndex")
             setSelection(text.length)
         }
         val dialog = MaterialAlertDialogBuilder(context)
-            .setTitle("新建会话")
+            .setTitle(R.string.default_session_name)
             .setView(input)
             .setPositiveButton("创建") { _, _ ->
-                val name = input.text.toString().trim().ifEmpty { "新会话" }
+                val name = input.text.toString().trim().ifEmpty { context.getString(R.string.default_session_name) }
                 createNewSession(name)
             }
             .setNegativeButton("取消", null)

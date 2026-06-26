@@ -746,3 +746,43 @@ def cleanup_all_streams() -> dict:
         _streams.clear()
     _log.info(f"[流式对话] 清理了全部 {count} 个活跃流")
     return json.dumps({"status": "ok", "cleaned": count})
+
+
+def _cleanup_expired_streams():
+    """后台清理过期流（僵尸流清理）。"""
+    expired_ids = []
+    now = time.monotonic()
+    with _streams_lock:
+        for sid, stream in _streams.items():
+            if now - stream.get("created_at", 0) > 300:
+                expired_ids.append(sid)
+    for sid in expired_ids:
+        with _streams_lock:
+            stream = _streams.pop(sid, None)
+        if stream:
+            stream["done"] = True
+            while not stream["queue"].empty():
+                try:
+                    stream["queue"].get_nowait()
+                except queue.Empty:
+                    break
+    if expired_ids:
+        _log.debug(f"[流式对话] 后台清理 {len(expired_ids)} 个过期流")
+
+
+def _start_stream_cleanup_timer():
+    """启动定时清理任务（每 120 秒检查一次）。"""
+    def _loop():
+        while True:
+            time.sleep(120)
+            try:
+                _cleanup_expired_streams()
+            except Exception:
+                pass
+
+    t = threading.Thread(target=_loop, daemon=True)
+    t.start()
+
+
+# 模块加载时启动定时清理
+_start_stream_cleanup_timer()
