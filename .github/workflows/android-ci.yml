@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CI: true
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 17
@@ -16,9 +18,12 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: 'gradle'
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
     - name: Grant execute permission for gradlew
       run: chmod +x ./android/gradlew
     - name: Build with Gradle
-      run: cd android && ./gradlew assembleDebug
+      run: cd android && ./gradlew assembleDebug --no-daemon -x test
+      env:
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.parallel=true"

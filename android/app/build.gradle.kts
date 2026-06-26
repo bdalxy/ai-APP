@@ -76,13 +76,15 @@ android {
 // Chaquopy 17.0.0 新 DSL：在 chaquopy 块中配置，而非 python 块
 chaquopy {
     defaultConfig {
-        // 使用 Python 3.10（运行时已缓存）
         version = "3.10"
 
-        // 配置国内 PyPI 镜像加速 pip 下载
         pip {
-            options("--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple")
-            options("--trusted-host", "pypi.tuna.tsinghua.edu.cn")
+            if (System.getenv("CI") == "true") {
+                println("CI environment detected, using default PyPI")
+            } else {
+                options("--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple")
+                options("--trusted-host", "pypi.tuna.tsinghua.edu.cn")
+            }
         }
     }
 }
