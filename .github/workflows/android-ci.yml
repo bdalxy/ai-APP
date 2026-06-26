@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.parallel=true"
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 17
@@ -21,9 +22,11 @@ jobs:
         cache: 'gradle'
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+      with:
+        api-level: 36
+        build-tools: 36.1.0
+        ndk: 26.1.10909125
     - name: Grant execute permission for gradlew
       run: chmod +x ./android/gradlew
     - name: Build with Gradle
-      run: cd android && ./gradlew assembleDebug --no-daemon -x test
-      env:
-        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.parallel=true"
+      run: cd android && ./gradlew assembleDebug --no-daemon -x test --info 2>&1 | tail -500
