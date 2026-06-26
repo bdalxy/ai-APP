@@ -439,6 +439,7 @@ class VoiceController(
 
         // 临时设置唤醒词检测回调
         val originalCallback = speechManager.callback
+        val callbackLock = Any()
         speechManager.callback = object : SpeechManager.SpeechCallback {
             override fun onSpeechResult(text: String) {
                 Log.d(TAG, "唤醒词轮次识别结果: $text")
@@ -455,13 +456,17 @@ class VoiceController(
                         }
                     }
                 }
-                // 恢复原始回调
-                speechManager.callback = originalCallback
+                // 恢复原始回调（加锁防止与 onSpeechError 竞态）
+                synchronized(callbackLock) {
+                    speechManager.callback = originalCallback
+                }
             }
 
             override fun onSpeechError(error: String) {
                 Log.d(TAG, "唤醒词轮次识别错误: $error")
-                speechManager.callback = originalCallback
+                synchronized(callbackLock) {
+                    speechManager.callback = originalCallback
+                }
             }
 
             override fun onSpeechStart() {}

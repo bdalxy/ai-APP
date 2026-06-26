@@ -44,6 +44,9 @@ android/app/src/main/python/data/proactive_state.json
 .coverage
 htmlcov/
 .pytest_cache/
+test*.py
+test*.txt
+*.class
 
 # 系统
 .DS_Store

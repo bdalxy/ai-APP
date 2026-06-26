@@ -88,6 +88,7 @@ class ChatViewModel(
     // ======================== Python 桥接 ========================
 
     /** Python chat_bridge 模块引用（由 MainActivity 在初始化完成后设置） */
+    @Volatile
     var pythonModule: com.chaquo.python.PyObject? = null
 
     // ======================== 流式状态 ========================

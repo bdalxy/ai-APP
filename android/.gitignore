@@ -22,3 +22,8 @@ keystore.properties
 # 环境变量
 *.env
 .env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

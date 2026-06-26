@@ -771,10 +771,10 @@ def _cleanup_expired_streams():
 
 
 def _start_stream_cleanup_timer():
-    """启动定时清理任务（每 120 秒检查一次）。"""
+    """启动定时清理任务（每 60 秒检查一次）。"""
     def _loop():
         while True:
-            time.sleep(120)
+            time.sleep(60)
             try:
                 _cleanup_expired_streams()
             except Exception:
