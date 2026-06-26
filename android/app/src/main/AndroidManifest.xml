@@ -129,11 +129,6 @@
             android:theme="@style/Theme.AICompanion" />
 
         <activity
-            android:name=".OnboardingActivity"
-            android:exported="true"
-            android:theme="@style/Theme.AICompanion" />
-
-        <activity
             android:name=".PluginManageActivity"
             android:exported="true"
             android:label="@string/title_plugin_manage"

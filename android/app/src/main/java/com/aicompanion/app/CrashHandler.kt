@@ -53,11 +53,12 @@ class CrashHandler private constructor(
                 return
             }
             instance = CrashHandler(context.applicationContext)
-            // 保存原默认处理器
-            val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+            // 保存原默认处理器（必须在 setDefaultUncaughtExceptionHandler 之前）
+            val originalHandler = Thread.getDefaultUncaughtExceptionHandler()
             // 设置自定义处理器
             Thread.setDefaultUncaughtExceptionHandler(instance)
-            Log.d(TAG, "CrashHandler 初始化完成，原处理器: ${defaultHandler?.javaClass?.simpleName}")
+            instance?.defaultHandler = originalHandler
+            Log.d(TAG, "CrashHandler 初始化完成，原处理器: ${originalHandler?.javaClass?.simpleName}")
         }
 
         /**
@@ -101,9 +102,8 @@ class CrashHandler private constructor(
         }
     }
 
-    /** 系统默认的未捕获异常处理器 */
-    private val defaultHandler: Thread.UncaughtExceptionHandler? =
-        Thread.getDefaultUncaughtExceptionHandler()
+    /** 系统默认的未捕获异常处理器（由 init() 在构造后设置） */
+    internal var defaultHandler: Thread.UncaughtExceptionHandler? = null
 
     /**
      * 当未捕获异常发生时调用。

@@ -311,7 +311,8 @@ def chat_stream_start(user_input: str) -> str:
         }
 
     def _run():
-        stream = _streams.get(stream_id)
+        with _streams_lock:
+            stream = _streams.get(stream_id)
         if not stream:
             return
         try:
@@ -390,7 +391,9 @@ def chat_stream_poll(stream_id: str) -> str:
             {"status": "waiting"}  — 暂无新 token，流未结束
             {"status": "error", "message": "无效的 stream_id"}
     """
-    stream = _streams.get(stream_id)
+    stream = None
+    with _streams_lock:
+        stream = _streams.get(stream_id)
     if not stream:
         return json.dumps({"status": "error", "message": "无效的 stream_id"})
 

@@ -77,7 +77,7 @@ object AppConfig {
     }
 
     /** 加密配置（API Key 等敏感数据，带缓存）
-     * 如果加密存储初始化失败（如旧设备Keystore异常），降级为普通SharedPreferences。 */
+     * 如果加密存储初始化失败，抛出异常而非降级为明文存储。 */
     private fun getSecurePrefs(context: Context): SharedPreferences {
         return cachedSecurePrefs ?: synchronized(securePrefsLock) {
             cachedSecurePrefs ?: run {
@@ -93,8 +93,9 @@ object AppConfig {
                         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                     ).also { cachedSecurePrefs = it }
                 } catch (e: Exception) {
-                    Log.w("AppConfig", "加密存储初始化失败，降级为普通存储: ${e.message}")
-                    cachedSecurePrefs = context.getSharedPreferences(SECURE_PREFS_NAME, Context.MODE_PRIVATE)
+                    // 加密存储初始化失败，不降级为明文存储
+                    Log.e("AppConfig", "加密存储初始化失败，无法安全存储 API Key: ${e.message}")
+                    throw SecurityException("设备不支持加密存储，无法安全保存 API Key", e)
                 }
                 cachedSecurePrefs!!
             }

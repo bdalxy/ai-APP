@@ -21,7 +21,6 @@
 -keep class com.aicompanion.app.CharacterData { *; }
 -keep class com.aicompanion.app.ConversationSessionManager { *; }
 -keep class com.aicompanion.app.ConversationSession { *; }
--keep class com.aicompanion.app.PerformanceMonitor { *; }
 
 # ── ViewBinding 保护 ──
 -keep class * extends androidx.viewbinding.ViewBinding { *; }

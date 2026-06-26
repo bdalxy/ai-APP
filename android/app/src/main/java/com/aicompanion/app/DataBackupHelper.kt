@@ -28,6 +28,11 @@ object DataBackupHelper {
     /** 需要备份的子目录名称列表 */
     private val BACKUP_DIRS = listOf("conversations", "memory", "characters", "world_books")
 
+    /** 单个 entry 最大解压大小（50MB，防止 ZIP 炸弹） */
+    private const val MAX_ENTRY_SIZE = 50 * 1024 * 1024L
+    /** 累计最大解压大小（200MB） */
+    private const val MAX_TOTAL_SIZE = 200 * 1024 * 1024L
+
     /** 备份文件名格式 */
     private val FILE_NAME_FORMAT = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
 
@@ -93,12 +98,32 @@ object DataBackupHelper {
             tempDir.deleteRecursively()
             tempDir.mkdirs()
 
-            // 1. 解压到临时目录
+            // 1. 解压到临时目录（带大小限制，防止 ZIP 炸弹）
+            var totalUncompressedSize = 0L
             context.contentResolver.openInputStream(inputUri)?.use { inputStream ->
                 ZipInputStream(inputStream).use { zipIn ->
                     var entry = zipIn.nextEntry
                     while (entry != null) {
+                        // 检查单个 entry 大小
+                        val entrySize = entry.size
+                        if (entrySize > MAX_ENTRY_SIZE) {
+                            tempDir.deleteRecursively()
+                            Log.e(TAG, "恢复: ZIP 条目过大 (${entrySize} > ${MAX_ENTRY_SIZE}), 条目: ${entry.name}")
+                            return false
+                        }
+                        totalUncompressedSize += entrySize
+                        if (totalUncompressedSize > MAX_TOTAL_SIZE) {
+                            tempDir.deleteRecursively()
+                            Log.e(TAG, "恢复: ZIP 累计大小超限 (${totalUncompressedSize} > ${MAX_TOTAL_SIZE})")
+                            return false
+                        }
                         val entryFile = File(tempDir, entry.name)
+                        // 防止路径穿越攻击（确保 entryFile 在 tempDir 内）
+                        if (!entryFile.canonicalPath.startsWith(tempDir.canonicalPath)) {
+                            tempDir.deleteRecursively()
+                            Log.e(TAG, "恢复: 检测到路径穿越攻击, 条目: ${entry.name}")
+                            return false
+                        }
                         if (entry.isDirectory) {
                             entryFile.mkdirs()
                         } else {
