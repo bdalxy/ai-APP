@@ -318,8 +318,8 @@ object ConversationSessionManager {
             val jsonStr = arr.toString()
             val tmpFile = File(filesDir, "${SESSIONS_FILE}.tmp")
             tmpFile.writeText(jsonStr, Charsets.UTF_8)
-            JSONArray(tmpFile.readText(Charsets.UTF_8))
             if (!tmpFile.renameTo(file)) {
+                // renameTo 失败（跨文件系统），降级为直接写入
                 file.writeText(jsonStr, Charsets.UTF_8)
                 tmpFile.delete()
             }

@@ -11,13 +11,14 @@ import functools
 import random
 import time
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 from src.utils.logger import get_logger
 
 logger = get_logger()
 
-F = TypeVar("F", bound=Callable[..., Any])
+P = ParamSpec("P")
+R = TypeVar("R")
 
 # 默认可重试异常：网络超时、连接错误、服务端错误（5xx）、频率限制（429）
 _DEFAULT_RETRYABLE = (
@@ -34,7 +35,7 @@ def retry(
     backoff_factor: float = 2.0,
     jitter: bool = True,
     retryable_exceptions: tuple[type[Exception], ...] = _DEFAULT_RETRYABLE,
-) -> Callable[[F], F]:
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """重试装饰器。
 
     对被装饰函数在发生可重试异常时自动重试，使用指数退避策略。
@@ -53,9 +54,9 @@ def retry(
         装饰后的函数。
     """
 
-    def decorator(func: F) -> F:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        def wrapper(*args: object, **kwargs: object) -> object:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             last_exception: Exception | None = None
 
             for attempt in range(max_retries + 1):
@@ -82,8 +83,9 @@ def retry(
 
             if last_exception is not None:
                 raise last_exception
-            return None
+            # 理论上不会到达这里，但保留兜底
+            raise RuntimeError("重试逻辑异常：未预期到达")
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper
 
     return decorator
