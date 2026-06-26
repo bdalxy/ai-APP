@@ -198,8 +198,7 @@ class DeepSeekClient:
         if not messages:
             raise ValueError("messages 不能为空")
         if stream:
-            self._log.warning("stream=True 当前不支持，已自动切换为 stream=False")
-            stream = False
+            raise ValueError("stream=True 当前不支持，请使用 chat_stream() 方法")
         url = f"{self._base_url}/v1/chat/completions"
         payload: dict[str, Any] = {"model": self._chat_model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens, "stream": stream}
         self._log.debug(f"[Chat] 请求: model={self._chat_model}, msgs={len(messages)}, temp={temperature}")

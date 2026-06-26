@@ -3,6 +3,7 @@ package com.aicompanion.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.provider.OpenableColumns
 import android.text.InputType
 import android.view.View
@@ -25,6 +26,7 @@ import kotlinx.coroutines.withContext
 class SettingsDetailActivity : AppCompatActivity() {
 
     companion object {
+        private const val TAG = "SettingsDetail"
         private val MODEL_OPTIONS = arrayOf("deepseek-v4-flash（快速）", "deepseek-v4-pro（高质量）")
         private val MODEL_VALUES = arrayOf("deepseek-v4-flash", "deepseek-v4-pro")
         private val INTERVAL_OPTIONS = AppConfig.INTERVAL_OPTIONS
@@ -572,7 +574,9 @@ class SettingsDetailActivity : AppCompatActivity() {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "加载角色列表失败: ${e.message}")
+        }
 
         MaterialAlertDialogBuilder(this)
             .setTitle("恢复数据")
@@ -920,7 +924,9 @@ class SettingsDetailActivity : AppCompatActivity() {
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                         startActivity(Intent.createChooser(shareIntent, getString(R.string.chooser_share_conversation)))
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "分享文件失败: ${e.message}")
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

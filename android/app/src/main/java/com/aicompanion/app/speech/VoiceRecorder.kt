@@ -115,7 +115,9 @@ class VoiceRecorder(private val context: Context) {
     }
 
     private fun resetRecorder() {
-        try { mediaRecorder?.release() } catch (_: Exception) {}
+        try { mediaRecorder?.release() } catch (e: Exception) {
+                Log.w(TAG, "释放 MediaRecorder 失败（不影响功能）: ${e.message}")
+            }
         mediaRecorder = null
         isRecording = false
         outputFile = null

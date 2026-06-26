@@ -695,17 +695,17 @@ class MemoryBackup:
             json.dump(metadata.to_dict(), f, ensure_ascii=False, indent=2)
 
     def _cleanup_old_backups(self) -> None:
-        """清理旧备份，保留最近 MAX_BACKUPS 个。"""
-        # 收集所有备份文件（按创建时间排序）
-        backup_files: list[tuple[float, Path]] = []
+        """清理旧备份，保留最近 MAX_BACKUPS 个（按文件名中的时间戳排序更可靠）。"""
+        backup_files: list[tuple[str, Path]] = []
         for path in self._backup_dir.glob("memory_backup_*"):
             if path.suffix in (".db", ".json"):
-                backup_files.append((path.stat().st_mtime, path))
+                # 使用文件名排序（含时间戳），比 st_mtime 更可靠
+                backup_files.append((path.name, path))
 
         if len(backup_files) <= self.MAX_BACKUPS:
             return
 
-        # 排序并删除最旧的
+        # 自然排序（文件名中的时间戳按字典序等同于时间序）
         backup_files.sort(key=lambda x: x[0])
         to_delete = backup_files[:len(backup_files) - self.MAX_BACKUPS]
 

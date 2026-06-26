@@ -218,7 +218,9 @@ object DataBackupHelper {
             // 清理临时目录
             try {
                 File(context.filesDir, "_restore_temp").deleteRecursively()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "清理临时备份目录失败（不影响功能）: ${e.message}")
+            }
             false
         }
     }

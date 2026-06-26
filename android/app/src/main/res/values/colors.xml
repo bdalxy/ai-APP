@@ -112,8 +112,8 @@
     <color name="wb_delete_bg">#30E57373</color>
 
     <!-- 保留兼容旧引用 -->
-    <color name="elysian_purple">@color/primary</color>
-    <color name="elysian_pink">@color/secondary</color>
+    <color name="elysian_purple">#9B59B6</color>
+    <color name="elysian_pink">#FFDCE3</color>
     <color name="elysian_pink_light">@color/sakura_pink</color>
     <color name="sakura_bg">@color/sakura_pink</color>
     <color name="sakura_border">@color/sakura_sky</color>

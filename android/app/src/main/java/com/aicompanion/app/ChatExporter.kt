@@ -93,6 +93,7 @@ object ChatExporter {
         return uri
     }
 
+    @Suppress("DEPRECATION")
     private fun saveViaDirectFile(content: String, fileName: String, context: Context): Uri? {
         val downloadsDir = Environment.getExternalStoragePublicDirectory(
             Environment.DIRECTORY_DOWNLOADS
