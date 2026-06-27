@@ -107,6 +107,8 @@ def _record_params(context_size: int, temperature: float, max_tokens: int,
     return params
 
 
+# ===== 核心引擎：初始化 =====
+
 def init(
     context_size: int = 2000,
     temperature: float = 0.7,
@@ -139,6 +141,8 @@ def init(
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
+
+# ===== 内部：上下文注入与破限 =====
 
 def _inject_context(player, user_input: str, orchestrator) -> None:
     """注入记忆和世界书上下文到 Player 实例。
@@ -209,6 +213,8 @@ def _apply_jailbreak_prompt(player) -> None:
         player.jailbreak_prompt = ""
 
 
+# ===== 核心引擎：对话（非流式） =====
+
 def chat(user_input: str) -> dict:
     """发送一条消息，获取 AI 角色回复。
 
@@ -261,6 +267,8 @@ def chat(user_input: str) -> dict:
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
+
+# ===== 核心引擎：流式对话 =====
 
 def chat_stream_start(user_input: str) -> str:
     """启动流式对话，返回 stream_id。
@@ -468,6 +476,8 @@ def chat_stream(user_input: str):
     return results
 
 
+# ===== 内部：自动记忆存储 =====
+
 def _auto_remember(user_input: str, ai_reply: str) -> None:
     """内部函数：对话完成后自动存储记忆。"""
     orchestrator = _ctx.orchestrator
@@ -481,6 +491,8 @@ def _auto_remember(user_input: str, ai_reply: str) -> None:
     except Exception as e:
         _log.warning(f"[自动记忆] 存储失败（对话不受影响）: {e}")
 
+
+# ===== 核心引擎：重置与恢复 =====
 
 def reset() -> dict:
     """重置对话上下文，开始新对话。"""
@@ -530,6 +542,8 @@ def restore_history(conversation_json: str) -> dict:
         return json.dumps({"status": "error", "message": str(e)})
 
 
+# ===== 角色卡信息 =====
+
 def get_card_info() -> dict:
     """获取当前角色卡信息。"""
     player = _ctx.player
@@ -543,6 +557,8 @@ def get_card_info() -> dict:
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
+
+# ===== 参数与配置管理 =====
 
 def set_api_key(key: str) -> dict:
     """设置 DeepSeek API Key（运行时设置，不写入文件）。"""
@@ -600,6 +616,8 @@ def get_current_params() -> dict:
         params_copy = dict(_current_params)
     return json.dumps({"status": "ok", "params": params_copy})
 
+
+# ===== 搜索与导出 =====
 
 def search_conversation(keyword: str, conversation_json: str) -> str:
     """搜索对话历史，返回匹配的消息及上下文。
@@ -695,6 +713,8 @@ def export_history(format: str = "json") -> dict:
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
+
+# ===== 流式对话：取消与清理 =====
 
 def chat_stream_cancel(stream_id: str) -> str:
     """取消流式对话，清理资源。

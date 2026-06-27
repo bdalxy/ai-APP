@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.StrictMode
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
+import com.aicompanion.app.module.ModuleRegistry
 import com.aicompanion.app.plugin.BuiltinPlugins
 import com.aicompanion.app.plugin.PluginRegistry
 import com.chaquo.python.android.PyApplication
@@ -158,6 +159,11 @@ class AICompanionApp : PyApplication() {
         appScope.launch {
             warmUpPython()
         }
+
+        // v2.0 模块化架构（待激活）
+        // ModuleRegistry.register(CharacterModuleImpl(this))
+        // ModuleRegistry.register(WorldBookModuleImpl(this))
+        // ModuleRegistry.register(TtsModuleImpl(this))
 
         val appTotalTime = System.currentTimeMillis() - appStartTime
         Log.d(TAG, "Application.onCreate 完成，总耗时: ${appTotalTime}ms")

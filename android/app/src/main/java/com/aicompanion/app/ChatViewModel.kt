@@ -12,13 +12,16 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
-import androidx.core.content.FileProvider
+// TODO(v2.0): 移除未使用的 import — AlertDialog 未使用，MaterialAlertDialogBuilder 替代
+// import androidx.appcompat.app.AlertDialog
+// TODO(v2.0): 移除未使用的 import — FileProvider 未在此文件中使用
+// import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.LifecycleCoroutineScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+// TODO(v2.0): 移除未使用的 import — LinearLayoutManager/RecyclerView 未在此文件中直接使用
+// import androidx.recyclerview.widget.LinearLayoutManager
+// import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
 import com.aicompanion.app.utils.UiThread
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +34,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
+// TODO(v2.0): 移除未使用的 import — java.io.File 未在此文件中使用
+// import java.io.File
 
 /**
  * 消息状态管理器。
@@ -205,6 +209,7 @@ class ChatViewModel(
                         jsonArray.put(obj)
                     }
 
+                    // TODO(v2.0): 迁移到 ModuleRegistry.get<SearchModule>()
                     val result = withTimeout(STREAM_TIMEOUT_MS) {
                         module.callAttr(
                             "search_conversation", keyword, jsonArray.toString()
@@ -402,6 +407,7 @@ class ChatViewModel(
                     lastSentenceEnd = 0
 
                     // 启动流式对话（30秒超时保护）
+                    // TODO(v2.0): 迁移到 ModuleRegistry.get<ChatModule>()
                     val streamId = withTimeout(STREAM_TIMEOUT_MS) {
                         module.callAttr("chat_stream_start", userInput)?.toString()
                             ?: """{"status":"error","message":"Python 模块返回 null"}"""
@@ -425,6 +431,7 @@ class ChatViewModel(
                     val fullReply = StringBuilder()
 
                     // 使用 callbackFlow 包装轮询，替代 while 循环
+                    // TODO(v2.0): 迁移到 ModuleRegistry.get<ChatModule>()
                     callbackFlow {
                         var isDone = false
                         while (!isDone && isStreaming) {
@@ -610,6 +617,7 @@ class ChatViewModel(
             }
 
             // 取消 Python 流（必须在 IO 线程，Python.getInstance() 不应在主线程调用）
+            // TODO(v2.0): 迁移到 ModuleRegistry.get<ChatModule>()
             val sid = activeStreamId
             if (sid != null) {
                 lifecycleScope.launch(Dispatchers.IO) {

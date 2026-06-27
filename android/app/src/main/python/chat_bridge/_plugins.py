@@ -1,7 +1,8 @@
 """插件管理桥接模块 — 为 Kotlin 端提供插件管理接口"""
 
 import json
-import inspect
+# TODO(v2.0): 移除未使用的 import — inspect 未在 _get_implemented_hooks 中使用
+# import inspect
 from src.utils.logger import get_logger
 from src.plugins.plugin_base import BasePlugin
 from src.plugins.plugin_manager import get_plugin_manager

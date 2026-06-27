@@ -20,7 +20,7 @@ Kotlin 端通过 Chaquopy 调用此模块的 init() / chat() / reset() 方法。
     _state.py     — 共享全局状态（_ctx/CARD_PATH）
 """
 
-# ---- 子模块命名空间（推荐用于新代码） ----
+# ===== 子模块命名空间（v2.0 推荐用于新代码） =====
 from . import _core as core
 from . import _memory as memory
 from . import _character as character
@@ -28,7 +28,7 @@ from . import _proactive as proactive
 from . import _world_book as world_book
 from . import _plugins as plugins
 
-# ---- 核心聊天引擎（向后兼容的平铺导出） ----
+# ===== 核心聊天引擎模块 =====
 from ._core import (
     init,
     chat,
@@ -49,7 +49,7 @@ from ._core import (
     _plugin_manager,
 )
 
-# ---- 记忆系统 ----
+# ===== 记忆系统模块 =====
 from ._memory import (
     init_memory,
     get_memory_stats,
@@ -99,7 +99,7 @@ from ._memory import (
     cache_cleanup,
 )
 
-# ---- 角色卡管理 ----
+# ===== 角色卡管理模块 =====
 from ._character import (
     set_character_card,
     set_character_card_legacy,
@@ -107,12 +107,12 @@ from ._character import (
     reload_card,
 )
 
-# ---- 主动消息 ----
+# ===== 主动消息模块 =====
 from ._proactive import (
     generate_proactive_message,
 )
 
-# ---- 世界书 ----
+# ===== 世界书模块 =====
 from ._world_book import (
     list_world_books,
     enable_world_book,
@@ -128,7 +128,7 @@ from ._world_book import (
     validate_world_book,
 )
 
-# ---- 插件管理 ----
+# ===== 插件管理模块 =====
 from ._plugins import (
     list_plugins,
     toggle_plugin,
@@ -136,7 +136,7 @@ from ._plugins import (
     get_plugin_count,
 )
 
-# ---- 构建类型设置（日志级别控制） ----
+# ===== 构建类型设置（日志级别控制） =====
 from src.config.settings import settings
 
 
