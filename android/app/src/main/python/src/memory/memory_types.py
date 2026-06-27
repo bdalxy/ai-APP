@@ -27,6 +27,15 @@ from typing import Any
 # 记忆分类扩展
 # =============================================================================
 
+# ── 旧分类名称 → 新分类名称映射（模块级常量，放在 Enum 外部避免被转为枚举成员）──
+_LEGACY_MAP: dict[str, str] = {
+    "user_identity": "user_profile",
+    "user_attribute": "user_profile",
+    "emotional_mood": "emotional_state",
+    "emotional_sentiment": "emotional_state",
+}
+
+
 class MemoryCategory(Enum):
     """记忆分类枚举 —— 扩展自原有的三种基础类型（V1.2-14 简化版）。
 
@@ -76,14 +85,6 @@ class MemoryCategory(Enum):
     # 摘
     SUMMARY = "summary"
 
-    # 旧分类名称 → 新分类名称映射（向后兼容）
-    _LEGACY_MAP: dict[str, str] = {
-        "user_identity": "user_profile",
-        "user_attribute": "user_profile",
-        "emotional_mood": "emotional_state",
-        "emotional_sentiment": "emotional_state",
-    }
-
     @property
     def parent_type(self) -> str:
         """获取父级类型（用于兼容旧系统）。"""
@@ -107,8 +108,8 @@ class MemoryCategory(Enum):
     def from_string(cls, s: str) -> "MemoryCategory":
         """从字符串解析分类，兼容旧类型名称（自动映射到新分类）。"""
         # V1.2-14: 旧分类名称自动映射到新分类
-        if s in cls._LEGACY_MAP:
-            s = cls._LEGACY_MAP[s]
+        if s in _LEGACY_MAP:
+            s = _LEGACY_MAP[s]
         # 旧类型名称映射
         legacy_map = {
             "episodic": cls.EPISODIC_EVENT,
