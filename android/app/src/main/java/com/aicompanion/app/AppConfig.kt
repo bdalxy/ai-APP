@@ -33,6 +33,7 @@ object AppConfig {
     /** 消息列表最大保留条数 */
     const val MAX_MESSAGES = 50
     private const val KEY_TTS_VOICE_TIMBRE = "tts_voice_timbre"
+    private const val KEY_TTS_MODEL_TYPE = "tts_model_type"
 
     /** 默认 TTS 语速 */
     const val DEFAULT_TTS_SPEECH_RATE = 1.0f
@@ -42,6 +43,12 @@ object AppConfig {
     const val DEFAULT_VOICE_RECOGNITION_LANG = "zh-CN"
     /** 默认 TTS 音色 */
     const val DEFAULT_TTS_VOICE_TIMBRE = "default"
+    /** 默认 TTS 模型类型：auto=自动检测，vits=仅VITS，matcha=仅Matcha */
+    const val DEFAULT_TTS_MODEL_TYPE = "auto"
+    /** TTS 模型类型值 */
+    const val TTS_MODEL_AUTO = "auto"
+    const val TTS_MODEL_VITS = "vits"
+    const val TTS_MODEL_MATCHA = "matcha"
 
     // ── 记忆参数配置（memory）──
     private const val KEY_MEMORY_MAX_COUNT = "memory_max_count"
@@ -212,6 +219,14 @@ object AppConfig {
 
     fun setTtsVoiceTimbre(context: Context, timbre: String) {
         getPrefs(context).edit().putString(KEY_TTS_VOICE_TIMBRE, timbre).apply()
+    }
+
+    fun getTtsModelType(context: Context): String {
+        return getPrefs(context).getString(KEY_TTS_MODEL_TYPE, DEFAULT_TTS_MODEL_TYPE) ?: DEFAULT_TTS_MODEL_TYPE
+    }
+
+    fun setTtsModelType(context: Context, type: String) {
+        getPrefs(context).edit().putString(KEY_TTS_MODEL_TYPE, type).apply()
     }
 
     // ── 主动消息配置（proactive）──

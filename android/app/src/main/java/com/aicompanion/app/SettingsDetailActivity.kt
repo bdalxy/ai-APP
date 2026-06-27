@@ -751,9 +751,10 @@ class SettingsDetailActivity : AppCompatActivity() {
         val voiceTimbreLabel = getVoiceTimbreLabel(voiceTimbre)
 
         addSectionTitle(getString(R.string.section_tts))
-        // 显示 TTS 状态
-        addClickRow("TTS 状态", getTtsStatus(), iconRes = R.drawable.ic_speed) {
-            Toast.makeText(this, "TTS 状态: ${getTtsStatus()}", Toast.LENGTH_SHORT).show()
+        // 显示 TTS 模型类型
+        val modelTypeLabel = getTtsModelTypeLabel()
+        addClickRow("TTS 模型", modelTypeLabel, iconRes = R.drawable.ic_speed) {
+            showTtsModelTypeDialog()
         }
         addDivider()
         addClickRow(getString(R.string.label_tts_speech_rate), "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) { showTtsRateDialog() }
@@ -1090,11 +1091,31 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
     }
 
-    /** 获取 TTS 状态文本 */
-    private fun getTtsStatus(): String {
-        // TTS 引擎状态在运行时由 SherpaTtsEngine 管理，
-        // 此处显示默认就绪状态；实际不可用时语音朗读会静默跳过
-        return "TTS 模型已就绪"
+    /** 获取 TTS 模型类型标签文本 */
+    private fun getTtsModelTypeLabel(): String {
+        return when (AppConfig.getTtsModelType(this)) {
+            AppConfig.TTS_MODEL_VITS -> "VITS (aishell3)"
+            AppConfig.TTS_MODEL_MATCHA -> "Matcha (baker)"
+            else -> "自动检测（VITS 优先）"
+        }
+    }
+
+    /** 显示 TTS 模型类型选择对话框 */
+    private fun showTtsModelTypeDialog() {
+        val current = AppConfig.getTtsModelType(this)
+        val options = arrayOf("自动检测（VITS 优先）", "VITS (aishell3)", "Matcha (baker)")
+        val values = arrayOf(AppConfig.TTS_MODEL_AUTO, AppConfig.TTS_MODEL_VITS, AppConfig.TTS_MODEL_MATCHA)
+        val idx = values.indexOf(current).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("TTS 模型选择")
+            .setMessage("切换后需重启应用生效。\n自动检测：优先使用 VITS，不存在时回退 Matcha。")
+            .setSingleChoiceItems(options, idx) { dialog, which ->
+                AppConfig.setTtsModelType(this, values[which])
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     private fun getLanguageName(): String {

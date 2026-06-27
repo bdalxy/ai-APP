@@ -6,10 +6,12 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
+import com.aicompanion.app.AppConfig
 import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig
 import com.k2fsa.sherpa.onnx.GenerationConfig
 import kotlinx.coroutines.*
 import java.io.File
@@ -22,11 +24,23 @@ class SherpaTtsEngine(
 
     companion object {
         private const val TAG = "SherpaTtsEngine"
-        private const val MODEL_DIR = "matcha-icefall-zh-baker"
-        private const val ACOUSTIC_MODEL = "model-steps-3.onnx"
-        private const val VOCODER = "vocos-22khz-univ.onnx"
+
+        // ── Matcha 模型路径 ──
+        private const val MATCHA_DIR = "matcha-icefall-zh-baker"
+        private const val MATCHA_ACOUSTIC = "model-steps-3.onnx"
+        private const val MATCHA_VOCODER = "vocos-22khz-univ.onnx"
+
+        // ── VITS 模型路径 ──
+        private const val VITS_DIR = "vits-aishell3"
+        private const val VITS_MODEL = "model.onnx"
+
+        // ── 共享文件 ──
+        private const val TOKENS = "tokens.txt"
         private const val LEXICON = "lexicon.txt"
     }
+
+    /** 当前使用的 TTS 模型类型 */
+    enum class ModelType { VITS, MATCHA }
 
     interface Callback {
         fun onInitSuccess() = Unit
@@ -55,6 +69,10 @@ class SherpaTtsEngine(
     @Volatile var isFallbackMode = false
         private set
 
+    /** 当前加载的模型类型，初始化成功后设置 */
+    @Volatile var currentModelType: ModelType? = null
+        private set
+
     fun initialize() {
         if (isInitialized) {
             Log.d(TAG, "SherpaTtsEngine 已初始化")
@@ -69,60 +87,53 @@ class SherpaTtsEngine(
 
         initScope.launch {
             try {
-                Log.i(TAG, "开始初始化 Sherpa-ONNX TTS 引擎...")
                 val assetManager = context.assets
+                Log.i(TAG, "开始初始化 Sherpa-ONNX TTS 引擎...")
 
-                // 验证模型文件存在
-                val modelDir = "$MODEL_DIR"
-                val acousticModel = "$modelDir/$ACOUSTIC_MODEL"
-                val lexicon = "$modelDir/$LEXICON"
-                val tokens = "$modelDir/tokens.txt"
+                // ── 根据用户偏好 + 可用性选择模型 ──
+                val modelPref = AppConfig.getTtsModelType(context)
+                val hasVits = try {
+                    assetManager.open("$VITS_DIR/$VITS_MODEL").close()
+                    true
+                } catch (e: Exception) { false }
+                val hasMatcha = try {
+                    assetManager.open("$MATCHA_DIR/$MATCHA_ACOUSTIC").close()
+                    true
+                } catch (e: Exception) { false }
 
-                try {
-                    assetManager.open(acousticModel).close()
-                    assetManager.open(lexicon).close()
-                    assetManager.open(tokens).close()
-                    assetManager.open(VOCODER).close()
-                } catch (e: Exception) {
-                    Log.e(TAG, "模型文件不完整: ${e.message}")
-                    isFallbackMode = true
-                    withContext(Dispatchers.Main) {
-                        callback?.onInitError("TTS 模型文件不完整，语音朗读已禁用")
+                when (modelPref) {
+                    AppConfig.TTS_MODEL_VITS -> {
+                        if (hasVits) initVitsModel(assetManager)
+                        else {
+                            Log.w(TAG, "用户选择 VITS 但模型不可用，进入降级模式")
+                            isFallbackMode = true
+                            withContext(Dispatchers.Main) {
+                                callback?.onInitError("VITS 模型不存在，请在设置中切换模型或下载 VITS 模型")
+                            }
+                        }
                     }
-                    return@launch
-                }
-
-                val config = OfflineTtsConfig(
-                    model = OfflineTtsModelConfig(
-                        matcha = OfflineTtsMatchaModelConfig(
-                            acousticModel = acousticModel,
-                            vocoder = VOCODER,
-                            lexicon = lexicon,
-                            tokens = tokens,
-                            dataDir = "",
-                        ),
-                        numThreads = 2,
-                        debug = false,
-                        provider = "cpu",
-                    ),
-                )
-
-                try {
-                    tts = OfflineTts(assetManager = assetManager, config = config)
-                } catch (e: Exception) {
-                    Log.e(TAG, "TTS 模型创建失败，进入降级模式: ${e.message}")
-                    isFallbackMode = true
-                    withContext(Dispatchers.Main) {
-                        callback?.onInitError("TTS 模型加载失败，语音朗读已禁用")
+                    AppConfig.TTS_MODEL_MATCHA -> {
+                        if (hasMatcha) initMatchaModel(assetManager)
+                        else {
+                            Log.w(TAG, "用户选择 Matcha 但模型不可用，进入降级模式")
+                            isFallbackMode = true
+                            withContext(Dispatchers.Main) {
+                                callback?.onInitError("Matcha 模型不存在，请在设置中切换模型")
+                            }
+                        }
                     }
-                    return@launch
-                }
-
-                isInitialized = true
-                Log.i(TAG, "Sherpa-ONNX TTS 引擎初始化成功, 采样率=${tts?.sampleRate()}")
-
-                withContext(Dispatchers.Main) {
-                    callback?.onInitSuccess()
+                    else -> {
+                        // 自动检测：VITS 优先，Matcha 回退
+                        if (hasVits) initVitsModel(assetManager)
+                        else if (hasMatcha) initMatchaModel(assetManager)
+                        else {
+                            Log.w(TAG, "无可用 TTS 模型，进入降级模式")
+                            isFallbackMode = true
+                            withContext(Dispatchers.Main) {
+                                callback?.onInitError("未找到任何 TTS 模型文件，语音朗读已禁用")
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Sherpa-ONNX TTS 引擎初始化失败，进入降级模式", e)
@@ -131,6 +142,158 @@ class SherpaTtsEngine(
                     callback?.onInitError("本地 TTS 引擎初始化失败，语音朗读已禁用")
                 }
             }
+        }
+    }
+
+    /** 初始化 VITS (aishell3) 模型 */
+    private suspend fun initVitsModel(assetManager: android.content.res.AssetManager) {
+        try {
+            Log.i(TAG, "使用 VITS (aishell3) 模型...")
+
+            // 确定 lexicon 和 tokens 路径：优先 VITS 目录，回退 Matcha 目录
+            val vitsLexicon = "$VITS_DIR/$LEXICON"
+            val vitsTokens = "$VITS_DIR/$TOKENS"
+            val matchaLexicon = "$MATCHA_DIR/$LEXICON"
+            val matchaTokens = "$MATCHA_DIR/$TOKENS"
+
+            val lexiconPath = resolveAssetPath(assetManager, vitsLexicon, matchaLexicon)
+            val tokensPath = resolveAssetPath(assetManager, vitsTokens, matchaTokens)
+
+            // 验证必要文件
+            try {
+                assetManager.open("$VITS_DIR/$VITS_MODEL").close()
+                assetManager.open(lexiconPath).close()
+                assetManager.open(tokensPath).close()
+            } catch (e: Exception) {
+                Log.e(TAG, "VITS 模型文件不完整: ${e.message}")
+                isFallbackMode = true
+                withContext(Dispatchers.Main) {
+                    callback?.onInitError("VITS 模型文件不完整，语音朗读已禁用")
+                }
+                return
+            }
+
+            val config = OfflineTtsConfig(
+                model = OfflineTtsModelConfig(
+                    vits = OfflineTtsVitsModelConfig(
+                        model = "$VITS_DIR/$VITS_MODEL",
+                        lexicon = lexiconPath,
+                        tokens = tokensPath,
+                        dataDir = MATCHA_DIR,
+                    ),
+                    numThreads = 2,
+                    debug = false,
+                    provider = "cpu",
+                ),
+            )
+
+            try {
+                tts = OfflineTts(assetManager = assetManager, config = config)
+            } catch (e: Exception) {
+                Log.e(TAG, "VITS 模型创建失败: ${e.message}")
+                isFallbackMode = true
+                withContext(Dispatchers.Main) {
+                    callback?.onInitError("VITS 模型加载失败，语音朗读已禁用")
+                }
+                return
+            }
+
+            currentModelType = ModelType.VITS
+            isInitialized = true
+            Log.i(TAG, "VITS (aishell3) TTS 引擎初始化成功, 采样率=${tts?.sampleRate()}")
+
+            withContext(Dispatchers.Main) {
+                callback?.onInitSuccess()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "VITS 模型初始化异常", e)
+            isFallbackMode = true
+            withContext(Dispatchers.Main) {
+                callback?.onInitError("VITS 模型初始化失败，语音朗读已禁用")
+            }
+        }
+    }
+
+    /** 初始化 Matcha (baker) 模型（回退方案） */
+    private suspend fun initMatchaModel(assetManager: android.content.res.AssetManager) {
+        try {
+            Log.i(TAG, "使用 Matcha (baker) 模型...")
+
+            val acousticModel = "$MATCHA_DIR/$MATCHA_ACOUSTIC"
+            val lexicon = "$MATCHA_DIR/$LEXICON"
+            val tokens = "$MATCHA_DIR/$TOKENS"
+
+            try {
+                assetManager.open(acousticModel).close()
+                assetManager.open(lexicon).close()
+                assetManager.open(tokens).close()
+                assetManager.open(MATCHA_VOCODER).close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Matcha 模型文件不完整: ${e.message}")
+                isFallbackMode = true
+                withContext(Dispatchers.Main) {
+                    callback?.onInitError("TTS 模型文件不完整，语音朗读已禁用")
+                }
+                return
+            }
+
+            val config = OfflineTtsConfig(
+                model = OfflineTtsModelConfig(
+                    matcha = OfflineTtsMatchaModelConfig(
+                        acousticModel = acousticModel,
+                        vocoder = MATCHA_VOCODER,
+                        lexicon = lexicon,
+                        tokens = tokens,
+                        dataDir = "",
+                    ),
+                    numThreads = 2,
+                    debug = false,
+                    provider = "cpu",
+                ),
+            )
+
+            try {
+                tts = OfflineTts(assetManager = assetManager, config = config)
+            } catch (e: Exception) {
+                Log.e(TAG, "Matcha 模型创建失败，进入降级模式: ${e.message}")
+                isFallbackMode = true
+                withContext(Dispatchers.Main) {
+                    callback?.onInitError("TTS 模型加载失败，语音朗读已禁用")
+                }
+                return
+            }
+
+            currentModelType = ModelType.MATCHA
+            isInitialized = true
+            Log.i(TAG, "Matcha (baker) TTS 引擎初始化成功, 采样率=${tts?.sampleRate()}")
+
+            withContext(Dispatchers.Main) {
+                callback?.onInitSuccess()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Matcha 模型初始化异常", e)
+            isFallbackMode = true
+            withContext(Dispatchers.Main) {
+                callback?.onInitError("本地 TTS 引擎初始化失败，语音朗读已禁用")
+            }
+        }
+    }
+
+    /**
+     * 解析 assets 路径：优先使用 primaryPath，不存在时回退 fallbackPath。
+     * 若两者都不存在则返回 primaryPath（让后续验证报错）。
+     */
+    private fun resolveAssetPath(
+        assetManager: android.content.res.AssetManager,
+        primaryPath: String,
+        fallbackPath: String
+    ): String {
+        return try {
+            assetManager.open(primaryPath).close()
+            primaryPath
+        } catch (e: Exception) {
+            Log.d(TAG, "Asset 路径回退: $primaryPath -> $fallbackPath")
+            fallbackPath
         }
     }
 
