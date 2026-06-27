@@ -29,7 +29,7 @@
     <!-- 文字颜色 -->
     <color name="text_primary">#4A3B3A</color>
     <color name="text_secondary">#8A7B7A</color>
-    <color name="text_tertiary">#B0A5A4</color>
+    <color name="text_tertiary">#9A8E8D</color>
     <color name="text_on_pink">#4A3B3A</color>
     <color name="darker_gray">#444444</color>
 
@@ -99,7 +99,7 @@
     <color name="wb_tag_text">#3A6B8C</color>
     <color name="wb_text_warm">#4A3B3A</color>
     <color name="wb_text_secondary">#8A7B7A</color>
-    <color name="wb_text_hint">#B0A5A4</color>
+    <color name="wb_text_hint">#9A8E8D</color>
     <color name="wb_fab_bg">#FCE4E0</color>
     <color name="wb_fab_border">#B0C4DE</color>
     <color name="wb_fab_icon">#4A3B3A</color>

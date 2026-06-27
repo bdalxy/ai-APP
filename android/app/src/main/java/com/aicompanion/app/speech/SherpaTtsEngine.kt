@@ -73,6 +73,9 @@ class SherpaTtsEngine(
     @Volatile var currentModelType: ModelType? = null
         private set
 
+    /** 初始化竞态防护：防止多线程同时触发初始化 */
+    private val isInitializing = AtomicBoolean(false)
+
     fun initialize() {
         if (isInitialized) {
             Log.d(TAG, "SherpaTtsEngine 已初始化")
@@ -82,6 +85,11 @@ class SherpaTtsEngine(
         if (isFallbackMode) {
             Log.w(TAG, "SherpaTtsEngine 处于降级模式，跳过初始化")
             callback?.onInitError("TTS 模型不可用，语音朗读已禁用")
+            return
+        }
+        // CAS 防止多线程重复初始化
+        if (!isInitializing.compareAndSet(false, true)) {
+            Log.d(TAG, "SherpaTtsEngine 初始化已在进行中，跳过重复调用")
             return
         }
 
@@ -141,6 +149,8 @@ class SherpaTtsEngine(
                 withContext(Dispatchers.Main) {
                     callback?.onInitError("本地 TTS 引擎初始化失败，语音朗读已禁用")
                 }
+            } finally {
+                isInitializing.set(false)
             }
         }
     }
@@ -453,6 +463,7 @@ class SherpaTtsEngine(
             Log.w(TAG, "释放 TTS 异常: ${e.message}")
         }
         isInitialized = false
+        isInitializing.set(false)
         callback = null
     }
 }

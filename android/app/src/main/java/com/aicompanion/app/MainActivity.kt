@@ -1,5 +1,7 @@
 package com.aicompanion.app
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -9,6 +11,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.GestureDetector
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -121,6 +124,8 @@ class MainActivity : AppCompatActivity() {
         // 创建 Adapter
         adapter = ChatAdapter(mutableListOf(),
             onMessageLongClick = { message, position ->
+                // 长按消息添加触觉反馈
+                binding.rvMessages.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 chatViewModel.showMessageContextMenu(message, position)
             },
             onVoiceClick = { filePath, play ->
@@ -129,6 +134,9 @@ class MainActivity : AppCompatActivity() {
             },
             onMessagesTrimmed = {
                 binding.tvArchiveHint.visibility = View.VISIBLE
+            },
+            onDataChanged = {
+                updateChatEmptyState()
             }
         )
         binding.rvMessages.adapter = adapter
@@ -313,7 +321,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupUI() {
         // 发送按钮
-        binding.btnSend.setOnClickListener { chatViewModel.sendMessage() }
+        binding.btnSend.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            chatViewModel.sendMessage()
+        }
 
         // 语音按钮（触摸事件 → VoiceController）
         binding.btnVoice.setOnTouchListener { _, event ->
@@ -392,10 +403,14 @@ class MainActivity : AppCompatActivity() {
             conversationCoordinator.showSessionListDialog()
         }
         binding.tvTitle.setOnLongClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             openCharacterSelect()
             true
         }
-        binding.ivAvatar.setOnClickListener { openCharacterSelect() }
+        binding.ivAvatar.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            openCharacterSelect()
+        }
 
         // 左滑手势 → 角色选择
         gestureDetector = GestureDetector(this, object : GestureDetector.OnGestureListener {
@@ -561,6 +576,46 @@ class MainActivity : AppCompatActivity() {
             NotificationHelper.createChannel(this@MainActivity)
             ProactiveService.schedule(this@MainActivity)
             conversationCoordinator.loadConversation()
+            // 冷启动过渡动画：淡出启动画面
+            dismissSplash()
+        }
+    }
+
+    /**
+     * 冷启动过渡动画：淡出启动画面
+     */
+    private fun dismissSplash() {
+        binding.splashOverlay.animate()
+            .alpha(0f)
+            .setDuration(400)
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    binding.splashOverlay.visibility = View.GONE
+                    updateChatEmptyState()
+                }
+            })
+            .start()
+    }
+
+    /**
+     * 更新聊天空状态显示
+     */
+    private fun updateChatEmptyState() {
+        val isEmpty = adapter.itemCount == 0
+        if (isEmpty) {
+            binding.layoutChatEmpty.visibility = View.VISIBLE
+            binding.rvMessages.visibility = View.GONE
+            // 设置空状态文案
+            val ivEmpty = binding.layoutChatEmpty.findViewById<ImageView>(R.id.ivEmptyIcon)
+            val tvTitle = binding.layoutChatEmpty.findViewById<TextView>(R.id.tvEmptyTitle)
+            val tvDesc = binding.layoutChatEmpty.findViewById<TextView>(R.id.tvEmptyDesc)
+            ivEmpty?.setImageResource(R.drawable.ic_feather)
+            ivEmpty?.setColorFilter(Color.parseColor("#B0C4DE"))
+            tvTitle?.text = getString(R.string.empty_chat_title)
+            tvDesc?.text = getString(R.string.empty_chat_desc)
+        } else {
+            binding.layoutChatEmpty.visibility = View.GONE
+            binding.rvMessages.visibility = View.VISIBLE
         }
     }
 

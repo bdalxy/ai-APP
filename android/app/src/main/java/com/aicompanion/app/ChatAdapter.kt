@@ -33,8 +33,14 @@ class ChatAdapter(
     /** 语音播放回调：(voiceFilePath, play) -> 播放/暂停 */
     private val onVoiceClick: ((String, Boolean) -> Unit)? = null,
     /** 消息被裁剪回调：当消息数量超过上限，旧消息被移除时触发 */
-    private val onMessagesTrimmed: (() -> Unit)? = null
+    private val onMessagesTrimmed: (() -> Unit)? = null,
+    /** 数据变更回调：添加/删除/替换/清空消息时触发 */
+    private val onDataChanged: (() -> Unit)? = null
 ) : RecyclerView.Adapter<ChatAdapter.BaseViewHolder>() {
+
+    init {
+        setHasStableIds(true)
+    }
 
     companion object {
         private const val VIEW_TYPE_TYPING = 0
@@ -137,7 +143,7 @@ class ChatAdapter(
     var highlightKeyword: String = ""
         set(value) {
             field = value
-            notifyDataSetChanged()
+            if (itemCount > 0) notifyItemRangeChanged(0, itemCount)
         }
 
     /** 判断指定消息是否匹配搜索关键词 */
@@ -423,6 +429,8 @@ class ChatAdapter(
 
     override fun getItemCount(): Int = messages.size
 
+    override fun getItemId(position: Int): Long = messages[position].id.hashCode().toLong()
+
     // ======================== 消息管理 ========================
 
     /**
@@ -462,6 +470,7 @@ class ChatAdapter(
 
         messages.add(mergedMessage)
         notifyItemInserted(messages.size - 1)
+        onDataChanged?.invoke()
     }
 
     fun getMessages(): List<Message> = messages.toList()
@@ -476,6 +485,7 @@ class ChatAdapter(
         if (!msg.isTyping) return null
         messages.removeAt(position)
         notifyItemRemoved(position)
+        onDataChanged?.invoke()
         return msg
     }
 
@@ -489,6 +499,7 @@ class ChatAdapter(
         val count = messages.size
         messages.clear()
         notifyItemRangeRemoved(0, count)
+        onDataChanged?.invoke()
     }
 
     fun replaceMessages(newMessages: List<Message>) {
@@ -496,6 +507,7 @@ class ChatAdapter(
         messages.clear()
         messages.addAll(newMessages)
         diffResult.dispatchUpdatesTo(this)
+        onDataChanged?.invoke()
     }
 
     // ======================== 工具方法 ========================

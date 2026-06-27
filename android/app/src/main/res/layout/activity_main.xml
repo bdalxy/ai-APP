@@ -152,6 +152,15 @@
             android:gravity="center"
             android:background="@drawable/bg_archive_hint"
             android:visibility="gone" />
+        <!-- 聊天空状态 -->
+        <FrameLayout
+            android:id="@+id/layoutChatEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone">
+            <include layout="@layout/layout_app_empty_state" />
+        </FrameLayout>
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMessages"
             android:layout_width="match_parent"
@@ -224,4 +233,44 @@
         app:backgroundTint="@color/primary"
         app:tint="@color/text_primary"
         android:scaleType="center" />
+
+    <!-- 冷启动过渡画面 -->
+    <FrameLayout
+        android:id="@+id/splashOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_main_gradient"
+        android:clickable="true"
+        android:focusable="true">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center">
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/splashProgress"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminate="true"
+                app:indicatorColor="@color/primary" />
+            <TextView
+                android:id="@+id/tvSplashTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/text_primary"
+                android:textSize="@dimen/text_heading"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp" />
+            <TextView
+                android:id="@+id/tvSplashStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/status_initializing"
+                android:textColor="@color/text_secondary"
+                android:textSize="@dimen/text_body_small"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>

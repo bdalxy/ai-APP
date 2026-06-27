@@ -4,6 +4,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.StrictMode
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import com.aicompanion.app.plugin.BuiltinPlugins
@@ -79,6 +80,9 @@ class AICompanionApp : PyApplication() {
     }
 
     override fun onCreate() {
+        // 记录启动耗时起点
+        val appStartTime = System.currentTimeMillis()
+
         // 设置主题模式（必须在 super.onCreate() 之前）
         val themeMode = getSharedPreferences("app_prefs", MODE_PRIVATE)
             .getString("theme_mode", AppConfig.THEME_LIGHT) ?: AppConfig.THEME_LIGHT
@@ -87,12 +91,30 @@ class AICompanionApp : PyApplication() {
             else AppCompatDelegate.MODE_NIGHT_NO
         )
 
-        // 记录启动耗时起点
-        
+        // Debug 模式：启用 StrictMode 检测主线程磁盘读写和网络操作
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy.Builder()
+                    .detectDiskReads()
+                    .detectDiskWrites()
+                    .detectNetwork()
+                    .penaltyLog()
+                    .build()
+            )
+            StrictMode.setVmPolicy(
+                StrictMode.VmPolicy.Builder()
+                    .detectActivityLeaks()
+                    .detectLeakedClosableObjects()
+                    .detectLeakedRegistrationObjects()
+                    .penaltyLog()
+                    .build()
+            )
+            Log.d(TAG, "StrictMode 已启用（Debug 模式）")
+        }
 
         // Chaquopy 初始化必须在主线程（PyApplication.onCreate() 内部初始化 AndroidPlatform）
         super.onCreate()
-        Log.d(TAG, "PyApplication.super.onCreate() 完成")
+        Log.d(TAG, "PyApplication.super.onCreate() 完成，耗时: ${System.currentTimeMillis() - appStartTime}ms")
 
         // 初始化崩溃日志捕获（必须在其他初始化之前，尽早覆盖异常处理）
         try {
@@ -137,9 +159,8 @@ class AICompanionApp : PyApplication() {
             warmUpPython()
         }
 
-        // 记录启动耗时终点
-        
-        Log.d(TAG, "Application.onCreate 完成")
+        val appTotalTime = System.currentTimeMillis() - appStartTime
+        Log.d(TAG, "Application.onCreate 完成，总耗时: ${appTotalTime}ms")
     }
 
     /**

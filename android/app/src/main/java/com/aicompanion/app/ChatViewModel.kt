@@ -177,8 +177,8 @@ class ChatViewModel(
             binding.layoutSearch?.visibility = View.GONE
             binding.tvSearchResultCount?.visibility = View.GONE
             binding.etSearch?.setText("")
-            // 使用当前实际消息列表，而非缓存的旧快照（防止搜索期间新消息丢失）
-            adapter.replaceAll(adapter.getMessages().toList())
+            // 恢复原始消息列表（搜索期间 adapter 中存的是过滤后的结果，必须用 originalMessages 恢复）
+            adapter.replaceAll(originalMessages.toList())
             hideKeyboard()
             if (adapter.itemCount > 0) {
                 binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
@@ -355,6 +355,10 @@ class ChatViewModel(
     inner class StreamingHelper {
         /** 当前流式协程的 Job 引用，用于 destroy 时取消 */
         private var streamJob: kotlinx.coroutines.Job? = null
+        /** 流式输出时 AI 消息在 adapter 中的索引，用于取消时清理残留（-1 表示无活跃流） */
+        private var streamingAiMsgIndex: Int = -1
+        /** 流式输出时打字指示器在 adapter 中的索引（-1 表示已移除） */
+        private var streamingTypingIndex: Int = -1
 
         /**
          * 流式发送消息（callbackFlow 方案）。
@@ -381,11 +385,16 @@ class ChatViewModel(
             // 添加用户消息气泡
             addUserBubble(userInput)
 
-            // 添加占位 AI 消息（空内容，后续逐 token 填充）
+            // 添加打字指示器
+            val typingMsg = Message(content = "", isUser = false, isTyping = true)
+            streamingTypingIndex = adapter.itemCount
+            adapter.addMessage(typingMsg)
+            binding.rvMessages.smoothScrollToPosition(streamingTypingIndex)
+
+            // 占位 AI 消息（打字结束后填充）
             val aiMsg = Message(content = "", isUser = false)
-            val aiMsgIndex = adapter.itemCount
+            streamingAiMsgIndex = adapter.itemCount
             adapter.addMessage(aiMsg)
-            binding.rvMessages.smoothScrollToPosition(aiMsgIndex)
 
             streamJob = lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -404,8 +413,9 @@ class ChatViewModel(
                         val errorJson = JSONObject(streamId)
                         Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
                         UiThread.run {
+                            removeTypingIndicator()
                             adapter.updateMessage(
-                                aiMsgIndex,
+                                streamingAiMsgIndex,
                                 aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
                             )
                         }
@@ -439,12 +449,16 @@ class ChatViewModel(
 
                         when (status) {
                             "streaming" -> {
+                                // 首次收到 token：移除打字指示器
+                                UiThread.run {
+                                    removeTypingIndicator()
+                                }
                                 val token = pollJson.optString("token", "")
                                 fullReply.append(token)
                                 val now = System.currentTimeMillis()
                                 if (now - lastMessageUpdateTime > MSG_UPDATE_THROTTLE_MS) {
                                     UiThread.run {
-                                        adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = fullReply.toString()))
+                                        adapter.updateMessage(streamingAiMsgIndex, aiMsg.copy(content = fullReply.toString()))
                                     }
                                     lastMessageUpdateTime = now
                                 }
@@ -490,7 +504,7 @@ class ChatViewModel(
                                     .filter { it.isNotEmpty() }
                                 if (parts.size > 1) {
                                     UiThread.run {
-                                        adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = parts[0]))
+                                        adapter.updateMessage(streamingAiMsgIndex, aiMsg.copy(content = parts[0]))
                                         multiPartHandler?.removeCallbacksAndMessages(null)
                                         val handler = Handler(Looper.getMainLooper())
                                         multiPartHandler = handler
@@ -507,7 +521,7 @@ class ChatViewModel(
                                     }
                                 } else {
                                     UiThread.run {
-                                        adapter.updateMessage(aiMsgIndex, aiMsg.copy(content = finalContent))
+                                        adapter.updateMessage(streamingAiMsgIndex, aiMsg.copy(content = finalContent))
                                         callback?.onConversationNeedSave()
                                         callback?.onStreamComplete(finalContent)
                                     }
@@ -517,7 +531,7 @@ class ChatViewModel(
                                 val errorMsg = pollJson.optString("message", context.getString(R.string.error_unknown))
                                 UiThread.run {
                                     adapter.updateMessage(
-                                        aiMsgIndex,
+                                        streamingAiMsgIndex,
                                         aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorMsg")
                                     )
                                     Toast.makeText(
@@ -533,7 +547,7 @@ class ChatViewModel(
                     Log.e(TAG, "Python调用超时", e)
                     UiThread.run {
                         adapter.updateMessage(
-                            aiMsgIndex,
+                            streamingAiMsgIndex,
                             aiMsg.copy(content = "${context.getString(R.string.label_error_timeout_prefix)} ${context.getString(R.string.error_timeout_message)}")
                         )
                         showRetrySnackbar(context.getString(R.string.error_timeout_short))
@@ -542,7 +556,7 @@ class ChatViewModel(
                     Log.e(TAG, "流式对话失败", e)
                     UiThread.run {
                         adapter.updateMessage(
-                            aiMsgIndex,
+                            streamingAiMsgIndex,
                             aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${e.message}")
                         )
                         showRetrySnackbar(context.getString(R.string.error_send_failed))
@@ -550,11 +564,22 @@ class ChatViewModel(
                 } finally {
                     isStreaming = false
                     streamJob = null
+                    streamingAiMsgIndex = -1
                     UiThread.run {
+                        removeTypingIndicator()
                         enableInput()
                         updateSendButton(binding.etInput.text?.isNotBlank() == true)
                     }
                 }
+            }
+        }
+
+        /** 移除打字指示器 */
+        private fun removeTypingIndicator() {
+            val idx = streamingTypingIndex
+            if (idx >= 0) {
+                streamingTypingIndex = -1
+                adapter.removeTypingAt(idx)
             }
         }
 
@@ -563,6 +588,27 @@ class ChatViewModel(
             // 取消流式协程（如果还在运行）
             streamJob?.cancel()
             streamJob = null
+
+            // 清理打字指示器
+            UiThread.run { removeTypingIndicator() }
+
+            // 清理部分 AI 消息（流式输出被取消时残留的空/部分内容消息）
+            val aiIndex = streamingAiMsgIndex
+            if (aiIndex >= 0) {
+                streamingAiMsgIndex = -1
+                UiThread.run {
+                    val messages = adapter.getMessages()
+                    if (aiIndex < messages.size) {
+                        val msg = messages[aiIndex]
+                        if (!msg.isUser) {
+                            val mutableList = messages.toMutableList()
+                            mutableList.removeAt(aiIndex)
+                            adapter.replaceAll(mutableList)
+                        }
+                    }
+                }
+            }
+
             // 取消 Python 流（必须在 IO 线程，Python.getInstance() 不应在主线程调用）
             val sid = activeStreamId
             if (sid != null) {

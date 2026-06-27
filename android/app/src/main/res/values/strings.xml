@@ -42,6 +42,10 @@
     <string name="hint_input_message">说点什么...</string>
     <string name="hint_search_conversation">搜索对话内容...</string>
     <string name="search_result_count">找到 %d 条匹配</string>
+    <string name="empty_chat_title">开始新的对话</string>
+    <string name="empty_chat_desc">发送消息，与 AI 角色展开对话</string>
+    <string name="empty_search_title">没有找到匹配的消息</string>
+    <string name="empty_search_desc">试试其他关键词</string>
     <string name="status_online">在线</string>
     <string name="tv_default_character_name">默认角色</string>
     <string name="hint_archive_older_messages">对话历史较长，较早的消息已归档</string>

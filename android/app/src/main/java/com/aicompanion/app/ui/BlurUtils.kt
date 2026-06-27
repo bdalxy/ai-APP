@@ -50,6 +50,11 @@ object BlurUtils {
         if (blurredBitmap != null) {
             val finalBitmap = Bitmap.createScaledBitmap(blurredBitmap, width, height, true)
             blurredBitmap.recycle()
+            // 回收旧的 BitmapDrawable，防止多次模糊时 Bitmap 泄漏
+            val oldDrawable = target.background
+            if (oldDrawable is BitmapDrawable) {
+                oldDrawable.bitmap?.recycle()
+            }
             target.background = BitmapDrawable(target.resources, finalBitmap)
         } else { applyFallbackBackground(target) }
     }
