@@ -28,5 +28,14 @@ jobs:
         ndk: 26.1.10909125
     - name: Grant execute permission for gradlew
       run: chmod +x ./android/gradlew
+    - name: Run unit tests
+      run: cd android && ./gradlew test --no-daemon
+
+    - name: Run Python tests
+      run: |
+        pip install pytest
+        cd android/app/src/main/python
+        python -m pytest tests/ -v
+
     - name: Build with Gradle
       run: cd android && ./gradlew assembleDebug --no-daemon -x test --info 2>&1 | tail -500

@@ -20,8 +20,8 @@ android {
         applicationId = "com.aicompanion.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -29,7 +29,24 @@ android {
             // arm64-v8a: 真机（移除 x86_64 避免 Chaquopy move_to_common 冲突）
             abiFilters += listOf("arm64-v8a")
         }
+
+        // 移除未使用的语言资源，仅保留中文和英文
+        resourceConfigurations += setOf("en", "zh")
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // 📋 未引用资源标记（2026-06-27 扫描，暂不删除仅标记）
+    // 以下 drawable 文件在 res/drawable/ 中存在但未被任何
+    // XML/KT 文件引用，可在确认后手动删除以减小 APK 体积：
+    //
+    //   bg_btn_send_disabled.xml   — 发送按钮禁用态（未使用）
+    //   bg_divider.xml             — 分隔线（未使用）
+    //   bg_onboarding_dot.xml      — 引导页指示点（未使用）
+    //   bg_send_inactive_v2.xml    — 旧版发送按钮非激活态（未使用）
+    //   bg_settings_card.xml       — 设置卡片背景（未使用）
+    //   ic_close.xml               — 关闭图标（未使用）
+    //   ic_speaker.xml             — 扬声器图标（未使用）
+    // ═════════════════════════════════════════════════════════════
 
     signingConfigs {
         create("release") {
