@@ -21,6 +21,7 @@ object BlurUtils {
     private const val MAX_RADIUS = 25f
     private const val SCALE_FACTOR = 4
 
+    // 注意：此方法涉及Bitmap操作，建议在后台线程调用
     fun blurViewBackground(target: View, radius: Float = DEFAULT_RADIUS, rootView: View) {
         val clampedRadius = radius.coerceIn(1f, MAX_RADIUS)
         val location = IntArray(2)

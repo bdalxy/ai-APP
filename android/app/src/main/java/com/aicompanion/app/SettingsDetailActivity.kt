@@ -575,7 +575,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "加载角色列表失败: ${e.message}")
+            Log.w(TAG, "读取备份文件名失败: ${e.message}")
         }
 
         MaterialAlertDialogBuilder(this)
@@ -1069,8 +1069,8 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
         layout.addView(labelRow)
         MaterialAlertDialogBuilder(this).setTitle(title).setView(layout)
-            .setPositiveButton("确定") { _, _ -> onSelected(seekBar.progress) }
-            .setNegativeButton("取消", null).show()
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ -> onSelected(seekBar.progress) }
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     private fun applyAllParams() {

@@ -58,8 +58,8 @@ class SherpaTtsEngine(
     private var audioTrack: AudioTrack? = null
     private val audioTrackLock = Any()
     private val isSpeaking = AtomicBoolean(false)
-    private val initScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job]) + Dispatchers.IO)
-    private val playScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job]) + Dispatchers.IO)
+    private val initScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job] ?: Job()) + Dispatchers.IO)
+    private val playScope = CoroutineScope(SupervisorJob(lifecycleScope.coroutineContext[Job] ?: Job()) + Dispatchers.IO)
     @Volatile var isInitialized = false
         private set
     @Volatile var isSynthesizing = false

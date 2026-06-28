@@ -635,6 +635,15 @@ class ChatViewModel(
                 }
             }
         }
+
+        /**
+         * 当消息列表被裁剪（removeAt(0)）时，调整流式消息索引。
+         * 必须在 ChatAdapter.onMessagesTrimmed 回调中调用。
+         */
+        fun onMessagesTrimmed() {
+            if (streamingAiMsgIndex > 0) streamingAiMsgIndex--
+            if (streamingTypingIndex > 0) streamingTypingIndex--
+        }
     }
 
     val streamingHelper = StreamingHelper()

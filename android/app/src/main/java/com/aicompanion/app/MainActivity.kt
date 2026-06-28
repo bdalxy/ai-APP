@@ -134,6 +134,7 @@ class MainActivity : AppCompatActivity() {
             },
             onMessagesTrimmed = {
                 binding.tvArchiveHint.visibility = View.VISIBLE
+                chatViewModel.streamingHelper.onMessagesTrimmed()
             },
             onDataChanged = {
                 updateChatEmptyState()
@@ -751,7 +752,7 @@ class MainActivity : AppCompatActivity() {
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             v.setPadding(v.paddingLeft, systemBars.top, v.paddingRight, 0)
-            val contentLayout = (v as? android.view.ViewGroup)?.getChildAt(1) as? android.view.ViewGroup
+            val contentLayout = v.findViewById<android.view.ViewGroup?>(R.id.layoutContent)
             val bottomInset = maxOf(systemBars.bottom, ime.bottom)
             (contentLayout?.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { lp ->
                 if (lp.bottomMargin != bottomInset) {

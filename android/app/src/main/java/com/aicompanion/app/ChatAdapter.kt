@@ -284,7 +284,7 @@ class ChatAdapter(
 
         // 气泡样式：根据组位置调整圆角
         val bubbleRes = when {
-            !message.isGroupStart && message.isGroupEnd -> R.drawable.bg_bubble_ai_middle
+            !message.isGroupStart && message.isGroupEnd -> R.drawable.bg_bubble_ai_bottom
             !message.isGroupStart -> R.drawable.bg_bubble_ai_middle
             message.isGroupStart && !message.isGroupEnd -> R.drawable.bg_bubble_ai_top
             else -> R.drawable.bg_bubble_ai
@@ -403,7 +403,7 @@ class ChatAdapter(
     /** 波形动画：播放中时脉冲缩放 */
     private fun animateWaveform(imageView: ImageView, isPlaying: Boolean) {
         imageView.clearAnimation()
-        val tagKey = 0x7F090001  // 使用固定 int 值作为 tag key
+        val tagKey = R.id.animation_tag_key
         if (isPlaying) {
             val animator = ValueAnimator.ofFloat(0f, 1f).apply {
                 duration = 600

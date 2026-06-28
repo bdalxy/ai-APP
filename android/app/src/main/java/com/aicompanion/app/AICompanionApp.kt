@@ -135,6 +135,7 @@ class AICompanionApp : PyApplication() {
         }
 
         // 非关键初始化移到后台线程，避免阻塞主线程
+        // 注意：DeviceAdaptationHelper.init() 内部涉及 Resources 操作，需确保线程安全
         appScope.launch {
             try {
                 // 品牌设备 UI 适配（小米 HyperOS / 荣耀 MagicOS 缩放补偿）
@@ -204,8 +205,6 @@ class AICompanionApp : PyApplication() {
                 // 内存极度紧张，释放所有可释放资源
                 Log.w(TAG, "内存极度紧张，执行紧急清理")
                 clearPythonCache()
-                // 建议 GC
-                System.gc()
             }
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> {
                 // 内存较低，释放非必要缓存
@@ -215,8 +214,6 @@ class AICompanionApp : PyApplication() {
             ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
                 // 应用进入后台，可以释放 UI 相关资源
                 Log.d(TAG, "应用进入后台，建议释放非必要资源")
-                // 通知 GC
-                System.gc()
             }
             ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
             ComponentCallbacks2.TRIM_MEMORY_MODERATE,
@@ -224,7 +221,6 @@ class AICompanionApp : PyApplication() {
                 // 后台进程被系统回收前，尽力清理
                 Log.w(TAG, "后台进程内存紧张，执行清理")
                 clearPythonCache()
-                System.gc()
             }
         }
     }
@@ -256,6 +252,5 @@ class AICompanionApp : PyApplication() {
         super.onLowMemory()
         Log.w(TAG, "onLowMemory")
         clearPythonCache()
-        System.gc()
     }
 }
