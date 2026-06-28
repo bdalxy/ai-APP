@@ -153,6 +153,7 @@ class RolePlayer:
                 world_book_max_chars=self._preset.world_book_max_chars,
                 memories_max_chars=self._preset.memories_max_chars,
                 guideline_max_chars=self._preset.guideline_max_chars,
+                autonomy_max_chars=self._preset.autonomy_max_chars,
                 max_example_dialogues=self._preset.max_example_dialogues,
                 include_guideline=self._preset.include_guideline,
                 include_creator_notes=self._preset.include_creator_notes,

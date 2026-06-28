@@ -39,6 +39,7 @@ class TokenPreset:
         world_book_max_chars: 世界书部分最大字符数。
         memories_max_chars: 记忆部分最大字符数。
         guideline_max_chars: 对话指引部分最大字符数。
+        autonomy_max_chars: 人格自主性指令部分最大字符数。
         max_example_dialogues: 最多包含的示例对话条数。
         include_guideline: 是否包含对话指引。
         include_creator_notes: 是否包含创作者备注。
@@ -62,6 +63,7 @@ class TokenPreset:
     world_book_max_chars: int = 300
     memories_max_chars: int = 200
     guideline_max_chars: int = 150
+    autonomy_max_chars: int = 500
 
     # 内容控制
     max_example_dialogues: int = 2
@@ -87,6 +89,7 @@ PRESETS: dict[str, TokenPreset] = {
         world_book_max_chars=400,
         memories_max_chars=300,
         guideline_max_chars=200,
+        autonomy_max_chars=600,
         max_example_dialogues=3,
         include_guideline=True,
         include_creator_notes=False,
@@ -104,6 +107,7 @@ PRESETS: dict[str, TokenPreset] = {
         world_book_max_chars=300,
         memories_max_chars=250,
         guideline_max_chars=150,
+        autonomy_max_chars=500,
         max_example_dialogues=2,
         include_guideline=True,
         include_creator_notes=False,
@@ -121,6 +125,7 @@ PRESETS: dict[str, TokenPreset] = {
         world_book_max_chars=300,
         memories_max_chars=200,
         guideline_max_chars=120,
+        autonomy_max_chars=400,
         max_example_dialogues=1,
         include_guideline=True,
         include_creator_notes=False,
@@ -138,6 +143,7 @@ PRESETS: dict[str, TokenPreset] = {
         world_book_max_chars=200,
         memories_max_chars=120,
         guideline_max_chars=0,
+        autonomy_max_chars=300,
         max_example_dialogues=0,
         include_guideline=False,
         include_creator_notes=False,
@@ -155,6 +161,7 @@ PRESETS: dict[str, TokenPreset] = {
         world_book_max_chars=150,
         memories_max_chars=100,
         guideline_max_chars=80,
+        autonomy_max_chars=200,
         max_example_dialogues=0,
         include_guideline=True,
         include_creator_notes=False,

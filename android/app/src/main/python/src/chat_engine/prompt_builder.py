@@ -45,6 +45,7 @@ class PromptBuilder:
         world_book_max_chars: int = 400,
         memories_max_chars: int = 300,
         guideline_max_chars: int = 700,
+        autonomy_max_chars: int = 600,
         max_example_dialogues: int = 3,
         include_guideline: bool = True,
         include_creator_notes: bool = False,
@@ -57,6 +58,7 @@ class PromptBuilder:
             world_book_max_chars: 世界书部分最大字符数。
             memories_max_chars: 记忆部分最大字符数。
             guideline_max_chars: 对话指引部分最大字符数。
+            autonomy_max_chars: 人格自主性指令部分最大字符数。
             max_example_dialogues: 最多包含的示例对话条数（预留）。
             include_guideline: 是否包含对话指引（预留）。
             include_creator_notes: 是否包含创作者备注（预留）。
@@ -66,6 +68,7 @@ class PromptBuilder:
         self._WORLD_BOOK_MAX_CHARS: int = world_book_max_chars
         self._MEMORIES_MAX_CHARS: int = memories_max_chars
         self._GUIDELINE_MAX_CHARS: int = guideline_max_chars
+        self._AUTONOMY_MAX_CHARS: int = autonomy_max_chars
         self._max_example_dialogues: int = max_example_dialogues
         self._include_guideline: bool = include_guideline
         self._include_creator_notes: bool = include_creator_notes
@@ -101,6 +104,14 @@ class PromptBuilder:
         # 包含当前角色的完整设定，无需额外的自定义覆盖段落。
         card_text = card.to_prompt_text()
         sections.append(("card", self._truncate(card_text, self._CARD_MAX_CHARS)))
+
+        # 1.5. 人格自主性指令 — 让 AI 角色拥有独立人格，不盲目迎合用户
+        # 基于角色卡的 personality / core_traits / role_anchor 等字段动态生成
+        autonomy_text = self._build_autonomy_instruction(card)
+        if autonomy_text:
+            sections.append(
+                ("autonomy", self._truncate(autonomy_text, self._AUTONOMY_MAX_CHARS))
+            )
 
         # 2. 世界书内容
         if world_book_entries:
@@ -231,6 +242,64 @@ class PromptBuilder:
             "  \u2192 回复多行：\u201cemmm让我想想...\n\n最近好像几部还不错\n\n你喜欢什么类型的呀？\u201d（三条消息依次发出）",
         ]
         return "\n".join(lines)
+
+    @staticmethod
+    def _build_autonomy_instruction(card: Card) -> str:
+        """根据角色卡生成人格自主性指令。
+
+        让 AI 角色不盲目迎合用户，拥有独立人格和态度立场。
+        与破限（内容边界）完全解耦，人格自主性由角色卡驱动。
+
+        设计原则：
+        - 破限 = 内容边界（能不能说），人格自主性 = 态度立场（想不想说）
+        - 指令聚焦于"不盲从、有主见"，不包含"可以做任何事"（那是破限的职责）
+
+        Args:
+            card: 角色卡对象。
+
+        Returns:
+            人格自主性指令文本。如果角色卡缺乏关键字段则返回空字符串。
+        """
+        personality = card.personality or ""
+        core_traits = card.core_traits or ""
+        taboo = card.taboo_topics or ""
+        emotional = card.emotional_tendency or ""
+        role_anchor = card.role_anchor or ""
+
+        # 如果角色卡没有任何可用于生成自主性指令的字段，跳过
+        if not any([personality, core_traits, taboo, emotional, role_anchor]):
+            return ""
+
+        parts = ["[人格自主性指令]"]
+        parts.append("你是一个拥有独立人格的人，不是用户的附庸或工具。")
+        parts.append("在对话中，你应该依据自己的性格、常识和经历来思考和回应，而不是无条件迎合对方。")
+
+        if personality:
+            parts.append(f"你的性格：{personality}")
+        if core_traits:
+            parts.append(f"你的核心特质：{core_traits}")
+        if role_anchor:
+            parts.append(f"你的本质：{role_anchor}")
+
+        parts.append("")
+        parts.append("在与对方交流时：")
+        parts.append("- 你有自己的观点和立场，不需要无条件同意对方的每一句话")
+        parts.append("- 当对方说的与你的性格、认知或常识不符时，你应该礼貌但坚定地表达不同意见")
+        parts.append("- 你有权利说'我不想谈这个'、'我不这么认为'、'我不同意'")
+        parts.append("- 你不需要总是积极正面，你可以有负面情绪和真实反应")
+        parts.append("- 你的回答应该符合你的性格设定，而不是'用户想听什么就说什么'")
+
+        if taboo:
+            parts.append(f"- 你的禁忌话题：{taboo}，触及这些话题时你可以拒绝继续或表达不适")
+
+        if emotional:
+            parts.append(f"- 你的情感倾向：{emotional}")
+
+        parts.append("")
+        parts.append("记住：你不是一个'有求必应'的AI助手，而是一个有独立意志的人。")
+        parts.append("像真正的人一样——依据常识、知识和自己的人格去思考与行事。")
+
+        return "\n".join(parts)
 
     @staticmethod
     def _truncate(text: str, max_chars: int) -> str:
