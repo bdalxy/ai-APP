@@ -955,6 +955,13 @@ class SettingsDetailActivity : AppCompatActivity() {
             showTtsModelTypeDialog()
         }
         addDivider()
+        // VITS 说话人选择（仅 VITS 模型时显示）
+        val speakerId = AppConfig.getTtsSpeakerId(this)
+        val speakerLabel = getSpeakerLabel(speakerId)
+        addClickRow("TTS 说话人", speakerLabel, iconRes = R.drawable.ic_speed) {
+            showSpeakerDialog()
+        }
+        addDivider()
         addClickRow(getString(R.string.label_tts_speech_rate), "%.1fx".format(speechRate), iconRes = R.drawable.ic_speed) { showTtsRateDialog() }
         addDivider()
         addClickRow(getString(R.string.label_tts_pitch), "%.1f".format(pitch), iconRes = R.drawable.ic_pitch) { showTtsPitchDialog() }
@@ -1365,6 +1372,48 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setMessage("切换后需重启应用生效。\n自动检测：优先使用 VITS，不存在时回退 Matcha。")
             .setSingleChoiceItems(options, idx) { dialog, which ->
                 AppConfig.setTtsModelType(this, values[which])
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    /** 获取说话人标签文本 */
+    private fun getSpeakerLabel(speakerId: Int): String {
+        // VITS aishell3 有 174 个说话人（0-173），全部为中文普通话
+        return when (speakerId) {
+            0 -> "默认女声"
+            in 1..173 -> "说话人 #$speakerId"
+            else -> "说话人 #$speakerId"
+        }
+    }
+
+    /** 显示说话人选择对话框 */
+    private fun showSpeakerDialog() {
+        val currentId = AppConfig.getTtsSpeakerId(this)
+        // 提供预设的说话人选项（0-9 为快速选择，其余可输入数字）
+        val speakerOptions = arrayOf(
+            "默认女声 (0)",
+            "说话人 #1",
+            "说话人 #2", 
+            "说话人 #3",
+            "说话人 #5",
+            "说话人 #10",
+            "说话人 #20",
+            "说话人 #50",
+            "说话人 #100",
+            "说话人 #150",
+            "说话人 #173",
+        )
+        val speakerIds = intArrayOf(0, 1, 2, 3, 5, 10, 20, 50, 100, 150, 173)
+        val idx = speakerIds.indexOf(currentId).coerceAtLeast(0)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("TTS 说话人选择")
+            .setMessage("VITS aishell3 模型支持 174 个说话人（0-173）。\n切换后立即生效，无需重启。")
+            .setSingleChoiceItems(speakerOptions, idx) { dialog, which ->
+                AppConfig.setTtsSpeakerId(this, speakerIds[which])
                 dialog.dismiss()
                 recreate()
             }

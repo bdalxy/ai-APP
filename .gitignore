@@ -55,6 +55,12 @@ Thumbs.db
 # Trae IDE
 .trae/
 
+# TTS 模型文件（大型二进制文件，不追踪）
+# 模型文件通过 download_vits_model.ps1 脚本下载
+android/app/src/main/assets/*.onnx
+android/app/src/main/assets/vits-aishell3/*.onnx
+android/app/src/main/assets/matcha-icefall-zh-baker/*.onnx
+
 # 参考项目（已清理）
 # 外部参考资源（UI设计参考，不追踪）
 docs/references/taste-skill/

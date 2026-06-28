@@ -37,6 +37,10 @@ object AppConfig {
     const val MAX_MESSAGES = 50
     private const val KEY_TTS_VOICE_TIMBRE = "tts_voice_timbre"
     private const val KEY_TTS_MODEL_TYPE = "tts_model_type"
+    private const val KEY_TTS_SPEAKER_ID = "tts_speaker_id"
+    private const val KEY_TTS_VITS_NOISE_SCALE = "tts_vits_noise_scale"
+    private const val KEY_TTS_VITS_NOISE_SCALE_W = "tts_vits_noise_scale_w"
+    private const val KEY_TTS_VITS_LENGTH_SCALE = "tts_vits_length_scale"
 
     /** 默认 TTS 语速 */
     const val DEFAULT_TTS_SPEECH_RATE = 1.0f
@@ -52,6 +56,14 @@ object AppConfig {
     const val TTS_MODEL_AUTO = "auto"
     const val TTS_MODEL_VITS = "vits"
     const val TTS_MODEL_MATCHA = "matcha"
+    /** 默认 TTS 说话人 ID（0=默认女声，范围 0-173） */
+    const val DEFAULT_TTS_SPEAKER_ID = 0
+    /** VITS noiseScale 默认值：控制发音稳定性（0-1，越低越稳定） */
+    const val DEFAULT_VITS_NOISE_SCALE = 0.667f
+    /** VITS noiseScaleW 默认值：控制韵律变化幅度（0-1，越低越平稳） */
+    const val DEFAULT_VITS_NOISE_SCALE_W = 0.8f
+    /** VITS lengthScale 默认值：控制语速节奏（0.5-2.0，1.0=正常） */
+    const val DEFAULT_VITS_LENGTH_SCALE = 1.0f
 
     // ── 记忆参数配置（memory）──
     private const val KEY_MEMORY_MAX_COUNT = "memory_max_count"
@@ -254,6 +266,46 @@ object AppConfig {
 
     fun setTtsModelType(context: Context, type: String) {
         getPrefs(context).edit().putString(KEY_TTS_MODEL_TYPE, type).apply()
+    }
+
+    /** 获取 TTS 说话人 ID（仅 VITS 多说话人模型有效） */
+    fun getTtsSpeakerId(context: Context): Int {
+        return getPrefs(context).getInt(KEY_TTS_SPEAKER_ID, DEFAULT_TTS_SPEAKER_ID)
+    }
+
+    /** 设置 TTS 说话人 ID */
+    fun setTtsSpeakerId(context: Context, speakerId: Int) {
+        getPrefs(context).edit().putInt(KEY_TTS_SPEAKER_ID, speakerId).apply()
+    }
+
+    /** 获取 VITS noiseScale：控制发音稳定性（0-1，越低越稳定） */
+    fun getTtsVitsNoiseScale(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_VITS_NOISE_SCALE, DEFAULT_VITS_NOISE_SCALE)
+    }
+
+    /** 设置 VITS noiseScale */
+    fun setTtsVitsNoiseScale(context: Context, value: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_VITS_NOISE_SCALE, value).apply()
+    }
+
+    /** 获取 VITS noiseScaleW：控制韵律变化幅度（0-1，越低越平稳） */
+    fun getTtsVitsNoiseScaleW(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_VITS_NOISE_SCALE_W, DEFAULT_VITS_NOISE_SCALE_W)
+    }
+
+    /** 设置 VITS noiseScaleW */
+    fun setTtsVitsNoiseScaleW(context: Context, value: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_VITS_NOISE_SCALE_W, value).apply()
+    }
+
+    /** 获取 VITS lengthScale：控制语速节奏（0.5-2.0，1.0=正常） */
+    fun getTtsVitsLengthScale(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_VITS_LENGTH_SCALE, DEFAULT_VITS_LENGTH_SCALE)
+    }
+
+    /** 设置 VITS lengthScale */
+    fun setTtsVitsLengthScale(context: Context, value: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_VITS_LENGTH_SCALE, value).apply()
     }
 
     // ── 主动消息配置（proactive）──

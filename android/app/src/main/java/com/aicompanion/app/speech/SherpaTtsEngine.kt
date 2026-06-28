@@ -183,6 +183,13 @@ class SherpaTtsEngine(
                 return
             }
 
+            // VITS 音质参数：从 AppConfig 读取，未设置时使用默认值
+            // noiseScale=0.667 控制发音随机性（越低越稳定），noiseScaleW=0.8 控制韵律变化
+            // lengthScale=1.0 控制语速节奏（1.0=正常）
+            val vitsNoiseScale = AppConfig.getTtsVitsNoiseScale(context)
+            val vitsNoiseScaleW = AppConfig.getTtsVitsNoiseScaleW(context)
+            val vitsLengthScale = AppConfig.getTtsVitsLengthScale(context)
+
             val config = OfflineTtsConfig(
                 model = OfflineTtsModelConfig(
                     vits = OfflineTtsVitsModelConfig(
@@ -190,6 +197,9 @@ class SherpaTtsEngine(
                         lexicon = lexiconPath,
                         tokens = tokensPath,
                         dataDir = MATCHA_DIR,
+                        noiseScale = vitsNoiseScale,
+                        noiseScaleW = vitsNoiseScaleW,
+                        lengthScale = vitsLengthScale,
                     ),
                     numThreads = 2,
                     debug = false,
@@ -210,7 +220,8 @@ class SherpaTtsEngine(
 
             currentModelType = ModelType.VITS
             isInitialized = true
-            Log.i(TAG, "VITS (aishell3) TTS 引擎初始化成功, 采样率=${tts?.sampleRate()}")
+            val speakerCount = tts?.numSpeakers() ?: 0
+            Log.i(TAG, "VITS (aishell3) TTS 引擎初始化成功, 采样率=${tts?.sampleRate()}, 说话人数=$speakerCount")
 
             withContext(Dispatchers.Main) {
                 callback?.onInitSuccess()
@@ -333,7 +344,10 @@ class SherpaTtsEngine(
                 Log.d(TAG, "开始合成: ${text.take(50)}...")
                 withContext(Dispatchers.Main) { callback?.onSynthesisStart() }
 
-                val genConfig = GenerationConfig(speed = speed)
+                // 读取用户配置的说话人 ID（VITS 多说话人模型支持）
+                val speakerId = AppConfig.getTtsSpeakerId(context)
+                val genConfig = GenerationConfig(speed = speed, sid = speakerId)
+                Log.d(TAG, "合成参数: speed=$speed, sid=$speakerId")
                 val audio = withContext(Dispatchers.IO) {
                     tts?.generateWithConfig(text = text, config = genConfig)
                 }
@@ -450,6 +464,9 @@ class SherpaTtsEngine(
 
     /** 返回 TTS 是否可用（初始化成功且未进入降级模式） */
     fun isAvailable(): Boolean = isInitialized && !isFallbackMode
+
+    /** 获取当前模型的说话人数量（仅 VITS 多说话人模型有效，Matcha 返回 0） */
+    fun getSpeakerCount(): Int = tts?.numSpeakers() ?: 0
 
     fun destroy() {
         Log.d(TAG, "释放 SherpaTtsEngine 资源")

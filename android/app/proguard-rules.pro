@@ -49,6 +49,7 @@
 -keep class com.k2fsa.sherpa.onnx.OfflineTtsConfig { *; }
 -keep class com.k2fsa.sherpa.onnx.OfflineTtsModelConfig { *; }
 -keep class com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig { *; }
+-keep class com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig { *; }
 -keep class com.k2fsa.sherpa.onnx.GeneratedAudio { *; }
 -keep class com.k2fsa.sherpa.onnx.GenerationConfig { *; }
 -keepclasseswithmembernames class com.k2fsa.sherpa.onnx.** {
