@@ -7,7 +7,16 @@ import android.content.res.Configuration
 import android.os.StrictMode
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
+import com.aicompanion.app.module.ModuleEventBus
 import com.aicompanion.app.module.ModuleRegistry
+import com.aicompanion.app.module.character.CharacterModuleImpl
+import com.aicompanion.app.module.character.CharacterModule
+import com.aicompanion.app.module.plugin.PluginModuleImpl
+import com.aicompanion.app.module.plugin.PluginModule
+import com.aicompanion.app.module.tts.TtsModuleImpl
+import com.aicompanion.app.module.tts.TtsModule
+import com.aicompanion.app.module.worldbook.WorldBookModuleImpl
+import com.aicompanion.app.module.worldbook.WorldBookModule
 import com.aicompanion.app.plugin.BuiltinPlugins
 import com.aicompanion.app.plugin.PluginRegistry
 import com.chaquo.python.android.PyApplication
@@ -161,10 +170,33 @@ class AICompanionApp : PyApplication() {
             warmUpPython()
         }
 
-        // v2.0 模块化架构（待激活）
-        // ModuleRegistry.register(CharacterModuleImpl(this))
-        // ModuleRegistry.register(WorldBookModuleImpl(this))
-        // ModuleRegistry.register(TtsModuleImpl(this))
+        // v2.0 模块化架构：注册所有模块到 ModuleRegistry
+        // 注册顺序：先基础模块（无依赖），后依赖模块
+        try {
+            // 1. 角色卡模块（基础模块，依赖 Context）
+            val characterModule = CharacterModuleImpl(this)
+            ModuleRegistry.register<CharacterModule>(characterModule)
+            Log.d(TAG, "CharacterModule 已注册")
+
+            // 2. 世界书模块（依赖 Python 引擎，延迟调用）
+            val worldBookModule = WorldBookModuleImpl()
+            ModuleRegistry.register<WorldBookModule>(worldBookModule)
+            Log.d(TAG, "WorldBookModule 已注册")
+
+            // 3. 插件模块（依赖 PluginRegistry + Python 引擎）
+            val pluginModule = PluginModuleImpl(this)
+            ModuleRegistry.register<PluginModule>(pluginModule)
+            Log.d(TAG, "PluginModule 已注册")
+
+            // 4. TTS 模块（依赖 SpeechManager，由 MainActivity 注入）
+            val ttsModule = TtsModuleImpl()
+            ModuleRegistry.register<TtsModule>(ttsModule)
+            Log.d(TAG, "TtsModule 已注册")
+
+            Log.d(TAG, "模块化架构初始化完成，共注册 ${ModuleRegistry.modules.size} 个模块")
+        } catch (e: Exception) {
+            Log.w(TAG, "模块注册失败: ${e.message}")
+        }
 
         val appTotalTime = System.currentTimeMillis() - appStartTime
         Log.d(TAG, "Application.onCreate 完成，总耗时: ${appTotalTime}ms")

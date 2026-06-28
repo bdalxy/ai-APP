@@ -27,6 +27,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
+import com.aicompanion.app.module.ModuleRegistry
+import com.aicompanion.app.module.tts.TtsModule
+import com.aicompanion.app.module.tts.TtsModuleImpl
 import com.aicompanion.app.views.RecordingOverlayView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
@@ -181,6 +184,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // v2.0: 清理 TtsModuleImpl 的 SpeechManager 引用
+        try {
+            val ttsModule = ModuleRegistry.getOrNull<TtsModule>()
+            if (ttsModule is TtsModuleImpl) {
+                ttsModule.clearSpeechManager()
+            }
+        } catch (_: Exception) {}
         chatViewModel.destroy()
         voiceController.destroy()
         if (::recordingOverlay.isInitialized) {
@@ -660,6 +670,12 @@ class MainActivity : AppCompatActivity() {
             binding.tvStatus.text = ""
             binding.tvTitle.text = character.name
             voiceController.init()
+            // v2.0: 将 SpeechManager 注入到 TtsModuleImpl（模块化架构）
+            val ttsModule = ModuleRegistry.get<TtsModule>()
+            if (ttsModule is TtsModuleImpl) {
+                ttsModule.setSpeechManager(voiceController.speechManager)
+                Log.d("MainActivity", "SpeechManager 已注入到 TtsModuleImpl")
+            }
             // 初始化录音覆盖层
             recordingOverlay = RecordingOverlayView(this@MainActivity)
             (binding.root as android.view.ViewGroup).addView(recordingOverlay)
@@ -735,6 +751,9 @@ class MainActivity : AppCompatActivity() {
                 }.toString()
                 pythonModule.callAttr("set_character_card", charJson)
                 pythonModule.callAttr("reload_card")
+
+                // v2.0: 通过 CharacterModule 同步角色卡（模块化架构）
+                // 后续可逐步迁移到 ModuleRegistry.get<CharacterModule>().syncToPython()
 
                 // 自动启用角色绑定的世界书
                 if (character.worldBookId.isNotBlank()) {

@@ -26,6 +26,7 @@ import androidx.lifecycle.LifecycleCoroutineScope
 // import androidx.recyclerview.widget.LinearLayoutManager
 // import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.databinding.ActivityMainBinding
+import com.aicompanion.app.module.ModuleRegistry
 import com.aicompanion.app.utils.UiThread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -230,7 +231,7 @@ class ChatViewModel(
                         jsonArray.put(obj)
                     }
 
-                    // TODO(v2.0): 迁移到 ModuleRegistry.get<SearchModule>()
+                    // v2.0: 搜索对话直接调用 Python 模块（待 ChatModule 接口定义后迁移到 ModuleRegistry.get<ChatModule>()）
                     val result = withTimeout(STREAM_TIMEOUT_MS) {
                         module.callAttr(
                             "search_conversation", keyword, jsonArray.toString()
@@ -429,7 +430,7 @@ class ChatViewModel(
                     lastSentenceEnd = 0
 
                     // 启动流式对话（30秒超时保护）
-                    // TODO(v2.0): 迁移到 ModuleRegistry.get<ChatModule>()
+                    // v2.0: 流式对话启动直接调用 Python 模块（待 ChatModule 接口定义后迁移到 ModuleRegistry.get<ChatModule>()）
                     val streamId = withTimeout(STREAM_TIMEOUT_MS) {
                         module.callAttr("chat_stream_start", userInput)?.toString()
                             ?: """{"status":"error","message":"Python 模块返回 null"}"""
@@ -453,7 +454,7 @@ class ChatViewModel(
                     val fullReply = StringBuilder()
 
                     // 使用 callbackFlow 包装轮询，替代 while 循环
-                    // TODO(v2.0): 迁移到 ModuleRegistry.get<ChatModule>()
+                    // v2.0: 流式轮询直接调用 Python 模块（待 ChatModule 接口定义后迁移到 ModuleRegistry.get<ChatModule>()）
                     callbackFlow {
                         var isDone = false
                         while (!isDone && isStreaming) {
@@ -737,7 +738,7 @@ class ChatViewModel(
             }
 
             // 取消 Python 流（必须在 IO 线程，Python.getInstance() 不应在主线程调用）
-            // TODO(v2.0): 迁移到 ModuleRegistry.get<ChatModule>()
+            // v2.0: 取消流直接调用 Python 模块（待 ChatModule 接口定义后迁移到 ModuleRegistry.get<ChatModule>()）
             val sid = activeStreamId
             if (sid != null) {
                 lifecycleScope.launch(Dispatchers.IO) {

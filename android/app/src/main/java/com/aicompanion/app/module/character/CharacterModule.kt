@@ -19,6 +19,9 @@ interface CharacterModule {
     /** 获取当前活跃角色 */
     fun getActiveCharacter(): CharacterInfo?
 
+    /** 设置当前活跃角色（切换角色时调用） */
+    fun setActiveCharacter(characterId: String)
+
     /** 列出所有角色卡 */
     fun listCharacters(): List<CharacterInfo>
 
