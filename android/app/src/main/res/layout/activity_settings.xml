@@ -54,6 +54,65 @@
                 android:layout_height="@dimen/button_medium" />
         </LinearLayout>
 
+        <!-- ===== 零、角色卡管理卡片（独立入口） ===== -->
+        <com.aicompanion.app.ui.GlassCard
+            android:id="@+id/cardCharacter"
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_3xl"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:contentPadding="@dimen/card_padding">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_settings_account"
+                    android:layout_marginEnd="12dp"
+                    android:contentDescription="@string/cd_character_manage" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_character_manage"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvCharacterSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
+                    android:textColor="@color/text_tertiary"
+                    android:gravity="center" />
+            </LinearLayout>
+        </com.aicompanion.app.ui.GlassCard>
+
         <!-- ===== 一、账号设置卡片 ===== -->
         <com.aicompanion.app.ui.GlassCard
             android:id="@+id/cardAccount"
@@ -624,6 +683,64 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/value_loading_ellipsis"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_caption"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:text="@string/icon_chevron"
+                    android:textSize="@dimen/text_heading"
+                    android:textColor="@color/text_tertiary"
+                    android:gravity="center" />
+            </LinearLayout>
+        </com.aicompanion.app.ui.GlassCard>
+
+        <!-- ===== 数据管理卡片（备份/恢复/导出） ===== -->
+        <com.aicompanion.app.ui.GlassCard
+            android:id="@+id/cardDataManagement"
+            style="@style/GlassCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_3xl"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:contentPadding="@dimen/card_padding">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_export"
+                    android:layout_marginEnd="12dp"
+                    android:contentDescription="@string/cd_data_management" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_data_management"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/desc_data_management"
                         android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_caption"
                         android:layout_marginTop="2dp" />

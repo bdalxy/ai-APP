@@ -82,6 +82,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             "notification" -> getString(R.string.section_notification_settings)
             "about" -> getString(R.string.section_about)
             "world_book" -> getString(R.string.section_world_book)
+            "data_management" -> getString(R.string.section_data_management)
             else -> getString(R.string.title_settings)
         }
 
@@ -101,6 +102,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             "notification" -> buildNotificationPage()
             "about" -> buildAboutPage()
             "world_book" -> buildWorldBookPage()
+            "data_management" -> buildDataManagementPage()
         }
     }
 
@@ -871,8 +873,10 @@ class SettingsDetailActivity : AppCompatActivity() {
         addClickRow(getString(R.string.label_feedback), "向我们反馈问题或建议", iconRes = R.drawable.ic_export) {
             Toast.makeText(this, getString(R.string.toast_feedback_future), Toast.LENGTH_SHORT).show()
         }
-        addDivider()
-        addSectionTitle("数据管理")
+    }
+
+    private fun buildDataManagementPage() {
+        addSectionTitle(getString(R.string.section_data_management))
         addClickRow("备份数据", "将所有数据打包为 ZIP 备份文件", iconRes = R.drawable.ic_export) {
             backupLauncher.launch(DataBackupHelper.generateFileName())
         }

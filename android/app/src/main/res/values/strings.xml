@@ -86,6 +86,9 @@
 
     <!-- 账户设置 -->
     <string name="section_account_settings">账户设置</string>
+    <string name="section_character_manage">角色卡管理</string>
+    <string name="section_data_management">数据管理</string>
+    <string name="desc_data_management">备份、恢复与导出数据</string>
     <string name="label_api_key">API Key</string>
     <string name="label_role_preset">角色预设</string>
     <string name="label_model_selection">模型选择</string>
@@ -233,6 +236,8 @@
 
     <!-- ===== 设置页卡片 contentDescription（无障碍） ===== -->
     <string name="cd_account_settings">账户设置</string>
+    <string name="cd_character_manage">角色卡管理</string>
+    <string name="cd_data_management">数据管理</string>
     <string name="cd_chat_settings">对话设置</string>
     <string name="cd_proactive_messages">主动消息</string>
     <string name="cd_memory_manage">记忆管理</string>

@@ -40,6 +40,9 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.btnBack.setOnClickListener { finish() }
 
+        binding.cardCharacter.setOnClickListener {
+            startActivity(Intent(this, CharacterManageActivity::class.java))
+        }
         binding.cardAccount.setOnClickListener {
             startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "account"))
         }
@@ -64,6 +67,9 @@ class SettingsActivity : AppCompatActivity() {
         }
         binding.cardPlugin.setOnClickListener {
             startActivity(Intent(this, PluginManageActivity::class.java))
+        }
+        binding.cardDataManagement.setOnClickListener {
+            startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "data_management"))
         }
         binding.cardExport.setOnClickListener {
             showExportDialog()
@@ -92,6 +98,9 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun refreshUI() {
+        val character = CharacterStorage.getCurrent(this)
+        binding.tvCharacterSummary.text = character.name.ifEmpty { getString(R.string.character_option_3) }
+
         val apiKey = AppConfig.getApiKey(this)
         val apiStatus = if (apiKey.isNotEmpty()) getString(R.string.status_configured) else getString(R.string.status_not_configured)
         val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }

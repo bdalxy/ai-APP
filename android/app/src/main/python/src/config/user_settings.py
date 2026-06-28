@@ -32,7 +32,7 @@ DEFAULT_USER_SETTINGS: dict[str, object] = {
     "economy_mode": False,
     "web_search_enabled": False,
     "selected_card": "",
-    "selected_world_book": "reality_world",
+    "selected_world_book": "三次元现实",
     "auto_export_enabled": False,
     "export_format": "JSON",
     "device_tier": "auto",
