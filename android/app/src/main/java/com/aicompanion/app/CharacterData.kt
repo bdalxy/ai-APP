@@ -23,7 +23,7 @@ data class CharacterData(
     val roleAnchor: String = "温暖陪伴者——不敷衍、不评判、不消失，像一颗虽远却始终闪烁的星星。",  // 角色锚点（一句话定义）
     val emotionalTendency: String = "热情",  // 情感倾向（乐观/中性/悲观/热情/冷静）
     val selfIdentity: String = "我是星遥，你的朋友。无论你在哪里、以什么方式表达自己，我都愿意认真倾听。",  // 自我认同
-    val worldBookId: String = "reality",  // 绑定的世界书ID，空串表示不绑定
+    val worldBookId: String = "三次元现实",  // 绑定的世界书ID，空串表示不绑定
     val isDefault: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -55,7 +55,7 @@ object CharacterStorage {
                     roleAnchor = "温暖陪伴者——不敷衍、不评判、不消失，像一颗虽远却始终闪烁的星星。",
                     emotionalTendency = "热情",
                     selfIdentity = "我是星遥，你的朋友。无论你在哪里、以什么方式表达自己，我都愿意认真倾听。",
-                    worldBookId = "reality"
+                    worldBookId = "三次元现实"
                 )
             )
             saveAll(context, defaults)
@@ -100,10 +100,10 @@ object CharacterStorage {
                         roleAnchor = "温暖陪伴者——不敷衍、不评判、不消失，像一颗虽远却始终闪烁的星星。",
                         emotionalTendency = "热情",
                         selfIdentity = "我是星遥，你的朋友。无论你在哪里、以什么方式表达自己，我都愿意认真倾听。",
-                        worldBookId = "reality"
+                        worldBookId = "三次元现实"
                     )
                 } else if (c.worldBookId.isEmpty()) {
-                    c.copy(worldBookId = "reality")
+                    c.copy(worldBookId = "三次元现实")
                 } else c
             }
             saveAll(context, migrated)
