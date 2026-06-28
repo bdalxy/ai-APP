@@ -32,6 +32,7 @@
     <string name="cd_search">搜索</string>
     <string name="cd_clear_search">清除搜索</string>
     <string name="cd_avatar">角色头像</string>
+    <string name="cd_character_select">角色选择</string>
     <string name="cd_message_status">消息状态</string>
     <string name="cd_new_character">新建角色</string>
     <string name="cd_save_character">保存角色</string>
@@ -597,5 +598,11 @@
     <string name="dialog_session_name">输入会话名称</string>
     <string name="default_session_name">新会话</string>
     <string name="toast_recording_failed">录制失败</string>
+
+    <!-- ===== 会话抽屉 (Session Drawer) ===== -->
+    <string name="drawer_session_list_title">会话列表</string>
+    <string name="drawer_new_chat">+ 新对话</string>
+    <string name="drawer_export_records">导出记录</string>
+    <string name="drawer_search">搜索</string>
 
     </resources>

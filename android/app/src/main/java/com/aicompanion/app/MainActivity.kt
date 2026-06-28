@@ -4,7 +4,6 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -19,6 +18,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.view.ViewCompat
@@ -339,22 +339,33 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // 设置按钮
+        // 设置按钮（搜索图标 → 点击搜索，长按设置）
         binding.btnSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+            chatViewModel.toggleSearchMode()
         }
         binding.btnSettings.setOnLongClickListener {
-            chatViewModel.showExportDialog()
+            startActivity(Intent(this, SettingsActivity::class.java))
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             true
         }
 
         // 新建会话按钮
         binding.btnNewChat?.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             conversationCoordinator.showNewChatDialog()
         }
 
-        // 搜索按钮
-        binding.btnSearch?.setOnClickListener {
+        // 抽屉按钮
+        binding.btnDrawerNewChat.setOnClickListener {
+            binding.drawerLayout.closeDrawers()
+            conversationCoordinator.showNewChatDialog()
+        }
+        binding.btnDrawerExport.setOnClickListener {
+            binding.drawerLayout.closeDrawers()
+            chatViewModel.showExportDialog()
+        }
+        binding.btnDrawerSearch.setOnClickListener {
+            binding.drawerLayout.closeDrawers()
             chatViewModel.toggleSearchMode()
         }
 
@@ -400,9 +411,9 @@ class MainActivity : AppCompatActivity() {
             } else false
         }
 
-        // 角色名称点击 → 会话列表
+        // 角色名称/头像点击 → 打开会话抽屉
         binding.tvTitle.setOnClickListener {
-            conversationCoordinator.showSessionListDialog()
+            openSessionDrawer()
         }
         binding.tvTitle.setOnLongClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -414,7 +425,7 @@ class MainActivity : AppCompatActivity() {
             openCharacterSelect()
         }
 
-        // 左滑手势 → 角色选择
+        // 左滑手势 → 打开会话抽屉
         gestureDetector = GestureDetector(this, object : GestureDetector.OnGestureListener {
             override fun onDown(e: MotionEvent): Boolean = false
             override fun onShowPress(e: MotionEvent) {}
@@ -425,12 +436,46 @@ class MainActivity : AppCompatActivity() {
                 if (e1 == null) return false
                 val diffX = e2.x - e1.x
                 if (diffX > FLING_THRESHOLD && Math.abs(velocityX) > Math.abs(velocityY) * FLING_RATIO && velocityX > 0) {
-                    openCharacterSelect()
+                    openSessionDrawer()
                     return true
                 }
                 return false
             }
         })
+
+        // 初始化会话抽屉列表
+        setupSessionDrawer()
+    }
+
+    /** 打开会话抽屉 */
+    private fun openSessionDrawer() {
+        binding.drawerLayout.openDrawer(binding.drawerSessionList)
+        refreshSessionList()
+    }
+
+    /** 初始化会话列表抽屉 */
+    private fun setupSessionDrawer() {
+        binding.rvSessionList.layoutManager = LinearLayoutManager(this)
+        refreshSessionList()
+    }
+
+    /** 刷新会话抽屉列表 */
+    private fun refreshSessionList() {
+        val sessions = ConversationSessionManager.getSessions()
+        val currentId = ConversationSessionManager.getCurrentSessionId()
+        val adapter = SessionDrawerAdapter(
+            sessions,
+            currentId,
+            onSelect = { session ->
+                binding.drawerLayout.closeDrawers()
+                conversationCoordinator.switchToSession(session.id)
+            },
+            onDelete = { session ->
+                conversationCoordinator.deleteSession(session.id)
+                refreshSessionList()
+            }
+        )
+        binding.rvSessionList.adapter = adapter
     }
 
     // ======================== Python 初始化 ========================
@@ -634,7 +679,7 @@ class MainActivity : AppCompatActivity() {
             val tvTitle = binding.layoutChatEmpty?.findViewById<TextView>(R.id.tvEmptyTitle)
             val tvDesc = binding.layoutChatEmpty?.findViewById<TextView>(R.id.tvEmptyDesc)
             ivEmpty?.setImageResource(R.drawable.ic_feather)
-            ivEmpty?.setColorFilter(Color.parseColor("#B0C4DE"))
+            ivEmpty?.setColorFilter(resources.getColor(R.color.sakura_sky, theme))
             tvTitle?.text = getString(R.string.empty_chat_title)
             tvDesc?.text = getString(R.string.empty_chat_desc)
         } else {
@@ -779,7 +824,7 @@ class MainActivity : AppCompatActivity() {
         status?.text = if (enabled) getString(R.string.plugin_web_search_on)
                        else getString(R.string.plugin_web_search_off)
         status?.setTextColor(
-            if (enabled) Color.parseColor("#4CAF50")
+            if (enabled) resources.getColor(R.color.accent_green, theme)
             else resources.getColor(R.color.text_tertiary, theme)
         )
     }

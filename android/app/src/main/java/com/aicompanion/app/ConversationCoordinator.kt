@@ -245,6 +245,16 @@ class ConversationCoordinator(
     }
 
     /** 删除会话并自动切换到其他会话 */
+    /** 外部调用：切换到指定会话 */
+    fun switchToSession(sessionId: String) {
+        switchToSessionInternal(sessionId)
+    }
+
+    /** 外部调用：删除指定会话 */
+    fun deleteSession(sessionId: String) {
+        deleteSessionAndSwitch(sessionId)
+    }
+
     private fun deleteSessionAndSwitch(sessionId: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -297,7 +307,7 @@ class ConversationCoordinator(
     // ======================== 切换会话 ========================
 
     /** 切换到指定会话（保存当前会话，加载目标会话） */
-    private fun switchToSession(targetSessionId: String) {
+    private fun switchToSessionInternal(targetSessionId: String) {
         val currentMessages = adapter.getMessages()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
