@@ -249,6 +249,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onNewMessageSent() {
+                voiceController.resetVoiceInputFlag()
                 voiceController.stopTtsAndClear()
             }
         }

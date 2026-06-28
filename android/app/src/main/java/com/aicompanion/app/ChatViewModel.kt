@@ -548,6 +548,24 @@ class ChatViewModel(
                                     ).show()
                                 }
                             }
+                            else -> {
+                                if (status != "waiting") {
+                                    Log.w(TAG, "流式轮询返回未知状态: $status, 原始数据: $pollJson")
+                                }
+                                // waiting 是正常状态，继续轮询；未知状态也继续等待有效状态
+                            }
+                        }
+                    }
+                    // 流式结束后兜底检查：如果 AI 消息仍为空，替换为错误提示
+                    if (streamingAiMsgIndex >= 0 && streamingAiMsgIndex < adapter.itemCount) {
+                        val finalMsg = adapter.getMessages()[streamingAiMsgIndex]
+                        if (finalMsg.content.isBlank()) {
+                            UiThread.run {
+                                adapter.updateMessage(
+                                    streamingAiMsgIndex,
+                                    aiMsg.copy(content = context.getString(R.string.error_ai_empty_response))
+                                )
+                            }
                         }
                     }
                 } catch (e: TimeoutCancellationException) {

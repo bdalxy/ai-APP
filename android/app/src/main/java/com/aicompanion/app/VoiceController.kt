@@ -341,13 +341,24 @@ class VoiceController(
         }
     }
 
+    /** 重置语音输入标记，在新消息发送时调用以保持状态清洁 */
+    fun resetVoiceInputFlag() {
+        wasVoiceInput = false
+    }
+
     fun speakAIContentIfNeeded(content: String) {
+        if (content.isBlank()) return
         val autoRead = AppConfig.getAutoReadAloud(context)
-        if (autoRead && content.isNotBlank()) {
+        if (autoRead) {
             speechManager.startSpeaking(content)
-        } else if (wasVoiceInput && content.isNotBlank()) {
+        } else if (wasVoiceInput) {
             wasVoiceInput = false
-            speechManager.startSpeaking(content)
+            // 仅在 TTS 引擎可用时朗读，避免引擎未就绪时弹出错误提示
+            if (speechManager.isTtsReady()) {
+                speechManager.startSpeaking(content)
+            } else {
+                Log.d(TAG, "TTS 引擎未就绪，跳过语音朗读")
+            }
         }
     }
 

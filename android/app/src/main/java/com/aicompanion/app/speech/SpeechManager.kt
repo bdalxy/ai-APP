@@ -175,6 +175,11 @@ class SpeechManager(
         sherpaTts?.initialize()
     }
 
+    /** 检查 TTS 引擎是否已就绪可用 */
+    fun isTtsReady(): Boolean {
+        return sherpaTts?.isInitialized == true && sherpaTts?.isAvailable() == true
+    }
+
     fun startSpeaking(text: String, utteranceId: String? = null) {
         if (text.isBlank()) { Log.w(TAG, "播放文本为空"); return }
         if (sherpaTts?.isAvailable() != true) {
