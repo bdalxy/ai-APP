@@ -386,6 +386,9 @@ class VectorStore:
         self.inverted_index = InvertedIndex()
         self._load_index()
         self._add_count = 0  # WAL checkpoint 计数器
+        # BM25 索引缓存（S2.3.3 性能优化）
+        self._bm25_cache: "BM25Scorer | None" = None  # 缓存的 BM25 索引
+        self._bm25_cache_dirty: bool = True            # 脏标记：记忆库变化后置为 True
         self._log.info(f"VectorStore 初始化完成: db_path={self.db_path}, 记忆数={self.count()}, 索引关键词数={self.inverted_index.size()}")
 
     @property
@@ -585,6 +588,8 @@ class VectorStore:
         # 每 100 次写入触发一次 WAL checkpoint，防止 wal 文件无限增长
         if should_checkpoint:
             self._checkpoint()
+        # BM25 缓存失效（S2.3.3 性能优化）
+        self._invalidate_bm25_cache()
         return result
 
     def get(self, mem_id: str) -> MemoryEntry:
@@ -624,6 +629,8 @@ class VectorStore:
             raise
         except sqlite3.Error as e:
             raise MemoryStorageError(f"删除记忆失败: {e}", detail=f"id={mem_id}") from e
+        # BM25 缓存失效（S2.3.3 性能优化）
+        self._invalidate_bm25_cache()
         self._log.debug(f"记忆已删除: id={mem_id}")
 
     def search(self, query_embedding: list[float], query_text: str = "", top_k: int = 10) -> list[tuple[MemoryEntry, float]]:
@@ -646,6 +653,7 @@ class VectorStore:
         """
         self._check_closed()
         candidates: list[MemoryEntry] = []
+        query_keywords: list[str] = []  # 初始化为空列表，避免 NameError
         if query_text:
             query_keywords = extract_keywords(query_text)
             candidate_ids = self.inverted_index.search(query_keywords)
@@ -654,13 +662,21 @@ class VectorStore:
                 self._log.debug(f"[检索] 倒排索引命中 {len(candidates)} 条候选")
         if not candidates:
             total_count = self.count()
-            if total_count > 2000:
-                self._log.warning(
-                    f"[检索] 全量回退已拒绝: 记忆数 {total_count} > 2000，防止 OOM"
+            # S2.3.3 性能优化：分片检索阈值保护
+            # 记忆数 <= 500 时全量加载（安全），> 500 时分页加载（OOM 防护）
+            _PAGINATED_THRESHOLD = 500
+            if total_count > _PAGINATED_THRESHOLD:
+                self._log.info(
+                    f"[检索] 倒排索引无命中，记忆数 {total_count} > {_PAGINATED_THRESHOLD}，"
+                    f"使用分页检索"
                 )
-                return []
+                return self._search_paginated(
+                    query_embedding=query_embedding,
+                    query_keywords=query_keywords,
+                    top_k=top_k,
+                )
             candidates = self._get_all()
-            self._log.debug(f"[检索] 倒排索引无命中，回退到全量检索 ({len(candidates)} 条)")
+            self._log.debug(f"[检索] 倒排索引无命中，全量检索 ({len(candidates)} 条)")
         if not candidates:
             return []
         scored: list[tuple[MemoryEntry, float]] = []
@@ -695,6 +711,96 @@ class VectorStore:
         # T-FIX-06: 收集所有访问更新，使用 executemany 批量 UPDATE
         self._batch_record_access([entry for entry, _ in result])
         self._log.info(f"[检索] 完成: 候选={len(candidates)}, 返回={len(result)}, top_k={top_k}")
+        return result
+
+    def _search_paginated(
+        self,
+        query_embedding: list[float],
+        query_keywords: list[str],
+        top_k: int,
+    ) -> list[tuple[MemoryEntry, float]]:
+        """分页检索：逐页加载记忆并计算余弦相似度（S2.3.3 性能优化）。
+
+        当记忆数超过阈值时，使用分页方式避免一次性全量加载到内存。
+        每页保留 top_k * 3 候选，全局候选上限 top_k * 10，最终合并取 top_k。
+
+        Args:
+            query_embedding: 查询文本的向量表示，可能为空列表。
+            query_keywords: 查询文本提取的关键词列表。
+            top_k: 最终返回的最大记忆数。
+
+        Returns:
+            list[tuple[MemoryEntry, float]]: 结果列表。
+        """
+        total = self.count()
+        if total == 0:
+            return []
+
+        _PAGE_SIZE = 500
+        candidates_per_page = top_k * 3        # 每页保留的候选数
+        max_candidates = top_k * 10             # 全局候选上限
+        has_embedding = bool(query_embedding)
+        all_candidates: list[tuple[MemoryEntry, float]] = []
+
+        offset = 0
+        while offset < total:
+            # 分页加载
+            page = self.get_page(offset, _PAGE_SIZE)
+            offset += len(page)
+
+            # 逐条计算相似度
+            page_scored: list[tuple[MemoryEntry, float]] = []
+            for entry in page:
+                if has_embedding and entry.embedding:
+                    try:
+                        sim = cosine_similarity(query_embedding, entry.embedding)
+                    except ValueError:
+                        sim = 0.0
+                elif not has_embedding and query_keywords:
+                    # embedding 不可用时的关键词降级匹配
+                    entry_kw = set(entry.keywords) if entry.keywords else set()
+                    query_kw = set(query_keywords) if query_keywords else set()
+                    match_count = len(query_kw & entry_kw)
+                    sim = min(
+                        match_count / max(len(query_keywords), 1), 1.0
+                    )
+                else:
+                    sim = 0.0
+                page_scored.append((entry, sim))
+
+            # 当前页排序，保留 top candidates_per_page
+            page_scored.sort(key=lambda x: x[1], reverse=True)
+            page_top = page_scored[:candidates_per_page]
+
+            all_candidates.extend(page_top)
+
+            # 全局候选上限裁剪：防止缓冲区无限增长
+            if len(all_candidates) > max_candidates:
+                all_candidates.sort(key=lambda x: x[1], reverse=True)
+                all_candidates = all_candidates[:max_candidates]
+
+            self._log.debug(
+                f"[分页检索] offset={offset - len(page)}, "
+                f"页大小={len(page)}, 页候选={len(page_top)}"
+            )
+
+        # 合并所有页候选，最终排序
+        all_candidates.sort(key=lambda x: x[1], reverse=True)
+
+        # 归档记忆权重衰减
+        scored = [
+            (entry, sim * 0.2 if entry.archived else sim)
+            for entry, sim in all_candidates
+        ]
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        result = scored[:top_k]
+
+        # 批量记录访问
+        self._batch_record_access([entry for entry, _ in result])
+        self._log.info(
+            f"[分页检索] 完成: 总记忆={total}, 返回={len(result)}"
+        )
         return result
 
     def _get_by_ids(self, mem_ids: list[str]) -> list[MemoryEntry]:
@@ -935,6 +1041,8 @@ class VectorStore:
             with self._lock:
                 result = self._mark_archived_no_commit(mem_ids)
                 self._conn.commit()
+                # BM25 缓存失效（S2.3.3 性能优化）
+                self._invalidate_bm25_cache()
                 return result
         except sqlite3.Error as e:
             self._log.error(f"标记归档失败: {e}")
@@ -971,6 +1079,8 @@ class VectorStore:
                 self.inverted_index.clear()
         except sqlite3.Error as e:
             raise MemoryStorageError(f"清空记忆失败: {e}") from e
+        # BM25 缓存失效（S2.3.3 性能优化）
+        self._invalidate_bm25_cache()
         self._log.info("所有记忆已清空")
 
     def get_by_type(self, memory_type: str) -> list[MemoryEntry]:
@@ -1053,6 +1163,8 @@ class VectorStore:
             raise
         except sqlite3.Error as e:
             raise MemoryStorageError(f"按 rowid 删除记忆失败: {e}", detail=f"rowid={rowid}") from e
+        # BM25 缓存失效（S2.3.3 性能优化）
+        self._invalidate_bm25_cache()
         self._log.debug(f"记忆已按 rowid 删除: rowid={rowid}, id={entry.id}")
         return entry
 
@@ -1113,6 +1225,8 @@ class VectorStore:
             raise
         except sqlite3.Error as e:
             raise MemoryStorageError(f"更新记忆失败: {e}", detail=f"rowid={rowid}") from e
+        # BM25 缓存失效（S2.3.3 性能优化）
+        self._invalidate_bm25_cache()
         self._log.debug(f"记忆已更新: rowid={rowid}, id={entry.id}, content={entry.content[:50]}...")
 
     def list_with_rowid(
@@ -1190,13 +1304,15 @@ class VectorStore:
             candidates = self._get_by_ids(list(candidate_ids))
             self._log.debug(f"[关键字搜索] 倒排索引命中 {len(candidates)} 条候选")
         else:
-            # 倒排索引无命中：回退到全量加载，但有阈值保护
+            # 倒排索引无命中：回退到全量加载，但有分页阈值保护（S2.3.3 性能优化）
             total_count = self.count()
-            if total_count > 2000:
-                self._log.warning(
-                    f"[关键字搜索] 全量回退已拒绝: 记忆数 {total_count} > 2000，防止 OOM"
+            _PAGINATED_THRESHOLD = 500
+            if total_count > _PAGINATED_THRESHOLD:
+                self._log.info(
+                    f"[关键字搜索] 记忆数 {total_count} > {_PAGINATED_THRESHOLD}，"
+                    f"使用分页搜索"
                 )
-                return []
+                return self._search_by_keyword_paginated(keyword)
             candidates = self._get_all()
             self._log.debug(f"[关键字搜索] 倒排索引无命中，回退全量 ({len(candidates)} 条)")
 
@@ -1229,6 +1345,67 @@ class VectorStore:
 
         # 按创建时间降序
         results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return results
+
+    def _search_by_keyword_paginated(self, keyword: str) -> list[dict]:
+        """分页关键字搜索（S2.3.3 性能优化）。
+
+        当记忆数超过阈值且倒排索引无命中时，使用分页方式逐页加载并做 LIKE 匹配。
+        结果按创建时间降序排列。
+
+        Args:
+            keyword: 搜索关键字。
+
+        Returns:
+            dict 列表，每项包含 rowid 和 MemoryEntry.to_dict() 的所有字段。
+        """
+        total = self.count()
+        _PAGE_SIZE = 500
+        results: list[dict] = []
+        keyword_lower = keyword.lower()
+
+        offset = 0
+        while offset < total:
+            page = self.get_page(offset, _PAGE_SIZE)
+            offset += len(page)
+
+            # 获取当前页的 rowid 映射
+            id_to_rowid: dict[str, int] = {}
+            if page:
+                mem_ids = [e.id for e in page]
+                placeholders = ",".join("?" for _ in mem_ids)
+                try:
+                    with self._lock:
+                        cursor = self._conn.execute(
+                            f"SELECT rowid, id FROM {self._TABLE_NAME} "
+                            f"WHERE id IN ({placeholders})",
+                            mem_ids,
+                        )
+                        for row in cursor:
+                            id_to_rowid[row[1]] = row[0]
+                except sqlite3.Error as e:
+                    self._log.debug(f"[关键字分页搜索] rowid 映射失败: {e}")
+                    id_to_rowid = {}
+
+            # 当前页 LIKE 匹配
+            for entry in page:
+                if keyword_lower in entry.content.lower():
+                    item = entry.to_dict()
+                    item["rowid"] = id_to_rowid.get(entry.id, -1)
+                    item["embedding_dim"] = len(entry.embedding)
+                    item.pop("embedding", None)
+                    results.append(item)
+
+            self._log.debug(
+                f"[关键字分页搜索] offset={offset - len(page)}, "
+                f"页大小={len(page)}, 累计匹配={len(results)}"
+            )
+
+        # 按创建时间降序
+        results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        self._log.info(
+            f"[关键字分页搜索] 完成: 总记忆={total}, 匹配={len(results)}"
+        )
         return results
 
     @staticmethod
@@ -1297,6 +1474,20 @@ class VectorStore:
                 self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         except sqlite3.Error as e:
             self._log.debug(f"WAL checkpoint 失败（可忽略）: {e}")
+
+    # =========================================================================
+    # BM25 索引缓存管理（S2.3.3 性能优化）
+    # =========================================================================
+
+    def _invalidate_bm25_cache(self) -> None:
+        """标记 BM25 索引缓存为脏，下次 build_bm25_index() 时将重建。
+
+        记忆库发生写操作（add/delete/update/clear/archive）时调用。
+        此方法不持有锁，调用者应在适当位置调用。
+        """
+        self._bm25_cache_dirty = True
+        self._bm25_cache = None
+        self._log.debug("[BM25缓存] 已标记为脏，下次查询时重建")
 
     # =========================================================================
     # 辅助方法：通过 entry 获取 rowid
@@ -1750,13 +1941,24 @@ class VectorStore:
     # =========================================================================
 
     def build_bm25_index(self) -> "BM25Scorer":
-        """构建 BM25 索引（从所有记忆构建）。
+        """构建 BM25 索引（从所有记忆构建），带缓存。
 
         将所有记忆的 content 作为文档，id 作为文档 ID，构建 BM25 倒排索引。
+        首次调用时构建索引并缓存，后续调用直接返回缓存副本。
+        记忆库发生写操作（add/delete/update/clear/archive）后缓存自动失效。
 
         Returns:
             构建好的 BM25Scorer 实例。
         """
+        # 缓存命中：直接返回缓存的 BM25 索引（S2.3.3 性能优化）
+        if not self._bm25_cache_dirty and self._bm25_cache is not None:
+            self._log.debug(
+                f"[BM25缓存] 命中: 文档数={self._bm25_cache.doc_count}, "
+                f"词数={self._bm25_cache.term_count}"
+            )
+            return self._bm25_cache
+
+        self._log.info("[BM25缓存] 未命中，开始构建索引...")
         from src.memory.bm25 import BM25Scorer
         bm25 = BM25Scorer()
         total = self.count()
@@ -1770,4 +1972,12 @@ class VectorStore:
             offset += len(page)
             if len(page) < page_size:
                 break
+
+        # 缓存构建好的索引（S2.3.3 性能优化）
+        self._bm25_cache = bm25
+        self._bm25_cache_dirty = False
+        self._log.info(
+            f"[BM25缓存] 索引构建完成并缓存: {bm25.doc_count} 文档, "
+            f"{bm25.term_count} 唯一词"
+        )
         return bm25

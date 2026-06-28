@@ -797,18 +797,52 @@ class ChatViewModel(
         }
     }
 
-    /** 更新发送按钮状态 */
+    /** 发送按钮上一次是否处于激活态（用于缩放动画判断） */
+    private var wasSendActive = false
+
+    /** 更新发送按钮状态，附带缩放动画 */
     fun updateSendButton(hasText: Boolean) {
         if (isStreaming) {
             binding.btnSend.isEnabled = false
             binding.btnSend.setBackgroundResource(R.drawable.bg_send_inactive)
             binding.btnSend.text = context.getString(R.string.icon_loading)
+            wasSendActive = false
             return
         }
         binding.btnSend.isEnabled = hasText
         binding.btnSend.setBackgroundResource(
             if (hasText) R.drawable.bg_send_active else R.drawable.bg_send_inactive
         )
+        // 发送按钮缩放动画：状态变化时从小变大/从大变小
+        if (hasText != wasSendActive) {
+            wasSendActive = hasText
+            binding.btnSend.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+            if (hasText) {
+                // 激活：从 0.8 缩放到 1.0（200ms）
+                binding.btnSend.scaleX = 0.8f
+                binding.btnSend.scaleY = 0.8f
+                binding.btnSend.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(200)
+                    .withEndAction {
+                        binding.btnSend.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
+                    }
+                    .start()
+            } else {
+                // 失活：从 1.0 缩放到 0.8（200ms），立即恢复不带动画
+                binding.btnSend.animate()
+                    .scaleX(0.8f)
+                    .scaleY(0.8f)
+                    .setDuration(150)
+                    .withEndAction {
+                        binding.btnSend.scaleX = 1f
+                        binding.btnSend.scaleY = 1f
+                        binding.btnSend.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
+                    }
+                    .start()
+            }
+        }
     }
 
     // ======================== 消息长按上下文菜单 ========================

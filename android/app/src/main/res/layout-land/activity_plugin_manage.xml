@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 插件管理页面（横屏适配）：降低顶栏 + 优化间距，列表由代码切换双列网格 -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/plugin_manage_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bg_main_gradient">
+
+    <!-- 顶栏：横屏降低高度 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/topbar_height_land"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/spacing_page">
+
+        <TextView
+            android:id="@+id/btnBack"
+            android:layout_width="@dimen/button_medium"
+            android:layout_height="@dimen/button_medium"
+            android:text="@string/btn_back_arrow"
+            android:textSize="@dimen/text_large"
+            android:textColor="@color/text_primary"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/cd_back" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/title_plugin_manage"
+            android:textSize="@dimen/text_heading"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:gravity="center" />
+
+        <View
+            android:layout_width="@dimen/button_medium"
+            android:layout_height="@dimen/button_medium" />
+    </LinearLayout>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabCategories"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/spacing_page"
+        android:background="@android:color/transparent"
+        app:tabMode="scrollable"
+        app:tabIndicatorHeight="3dp"
+        app:tabIndicatorColor="@color/secondary"
+        app:tabTextColor="@color/text_secondary"
+        app:tabSelectedTextColor="@color/primary"
+        app:tabRippleColor="@color/glass_border" />
+
+    <TextView
+        android:id="@+id/tvPluginSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/spacing_page"
+        android:layout_marginTop="6dp"
+        android:text="@string/value_loading_ellipsis"
+        android:textColor="@color/text_secondary"
+        android:textSize="@dimen/text_caption" />
+
+    <!-- 插件列表：横屏下由代码切换为双列网格 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvPlugins"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="@dimen/spacing_page"
+        android:paddingTop="6dp"
+        android:paddingBottom="@dimen/bottom_spacer" />
+
+    <FrameLayout
+        android:id="@+id/layoutEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <include layout="@layout/layout_app_empty_state" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutLoading"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <include layout="@layout/layout_app_loading_state" />
+    </FrameLayout>
+</LinearLayout>

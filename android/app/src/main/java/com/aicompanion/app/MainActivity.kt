@@ -344,7 +344,7 @@ class MainActivity : AppCompatActivity() {
             chatViewModel.toggleSearchMode()
         }
         binding.btnSettings.setOnLongClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+            ActivityTransitionHelper.startWithSlideIn(this, Intent(this, SettingsActivity::class.java))
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             true
         }
@@ -489,31 +489,62 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Python 异步初始化编排入口
+     * Python 异步初始化编排入口。
+     * 在启动画面（splashOverlay）中显示逐步初始化进度，
+     * 替代原有的单一"正在初始化..."文字，让用户感知加载进度。
      */
     private fun initializePythonAsync() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                // 步骤1：加载 Python 对话引擎模块
                 withContext(Dispatchers.Main) {
-                    binding.tvStatus.text = getString(R.string.status_initializing)
+                    binding.tvSplashStatus.text = getString(R.string.splash_loading_engine)
                 }
                 val module = initPythonModule()
                 if (module == null) {
                     Log.e("MainActivity", "无法获取 Python chat_bridge 模块")
                     withContext(Dispatchers.Main) {
-                        binding.tvStatus.text = getString(R.string.error_init_failed, "Python 模块加载失败")
+                        binding.tvSplashStatus.text = getString(R.string.error_init_failed, "Python 模块加载失败")
                     }
                     return@launch
                 }
-                if (!initChatBridge(module)) return@launch
+
+                // 步骤2：注入 API Key
+                withContext(Dispatchers.Main) {
+                    binding.tvSplashStatus.text = getString(R.string.splash_injecting_key)
+                }
+                if (!injectApiKey(module)) return@launch
+
+                // 步骤3：初始化聊天引擎参数
+                withContext(Dispatchers.Main) {
+                    binding.tvSplashStatus.text = getString(R.string.splash_init_engine)
+                }
+                initChatEngine(module)
+
+                // 步骤4：初始化记忆系统
+                withContext(Dispatchers.Main) {
+                    binding.tvSplashStatus.text = getString(R.string.splash_loading_memory)
+                }
                 initMemorySystem(module)
+
+                // 步骤5：加载角色卡
+                withContext(Dispatchers.Main) {
+                    binding.tvSplashStatus.text = getString(R.string.splash_loading_character)
+                }
                 val character = loadCharacterCard(module)
+
+                // 步骤6：恢复世界书
+                withContext(Dispatchers.Main) {
+                    binding.tvSplashStatus.text = getString(R.string.splash_loading_worldbook)
+                }
                 restoreWorldBooks(module)
+
+                // 完成初始化
                 completeInit(module, character)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
                 withContext(Dispatchers.Main) {
-                    binding.tvStatus.text = getString(R.string.error_init_failed, e.message)
+                    binding.tvSplashStatus.text = getString(R.string.error_init_failed, e.message)
                 }
             }
         }
@@ -527,7 +558,7 @@ class MainActivity : AppCompatActivity() {
         val apiKey = AppConfig.getApiKey(this)
         if (apiKey.isNullOrBlank()) {
             withContext(Dispatchers.Main) {
-                binding.tvStatus.text = getString(R.string.error_init_api_key)
+                binding.tvSplashStatus.text = getString(R.string.error_init_api_key)
                 Toast.makeText(this@MainActivity, R.string.error_init_api_key, Toast.LENGTH_LONG).show()
             }
             return false
@@ -548,16 +579,6 @@ class MainActivity : AppCompatActivity() {
             if (it.isBlank()) "" else it
         }
         module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
-    }
-
-    /**
-     * 初始化聊天桥接：注入 API Key 并配置聊天引擎
-     * @return true 成功，false 失败
-     */
-    private suspend fun initChatBridge(module: com.chaquo.python.PyObject): Boolean {
-        if (!injectApiKey(module)) return false
-        initChatEngine(module)
-        return true
     }
 
     /**
@@ -795,7 +816,7 @@ class MainActivity : AppCompatActivity() {
         // 3. 插件管理：跳转 PluginManageActivity
         sheetView.findViewById<View>(R.id.pluginExtension)?.setOnClickListener {
             dialog.dismiss()
-            startActivity(Intent(this, PluginManageActivity::class.java))
+            ActivityTransitionHelper.startWithSlideIn(this, Intent(this, PluginManageActivity::class.java))
         }
 
         // 4. 联网搜索：切换开关

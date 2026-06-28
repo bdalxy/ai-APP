@@ -12,7 +12,6 @@ import uuid
 
 from src.chat_engine.role_player import RolePlayerError
 from src.config.settings import settings
-from src.plugins.plugin_manager import get_plugin_manager
 from src.utils.logger import get_logger
 from src.utils.time_utils import format_timestamp_iso
 
@@ -21,14 +20,23 @@ from ._state import _ctx, _CARD_DIR, _current_params
 
 _log = get_logger()
 
-# 插件管理器（全局单例，惰性初始化，避免提前加载）
+# 插件管理器（全局单例，惰性初始化，避免 _core.py 加载时导入 plugin_manager）
 _plugin_manager = None
+_plugin_manager_lock = threading.Lock()
 
 def _get_plugin_manager():
-    """惰性获取插件管理器，避免模块加载时提前初始化。"""
+    """惰性获取插件管理器，避免模块加载时提前初始化 plugin_manager 及其依赖链。
+
+    首次调用时才 from src.plugins.plugin_manager import get_plugin_manager，
+    减少冷启动时不必要的模块导入开销。使用双重检查锁定保证线程安全。
+    """
     global _plugin_manager
     if _plugin_manager is None:
-        _plugin_manager = get_plugin_manager()
+        with _plugin_manager_lock:
+            if _plugin_manager is None:
+                # 延迟导入：plugin_manager 的依赖链（插件扫描、注册等）仅在首次使用时加载
+                from src.plugins.plugin_manager import get_plugin_manager
+                _plugin_manager = get_plugin_manager()
     return _plugin_manager
 
 # 流式对话会话管理（队列+轮询方案，解决 Chaquopy 无法迭代 Python 生成器的问题）
@@ -524,7 +532,8 @@ def reset() -> dict:
         player.clear_context()
 
     # 清除缓存的记忆，防止旧记忆注入新对话
-    _state._cached_memories = []
+    with _state._lock:
+        _state._cached_memories = []
 
     # 重置世界书轮次计数
     try:

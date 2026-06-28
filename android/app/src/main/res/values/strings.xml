@@ -295,6 +295,13 @@
     <string name="toast_session_created">已创建会话「%s」</string>
     <string name="toast_session_deleted">会话已删除</string>
     <string name="status_initializing">正在初始化...</string>
+    <!-- 冷启动进度步骤 -->
+    <string name="splash_loading_engine">正在加载对话引擎...</string>
+    <string name="splash_injecting_key">正在注入 API Key...</string>
+    <string name="splash_init_engine">正在初始化聊天引擎...</string>
+    <string name="splash_loading_memory">正在加载记忆系统...</string>
+    <string name="splash_loading_character">正在加载角色卡...</string>
+    <string name="splash_loading_worldbook">正在加载世界书...</string>
     <string name="error_init_api_key">初始化失败：API Key 未配置</string>
     <string name="error_init_failed">初始化失败：%s</string>
     <string name="toast_message_too_long">消息过长，请限制在2000字以内</string>

@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from src.api_client.deepseek import DeepSeekClient
@@ -66,6 +67,7 @@ class MemoryOrchestrator:
         self.client = deepseek_client
         self.extractor = MemoryExtractor(deepseek_client, vector_store)
         self.retriever = MemoryRetriever(vector_store, deepseek_client)
+        self._state_lock = Lock()       # 保护 _turn_count、_extract_interval、config 的线程安全
         self._turn_count = 0          # 用于 LLM 提取节流
         self._extract_interval = 2    # 每 N 轮启用一次 LLM 提取（降低到2，减少信息丢失）
         self.config: dict[str, object] = {
@@ -102,8 +104,9 @@ class MemoryOrchestrator:
         """
         if n < 0:
             raise ValueError(f"提取间隔不能为负数: {n}")
-        old = self._extract_interval
-        self._extract_interval = n
+        with self._state_lock:
+            old = self._extract_interval
+            self._extract_interval = n
         self._log.info(
             f"[提取间隔] 已更新: {old} -> {n}"
         )
@@ -186,7 +189,10 @@ class MemoryOrchestrator:
         Returns:
             成功存储的记忆条数。
         """
-        self._turn_count += 1
+        with self._state_lock:
+            self._turn_count += 1
+            turn_count = self._turn_count
+            extract_interval = self._extract_interval
 
         if not user_msg or not ai_reply:
             self._log.warning("[记忆存储] 消息为空，跳过")

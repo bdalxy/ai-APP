@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 角色管理页面（横屏适配）：降低顶栏 + 优化间距，列表由代码切换双列网格 -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/character_manage_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_main_gradient">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 顶栏：横屏降低高度 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/topbar_height_land"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/spacing_xl"
+            android:background="@drawable/bg_glass_top"
+            android:elevation="@dimen/topbar_elevation">
+
+            <TextView
+                android:id="@+id/btnBack"
+                android:layout_width="@dimen/button_small"
+                android:layout_height="@dimen/button_small"
+                android:text="@string/btn_back_arrow"
+                android:textSize="@dimen/text_large"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/cd_back" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/title_character_manage"
+                android:textSize="@dimen/text_title"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/btnNewCharacter"
+                android:layout_width="@dimen/tag_width_wide"
+                android:layout_height="@dimen/tag_height"
+                android:text="@string/btn_new_character"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                android:background="@drawable/bg_input_field"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="@string/cd_new_character" />
+        </LinearLayout>
+
+        <!-- 角色列表：横屏下由代码切换为双列网格 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvCharacters"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingVertical="@dimen/card_list_padding_vertical"
+            android:clipToPadding="false" />
+
+        <LinearLayout
+            android:id="@+id/emptyState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="@dimen/spacing_5xl"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivEmptyIcon"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:src="@drawable/ic_feather"
+                android:alpha="0.35"
+                android:contentDescription="@null"
+                android:tint="@color/wb_text_hint" />
+
+            <TextView
+                android:id="@+id/tvEmptyTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_character_guide"
+                android:textColor="@color/text_secondary"
+                android:textSize="@dimen/text_subtitle"
+                android:gravity="center"
+                android:layout_marginTop="@dimen/spacing_3xl" />
+
+            <TextView
+                android:id="@+id/tvEmptyDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_character_desc"
+                android:textColor="@color/text_tertiary"
+                android:textSize="@dimen/text_body_small"
+                android:gravity="center"
+                android:layout_marginTop="@dimen/spacing_md" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/btnFabCreate"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:text="@string/fab_icon_plus"
+        android:textSize="28sp"
+        android:textColor="@color/wb_fab_icon"
+        android:gravity="center"
+        android:background="@drawable/bg_world_fab"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="6dp"
+        android:contentDescription="@string/cd_new_character" />
+</FrameLayout>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 世界书页面（横屏适配）：降低顶栏 + 优化间距，列表由代码切换双列网格 -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/worldBookRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 头部区域：横屏降低高度 -->
+        <LinearLayout
+            android:id="@+id/layoutHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:background="@drawable/bg_world_book_top"
+            android:paddingBottom="@dimen/spacing_xl">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/topbar_height_land"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="@dimen/spacing_page"
+                android:elevation="0dp">
+
+                <TextView
+                    android:id="@+id/btnBack"
+                    android:layout_width="@dimen/button_medium"
+                    android:layout_height="@dimen/button_medium"
+                    android:text="@string/btn_back_arrow"
+                    android:textSize="@dimen/text_large"
+                    android:textColor="@color/wb_text_warm"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:contentDescription="@string/cd_back" />
+
+                <TextView
+                    android:id="@+id/tvPageTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/title_world_book"
+                    android:textSize="@dimen/text_heading"
+                    android:textStyle="bold"
+                    android:textColor="@color/wb_text_warm"
+                    android:gravity="center" />
+
+                <View
+                    android:layout_width="@dimen/button_medium"
+                    android:layout_height="@dimen/button_medium" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:contentDescription="@string/cd_world_book_avatar">
+
+                <View
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_avatar_circle" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="?"
+                    android:textSize="32sp"
+                    android:textColor="@color/wb_text_secondary"
+                    android:alpha="0.6" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tvSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_world_book"
+                android:textSize="@dimen/text_subtitle"
+                android:textColor="@color/wb_text_warm"
+                android:textStyle="bold"
+                android:layout_marginTop="@dimen/spacing_md" />
+
+            <TextView
+                android:id="@+id/tvDescHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/desc_world_book_hint"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/wb_text_secondary"
+                android:gravity="center"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:paddingHorizontal="@dimen/spacing_5xl"
+                android:lineSpacingExtra="2dp" />
+
+            <TextView
+                android:id="@+id/tvEntryCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/wb_text_hint"
+                android:layout_marginTop="@dimen/spacing_sm" />
+        </LinearLayout>
+
+        <!-- 条目列表：横屏下由代码切换为双列网格 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvEntries"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingTop="@dimen/spacing_sm"
+            android:paddingBottom="@dimen/spacing_3xl"
+            android:paddingHorizontal="@dimen/spacing_page" />
+
+        <FrameLayout
+            android:id="@+id/layoutEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone">
+
+            <include layout="@layout/layout_app_empty_state" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/layoutLoading"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone">
+
+            <include layout="@layout/layout_app_loading_state" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddEntry"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/spacing_page"
+        android:contentDescription="@string/cd_world_fab"
+        app:srcCompat="@drawable/ic_feather"
+        app:backgroundTint="@color/wb_fab_bg"
+        app:borderWidth="1dp"
+        app:strokeColor="@color/wb_fab_border"
+        app:elevation="4dp"
+        app:fabCustomSize="56dp"
+        app:tint="@color/wb_fab_icon"
+        app:rippleColor="@color/wb_text_hint" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

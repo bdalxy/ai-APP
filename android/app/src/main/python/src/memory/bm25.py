@@ -312,21 +312,65 @@ class BM25Scorer:
     def score_single(self, query: str, doc_id: str) -> float:
         """计算查询与单个文档的 BM25 分数。
 
+        直接使用倒排索引计算单文档分数，避免 O(N) 全量扫描。
+        复杂度 O(Q)，Q 为查询词数量，与文档总数无关。
+
         Args:
             query: 查询文本。
             doc_id: 文档 ID。
 
         Returns:
-            BM25 分数。如果文档不存在，返回 0.0。
+            BM25 分数。如果文档不存在或查询为空，返回 0.0。
         """
         if doc_id not in self._documents:
             return 0.0
 
-        results = self.score(query, top_k=self._total_docs)
-        for candidate_id, score in results:
-            if candidate_id == doc_id:
-                return score
-        return 0.0
+        if not query or not query.strip():
+            return 0.0
+
+        # 查询分词
+        query_tokens = _tokenize_cn(query)
+        if not query_tokens:
+            return 0.0
+
+        # 查询词频
+        query_tf = Counter(query_tokens)
+
+        k1 = self._config.k1
+        b = self._config.b
+        eps = self._config.epsilon
+        doc_len = self._doc_lengths.get(doc_id, 1)
+
+        total_score = 0.0
+
+        # 仅遍历查询词，通过倒排索引直接查找该词在目标文档中的 tf
+        for term, qt in query_tf.items():
+            # 跳过不在倒排索引中的词（该词未出现在任何文档中）
+            if term not in self._inverted_index:
+                continue
+            # 跳过不包含该词的目标文档
+            if doc_id not in self._inverted_index[term]:
+                continue
+
+            tf = self._inverted_index[term][doc_id]
+            df = self._doc_freq.get(term, 0)
+
+            # IDF 计算（Robertson-Sparck Jones 公式，与 score() 保持一致）
+            idf = math.log(
+                (self._total_docs - df + 0.5) / (df + 0.5 + eps) + 1.0
+            )
+
+            # BM25 核心公式
+            numerator = tf * (k1 + 1.0)
+            denominator = tf + k1 * (
+                1.0 - b + b * doc_len / max(self._avg_doc_length, 1.0)
+            )
+            term_score = idf * numerator / denominator
+
+            # 查询词频加权
+            total_score += term_score * qt
+
+        return total_score
 
     # =========================================================================
     # 查询扩展

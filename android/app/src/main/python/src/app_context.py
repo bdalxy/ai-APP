@@ -18,6 +18,7 @@ MemoryOrchestrator 的生命周期，解决切换预设/模型时的资源泄露
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import TYPE_CHECKING
 
 from src.api_client.deepseek import DeepSeekClient
@@ -53,6 +54,7 @@ class AppContext:
         self._orchestrator: MemoryOrchestrator | None = None
         self._turn_counter: int = 0
         self._current_preset: str = "balanced"
+        self._lock = Lock()  # 保护 _turn_counter、_current_preset 等可变状态的线程安全
         self._log = get_logger()
 
     # =========================================================================
@@ -92,12 +94,14 @@ class AppContext:
     @property
     def turn_counter(self) -> int:
         """获取当前对话轮次计数。"""
-        return self._turn_counter
+        with self._lock:
+            return self._turn_counter
 
     @property
     def current_preset(self) -> str:
         """获取当前 Token 预设名称。"""
-        return self._current_preset
+        with self._lock:
+            return self._current_preset
 
     # =========================================================================
     # 生命周期管理
@@ -128,7 +132,8 @@ class AppContext:
             raise ValueError("API Key 未配置，请先设置 API Key")
 
         self._client = DeepSeekClient()
-        self._current_preset = preset
+        with self._lock:
+            self._current_preset = preset
 
         self._player = RolePlayer(
             self._client,
@@ -178,7 +183,8 @@ class AppContext:
             vector_store=vector_store,
             deepseek_client=self._client,
         )
-        self._turn_counter = 0
+        with self._lock:
+            self._turn_counter = 0
 
         self._log.info(
             f"记忆系统初始化完成: db={db_file}, 记忆数={vector_store.count()}"
@@ -215,7 +221,8 @@ class AppContext:
                 self._log.warning(f"[清理] 关闭 DeepSeekClient 失败: {e}")
             self._client = None
 
-        self._turn_counter = 0
+        with self._lock:
+            self._turn_counter = 0
         self._log.info("AppContext 已关闭所有资源")
 
         # 关闭 chat_bridge 的全局线程池，防止线程泄漏
@@ -227,7 +234,8 @@ class AppContext:
 
     def reset_turn_counter(self) -> None:
         """重置对话轮次计数器。"""
-        self._turn_counter = 0
+        with self._lock:
+            self._turn_counter = 0
 
     def increment_turn(self) -> int:
         """递增对话轮次计数器并返回新值。
@@ -235,5 +243,6 @@ class AppContext:
         Returns:
             递增后的轮次计数。
         """
-        self._turn_counter += 1
-        return self._turn_counter
+        with self._lock:
+            self._turn_counter += 1
+            return self._turn_counter

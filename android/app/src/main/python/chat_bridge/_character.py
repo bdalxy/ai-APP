@@ -12,7 +12,7 @@ from typing import Any
 from src.config.settings import settings
 from src.utils.logger import get_logger
 
-from ._state import _current_character, _CARD_DIR, _ctx
+from ._state import _current_character, _CARD_DIR, _ctx, _lock
 
 _log = get_logger()
 
@@ -67,8 +67,9 @@ def set_character_card(char_json: str) -> str:
         settings.CHARACTER_ROLE_ANCHOR = data.get("role_anchor", "")
 
         # 2. 更新 _current_character（完整字段）
-        _current_character.clear()
-        _current_character.update({
+        with _lock:
+            _current_character.clear()
+            _current_character.update({
             "name": name,
             "personality": data.get("personality", ""),
             "speaking_style": data.get("speaking_style", data.get("speakingStyle", "")),
@@ -138,15 +139,16 @@ def set_character_card_legacy(name: str, personality: str, speaking_style: str, 
 def get_character_card() -> str:
     """获取当前角色卡信息（优先从 _current_character 返回，兜底从 settings）。"""
     try:
-        if _current_character:
-            char = dict(_current_character)
-        else:
-            char = {
-                "name": getattr(settings, 'CHARACTER_NAME', '小美'),
-                "personality": getattr(settings, 'CHARACTER_PERSONALITY', ''),
-                "speaking_style": getattr(settings, 'CHARACTER_SPEAKING_STYLE', ''),
-                "backstory": getattr(settings, 'CHARACTER_BACKSTORY', ''),
-            }
+        with _lock:
+            if _current_character:
+                char = dict(_current_character)
+            else:
+                char = {
+                    "name": getattr(settings, 'CHARACTER_NAME', '小美'),
+                    "personality": getattr(settings, 'CHARACTER_PERSONALITY', ''),
+                    "speaking_style": getattr(settings, 'CHARACTER_SPEAKING_STYLE', ''),
+                    "backstory": getattr(settings, 'CHARACTER_BACKSTORY', ''),
+                }
         return json.dumps({"status": "ok", "character": char}, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
@@ -167,18 +169,20 @@ def reload_card() -> str:
     if player is None:
         return json.dumps({"status": "error", "message": "引擎未初始化"})
 
-    if not _current_character:
-        return json.dumps({"status": "error", "message": "没有设置角色卡"})
+    with _lock:
+        if not _current_character:
+            return json.dumps({"status": "error", "message": "没有设置角色卡"})
+        char_snapshot = dict(_current_character)
 
     try:
         # 重新加载角色卡
-        player.load_card_from_dict(dict(_current_character), output_dir=str(_CARD_DIR))
+        player.load_card_from_dict(char_snapshot, output_dir=str(_CARD_DIR))
         # 清除旧对话上下文（角色切换后不应保留）
         player.clear_context()
-        _log.info(f"角色卡已重新加载: {_current_character.get('name', '未知')}")
+        _log.info(f"角色卡已重新加载: {char_snapshot.get('name', '未知')}")
         return json.dumps({
             "status": "ok",
-            "character": dict(_current_character),
+            "character": char_snapshot,
             "message": "角色卡已重新加载，对话上下文已清除",
         })
     except Exception as e:
