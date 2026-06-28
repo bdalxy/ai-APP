@@ -60,7 +60,7 @@ class PluginAdapter(
 
             statusLabel.text = plugin.statusLabel
 
-            val statusColor = if (plugin.enabled) R.color.elysian_purple else R.color.text_tertiary
+            val statusColor = if (plugin.enabled) R.color.primary else R.color.text_tertiary
             statusLabel.setTextColor(ContextCompat.getColor(context, statusColor))
 
             callCountTv.text = "调用 ${plugin.callCount} 次"

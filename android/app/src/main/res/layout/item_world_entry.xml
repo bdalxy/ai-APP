@@ -2,6 +2,7 @@
 <!-- 世界书常识条目卡片 — 天使白卡片 + 左滑操作 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingVertical="@dimen/spacing_sm">
@@ -69,9 +70,9 @@
                 android:gravity="center"
                 android:paddingHorizontal="@dimen/spacing_xl"
                 android:paddingVertical="@dimen/spacing_xs"
-                android:text="世界观"
                 android:textSize="@dimen/text_caption"
-                android:textColor="@color/wb_tag_text" />
+                android:textColor="@color/wb_tag_text"
+                tools:text="世界观" />
 
             <TextView
                 android:id="@+id/tvTime"
@@ -86,11 +87,11 @@
             android:id="@+id/tvContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="常识内容..."
             android:textSize="@dimen/text_body_small"
             android:textColor="@color/wb_text_warm"
             android:maxLines="4"
             android:ellipsize="end"
-            android:lineSpacingExtra="4dp" />
+            android:lineSpacingExtra="4dp"
+            tools:text="常识内容..." />
     </LinearLayout>
 </FrameLayout>

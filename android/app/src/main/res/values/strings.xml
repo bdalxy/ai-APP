@@ -427,6 +427,8 @@
     <string name="cd_world_fab">新增常识条目</string>
     <string name="cd_edit_entry">编辑常识</string>
     <string name="cd_delete_entry">遗忘常识</string>
+    <string name="uncategorized">未分类</string>
+    <string name="default_world_book_description">共享的常识根基</string>
 <!-- ===== 引导页 (Onboarding) ===== -->
     <string name="onboarding_skip">跳过</string>
     <string name="onboarding_next">下一步</string>

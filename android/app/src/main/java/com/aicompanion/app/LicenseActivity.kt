@@ -25,12 +25,12 @@ class LicenseActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dip(16), dip(12), dip(16), dip(12))
-            setBackgroundColor(ContextCompat.getColor(context, R.color.surface))
+            setBackgroundResource(R.drawable.bg_sakura_header)
         }
         val btnBack = TextView(this).apply {
             text = "← 返回"
             textSize = 16f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            setTextColor(ContextCompat.getColor(context, R.color.wb_text_warm))
             setPadding(0, 0, dip(16), 0)
             setOnClickListener { finish() }
         }
@@ -38,7 +38,7 @@ class LicenseActivity : AppCompatActivity() {
         titleBar.addView(TextView(this).apply {
             text = "开源许可"
             textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            setTextColor(ContextCompat.getColor(context, R.color.wb_text_warm))
             paint.isFakeBoldText = true
         })
         rootLayout.addView(titleBar)

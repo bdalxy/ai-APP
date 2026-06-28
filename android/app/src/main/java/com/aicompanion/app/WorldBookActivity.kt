@@ -95,7 +95,7 @@ class WorldBookActivity : AppCompatActivity() {
                     if (json.optString("status") == "ok") {
                         json.optJSONObject("book")?.optJSONArray("entries")?.toString() ?: "[]"
                     } else {
-                        module.callAttr("create_world_book", DEFAULT_BOOK_NAME, "共享的常识根基", "[]")
+                        module.callAttr("create_world_book", DEFAULT_BOOK_NAME, getString(R.string.default_world_book_description), "[]")
                         "[]"
                     }
                 }

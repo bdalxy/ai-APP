@@ -111,6 +111,12 @@
     <color name="wb_edit_bg">#30B0C4DE</color>
     <color name="wb_delete_bg">#30E57373</color>
 
+    <!-- ===== 插件标签配色 ===== -->
+    <color name="plugin_tag_category_bg">#1AB0C4DE</color>       <!-- 分类标签填充：淡天蓝10% -->
+    <color name="plugin_tag_category_border">#40B0C4DE</color>   <!-- 分类标签边框：淡天蓝25% -->
+    <color name="plugin_tag_builtin_bg">#1AFFDCE3</color>        <!-- 内置标签填充：淡樱粉10% -->
+    <color name="plugin_tag_builtin_border">#40FFDCE3</color>    <!-- 内置标签边框：淡樱粉25% -->
+
     <!-- 保留兼容旧引用 -->
     <color name="elysian_purple">#9B59B6</color>
     <color name="elysian_pink">#FFDCE3</color>

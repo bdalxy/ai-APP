@@ -4,7 +4,6 @@ import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -47,7 +46,7 @@ class WorldBookAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val entry = entries[position]
-        holder.tvCategory.text = entry.category.ifEmpty { "未分类" }
+        holder.tvCategory.text = entry.category.ifEmpty { context.getString(R.string.uncategorized) }
         holder.tvContent.text = entry.content
         val time = if (entry.updatedAt.length >= 10) {
             entry.updatedAt.substring(0, 10)
@@ -113,7 +112,7 @@ class WorldBookAdapter(
             card, "backgroundColor",
             ContextCompat.getColor(context, R.color.wb_card_bg),
             ContextCompat.getColor(context, R.color.wb_forget_cold),
-            Color.WHITE
+            ContextCompat.getColor(context, android.R.color.white)
         ).apply { duration = 400; setEvaluator(android.animation.ArgbEvaluator()) }
         val scaleX = ObjectAnimator.ofFloat(card, "scaleX", 1f, 0.6f, 0f).apply { duration = 500; startDelay = 200 }
         val scaleY = ObjectAnimator.ofFloat(card, "scaleY", 1f, 0.6f, 0f).apply { duration = 500; startDelay = 200 }
