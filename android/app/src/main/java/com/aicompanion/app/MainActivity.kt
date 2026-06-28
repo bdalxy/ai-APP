@@ -586,16 +586,16 @@ class MainActivity : AppCompatActivity() {
      * 冷启动过渡动画：淡出启动画面
      */
     private fun dismissSplash() {
-        binding.splashOverlay.animate()
-            .alpha(0f)
-            .setDuration(400)
-            .setListener(object : AnimatorListenerAdapter() {
+        binding.splashOverlay?.animate()
+            ?.alpha(0f)
+            ?.setDuration(400)
+            ?.setListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
-                    binding.splashOverlay.visibility = View.GONE
+                    binding.splashOverlay?.visibility = View.GONE
                     updateChatEmptyState()
                 }
             })
-            .start()
+            ?.start()
     }
 
     /**
@@ -604,18 +604,18 @@ class MainActivity : AppCompatActivity() {
     private fun updateChatEmptyState() {
         val isEmpty = adapter.itemCount == 0
         if (isEmpty) {
-            binding.layoutChatEmpty.visibility = View.VISIBLE
+            binding.layoutChatEmpty?.visibility = View.VISIBLE
             binding.rvMessages.visibility = View.GONE
             // 设置空状态文案
-            val ivEmpty = binding.layoutChatEmpty.findViewById<ImageView>(R.id.ivEmptyIcon)
-            val tvTitle = binding.layoutChatEmpty.findViewById<TextView>(R.id.tvEmptyTitle)
-            val tvDesc = binding.layoutChatEmpty.findViewById<TextView>(R.id.tvEmptyDesc)
+            val ivEmpty = binding.layoutChatEmpty?.findViewById<ImageView>(R.id.ivEmptyIcon)
+            val tvTitle = binding.layoutChatEmpty?.findViewById<TextView>(R.id.tvEmptyTitle)
+            val tvDesc = binding.layoutChatEmpty?.findViewById<TextView>(R.id.tvEmptyDesc)
             ivEmpty?.setImageResource(R.drawable.ic_feather)
             ivEmpty?.setColorFilter(Color.parseColor("#B0C4DE"))
             tvTitle?.text = getString(R.string.empty_chat_title)
             tvDesc?.text = getString(R.string.empty_chat_desc)
         } else {
-            binding.layoutChatEmpty.visibility = View.GONE
+            binding.layoutChatEmpty?.visibility = View.GONE
             binding.rvMessages.visibility = View.VISIBLE
         }
     }
