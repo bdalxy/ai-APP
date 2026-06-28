@@ -373,7 +373,7 @@
     <string name="label_auto_read_aloud">AIの返信を自動読み上げ</string>
     <string name="label_voice_recognition_lang">認識言語</string>
     <string name="label_wake_word">ウェイクワード検出</string>
-    <string name="label_wake_word_desc">「小星」と呼びかけると音声入力を起動</string>
+    <string name="label_wake_word_desc">「星遥」と呼びかけると音声入力を起動</string>
 
     <!-- 音色オプション -->
     <string name="voice_timbre_default">デフォルト</string>

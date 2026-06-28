@@ -379,7 +379,7 @@
     <string name="label_auto_read_aloud">自动朗读AI回复</string>
     <string name="label_voice_recognition_lang">识别语言</string>
     <string name="label_wake_word">唤醒词检测</string>
-    <string name="label_wake_word_desc">说"小星"即可唤醒语音输入</string>
+    <string name="label_wake_word_desc">说"星遥"即可唤醒语音输入</string>
 
     <!-- 音色选项 -->
     <string name="voice_timbre_default">默认音色</string>

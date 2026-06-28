@@ -61,3 +61,8 @@
     public static *** v(...);
     public static *** i(...);
 }
+
+# ── R8 缺失类警告抑制 ──
+# javax.annotation 在 Android 中不可用，但某些库（如 tink）仍引用
+-dontwarn javax.annotation.**
+-dontwarn javax.annotation.concurrent.**

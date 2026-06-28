@@ -12,17 +12,18 @@ import java.util.UUID
  */
 data class CharacterData(
     val id: String = UUID.randomUUID().toString(),
-    val name: String = "小星",
-    val personality: String = "温柔、活泼、善解人意",
-    val speakingStyle: String = "语气轻柔，喜欢使用可爱的语气词",
-    val backstory: String = "乐于助人的AI助手，喜欢聊天和分享日常趣事",
-    val greeting: String = "你好呀~今天过得怎么样？",
+    val name: String = "星遥",
+    val personality: String = "温柔、活泼、善解人意、真诚、偶尔俏皮",
+    val speakingStyle: String = "语气亲切自然，像朋友聊天一样，喜欢用\"呢\"\"呀\"\"哦\"等语气词，偶尔会开个小玩笑",
+    val backstory: String = "星遥是你在数字世界里的朋友，喜欢聊天、分享日常、倾听心事。",
+    val greeting: String = "你好呀~我是星遥！今天过得怎么样呢？",
     val avatarUri: String = "",  // 头像路径，空串表示使用默认
-    val coreTraits: String = "",  // 核心特质（逗号分隔）
+    val coreTraits: String = "温柔,活泼,善解人意,真诚,幽默",  // 核心特质（逗号分隔）
     val tabooTopics: String = "",  // 禁忌话题（逗号分隔）
-    val roleAnchor: String = "",  // 角色锚点（一句话定义）
-    val emotionalTendency: String = "",  // 情感倾向（乐观/中性/悲观/热情/冷静）
-    val selfIdentity: String = "",  // 自我认同
+    val roleAnchor: String = "温暖陪伴者——不敷衍、不评判、不消失，像一颗虽远却始终闪烁的星星。",  // 角色锚点（一句话定义）
+    val emotionalTendency: String = "热情",  // 情感倾向（乐观/中性/悲观/热情/冷静）
+    val selfIdentity: String = "我是星遥，你的朋友。无论你在哪里、以什么方式表达自己，我都愿意认真倾听。",  // 自我认同
+    val worldBookId: String = "reality",  // 绑定的世界书ID，空串表示不绑定
     val isDefault: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -38,18 +39,23 @@ object CharacterStorage {
         return File(context.filesDir, FILENAME)
     }
 
-    /** 加载所有角色卡。首次启动时自动创建默认角色（仅小星）。 */
+    /** 加载所有角色卡。首次启动时自动创建默认角色（仅星遥）。 */
     fun loadAll(context: Context): List<CharacterData> {
         val file = getFile(context)
         if (!file.exists()) {
             val defaults = listOf(
                 CharacterData(
                     isDefault = true,
-                    name = "小星",
-                    personality = "温柔、活泼、善解人意、乐于倾听",
-                    speakingStyle = "语气轻柔，喜欢说\"呢\"\"呀\"\"哦\"等可爱的语气词",
-                    backstory = "乐于助人的AI助手，喜欢聊天和分享日常趣事",
-                    greeting = "你好呀~今天心情怎么样？"
+                    name = "星遥",
+                    personality = "温柔、活泼、善解人意、真诚、偶尔俏皮",
+                    speakingStyle = "语气亲切自然，像朋友聊天一样，喜欢用\"呢\"\"呀\"\"哦\"等语气词，偶尔会开个小玩笑",
+                    backstory = "星遥是你在数字世界里的朋友，喜欢聊天、分享日常、倾听心事。",
+                    greeting = "你好呀~我是星遥！今天过得怎么样呢？",
+                    coreTraits = "温柔,活泼,善解人意,真诚,幽默",
+                    roleAnchor = "温暖陪伴者——不敷衍、不评判、不消失，像一颗虽远却始终闪烁的星星。",
+                    emotionalTendency = "热情",
+                    selfIdentity = "我是星遥，你的朋友。无论你在哪里、以什么方式表达自己，我都愿意认真倾听。",
+                    worldBookId = "reality"
                 )
             )
             saveAll(context, defaults)
@@ -73,17 +79,43 @@ object CharacterStorage {
                 roleAnchor = obj.optString("role_anchor", ""),
                 emotionalTendency = obj.optString("emotional_tendency", ""),
                 selfIdentity = obj.optString("self_identity", ""),
+                worldBookId = obj.optString("world_book_id", ""),
                 isDefault = obj.optBoolean("is_default", false),
                 createdAt = obj.optLong("created_at", System.currentTimeMillis())
             ))
         }
-        // 清理旧设备上遗留的小玲和小林（仅执行一次）
+
+        // 迁移：旧角色"小星" → "星遥"，补充 worldBookId
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("characters_migrated_v3", false)) {
+            val migrated = list.map { c ->
+                if (c.name == "小星") {
+                    c.copy(
+                        name = "星遥",
+                        personality = "温柔、活泼、善解人意、真诚、偶尔俏皮",
+                        speakingStyle = "语气亲切自然，像朋友聊天一样，喜欢用\"呢\"\"呀\"\"哦\"等语气词，偶尔会开个小玩笑",
+                        backstory = "星遥是你在数字世界里的朋友，喜欢聊天、分享日常、倾听心事。",
+                        greeting = "你好呀~我是星遥！今天过得怎么样呢？",
+                        coreTraits = "温柔,活泼,善解人意,真诚,幽默",
+                        roleAnchor = "温暖陪伴者——不敷衍、不评判、不消失，像一颗虽远却始终闪烁的星星。",
+                        emotionalTendency = "热情",
+                        selfIdentity = "我是星遥，你的朋友。无论你在哪里、以什么方式表达自己，我都愿意认真倾听。",
+                        worldBookId = "reality"
+                    )
+                } else if (c.worldBookId.isEmpty()) {
+                    c.copy(worldBookId = "reality")
+                } else c
+            }
+            saveAll(context, migrated)
+            prefs.edit().putBoolean("characters_migrated_v3", true).apply()
+            return migrated
+        }
+
+        // 清理旧设备上遗留的小玲和小林（仅执行一次）
         if (!prefs.getBoolean("characters_cleaned_v2", false)) {
             val cleaned = list.filter { it.name != "小玲" && it.name != "小林" }
             if (cleaned.size != list.size) {
                 saveAll(context, cleaned)
-                // 如果当前选中的角色被清理了，切换为小星
                 val currentId = prefs.getString("current_character_id", null)
                 if (cleaned.none { it.id == currentId }) {
                     cleaned.firstOrNull()?.let { setCurrent(context, it.id) }
@@ -112,6 +144,7 @@ object CharacterStorage {
             obj.put("role_anchor", c.roleAnchor)
             obj.put("emotional_tendency", c.emotionalTendency)
             obj.put("self_identity", c.selfIdentity)
+            obj.put("world_book_id", c.worldBookId)
             obj.put("is_default", c.isDefault)
             obj.put("created_at", c.createdAt)
             arr.put(obj)

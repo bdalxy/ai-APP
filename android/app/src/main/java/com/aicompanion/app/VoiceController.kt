@@ -64,7 +64,7 @@ class VoiceController(
     // ── 唤醒词检测 ──
     private var wakeWordJob: Job? = null
     private var isWakeWordDetectionActive = false
-    private val wakeWords = listOf("小星", "小星小星", "hey小星", "你好小星")
+    private val wakeWords = listOf("星遥", "星遥星遥", "hey星遥", "你好星遥")
 
     fun init() {
         initSpeechManager()
@@ -387,7 +387,7 @@ class VoiceController(
     /**
      * 启动唤醒词持续监听。
      * 在后台循环使用 SpeechRecognizer 监听，检测到唤醒词后触发完整语音识别。
-     * 唤醒词列表：小星、小星小星、hey小星、你好小星
+     * 唤醒词列表：星遥、星遥星遥、hey星遥、你好星遥
      */
     fun startWakeWordDetection() {
         if (isWakeWordDetectionActive) {

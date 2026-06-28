@@ -49,6 +49,7 @@
     <!-- ===== 顶栏 ===== -->
     <dimen name="topbar_height">56dp</dimen>
     <dimen name="topbar_height_alt">52dp</dimen>
+    <dimen name="topbar_height_land">56dp</dimen>
     <dimen name="topbar_elevation">4dp</dimen>
 
     <!-- ===== 设置项 ===== -->
@@ -69,6 +70,7 @@
 
     <!-- ===== 消息列表 ===== -->
     <dimen name="message_list_padding">8dp</dimen>
+    <dimen name="message_list_padding_land">8dp</dimen>
     <dimen name="message_bubble_max_width">280dp</dimen>
     <dimen name="message_bubble_padding_h">14dp</dimen>
     <dimen name="message_bubble_padding_v">10dp</dimen>

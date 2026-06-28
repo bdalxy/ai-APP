@@ -543,22 +543,44 @@ class MainActivity : AppCompatActivity() {
             put("core_traits", character.coreTraits)
             put("taboo_topics", character.tabooTopics)
             put("role_anchor", character.roleAnchor)
+            put("world_book_id", character.worldBookId)
         }.toString()
         module.callAttr("set_character_card", charJson)
         return character
     }
 
     /**
-     * 恢复已启用的世界书
+     * 恢复已启用的世界书，并自动启用角色绑定的世界书
      */
     private fun restoreWorldBooks(module: com.chaquo.python.PyObject) {
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val savedBooks = prefs.getString("enabled_world_books", "") ?: ""
+        val enabledNames = mutableSetOf<String>()
         if (savedBooks.isNotBlank()) {
             savedBooks.split(",").filter { it.isNotBlank() }.forEach { name ->
-                module.callAttr("enable_world_book", name.trim())
+                try {
+                    module.callAttr("enable_world_book", name.trim())
+                    enabledNames.add(name.trim())
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "恢复世界书失败: $name", e)
+                }
             }
         }
+
+        // 自动启用角色绑定的世界书（如果尚未启用）
+        val character = CharacterStorage.getCurrent(this)
+        if (character.worldBookId.isNotBlank() && character.worldBookId !in enabledNames) {
+            try {
+                module.callAttr("enable_world_book", character.worldBookId)
+                enabledNames.add(character.worldBookId)
+                Log.d("MainActivity", "已自动启用角色绑定的世界书: ${character.worldBookId}")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "自动启用世界书失败: ${character.worldBookId}", e)
+            }
+        }
+
+        // 持久化当前启用的世界书列表
+        prefs.edit().putString("enabled_world_books", enabledNames.joinToString(",")).apply()
     }
 
     /**
@@ -642,9 +664,25 @@ class MainActivity : AppCompatActivity() {
                     put("greeting", character.greeting)
                     put("emotional_tendency", character.emotionalTendency)
                     put("self_identity", character.selfIdentity)
+                    put("world_book_id", character.worldBookId)
                 }.toString()
                 pythonModule.callAttr("set_character_card", charJson)
                 pythonModule.callAttr("reload_card")
+
+                // 自动启用角色绑定的世界书
+                if (character.worldBookId.isNotBlank()) {
+                    try {
+                        pythonModule.callAttr("enable_world_book", character.worldBookId)
+                        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                        val savedBooks = prefs.getString("enabled_world_books", "") ?: ""
+                        val enabledNames = savedBooks.split(",").filter { it.isNotBlank() }.toMutableSet()
+                        enabledNames.add(character.worldBookId)
+                        prefs.edit().putString("enabled_world_books", enabledNames.joinToString(",")).apply()
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "自动启用世界书失败: ${character.worldBookId}", e)
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
                     binding.tvTitle.text = character.name
                 }
