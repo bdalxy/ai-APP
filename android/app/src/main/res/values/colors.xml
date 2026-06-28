@@ -126,4 +126,42 @@
     <color name="sakura_gradient_start">#FCE4E0</color>
     <color name="sakura_gradient_end">#D4E8F0</color>
     <color name="sakura_shadow">#18B0C4DE</color>
+
+    <!-- ===== drawable 专用色（暗色模式适配） ===== -->
+    <!-- 气泡阴影/描边 -->
+    <color name="bubble_ai_shadow">#18FFB7C5</color>
+    <color name="bubble_ai_stroke">#20FFB7C5</color>
+    <color name="bubble_user_shadow">#209B59B6</color>
+    <!-- 输入框聚焦描边 -->
+    <color name="input_focused_border">#3D9B59B6</color>
+    <!-- 主按钮 -->
+    <color name="btn_primary_start">#FFDCE3</color>
+    <color name="btn_primary_end">#D4E8F0</color>
+    <color name="btn_primary_stroke">#80FFFFFF</color>
+    <!-- 发送按钮 -->
+    <color name="btn_send_start">#FFB7C5</color>
+    <color name="btn_send_end">#9B59B6</color>
+    <!-- 发送按钮非激活态v2 -->
+    <color name="send_inactive_v2_solid">#269B59B6</color>
+    <color name="send_inactive_v2_stroke">#409B59B6</color>
+    <!-- 设置卡片 -->
+    <color name="settings_card_bg">#1A1028</color>
+    <color name="settings_card_stroke">#2DFFFFFF</color>
+    <!-- 开关关闭态 -->
+    <color name="switch_track_off">#E0E8F0</color>
+    <color name="switch_thumb_off">#FFFFFF</color>
+    <!-- 未读红点 -->
+    <color name="unread_dot">#FF6B8B</color>
+    <!-- 播放按钮 -->
+    <color name="play_button_bg">#33F0B0C0</color>
+    <!-- 打字光点 -->
+    <color name="typing_dot">#FFB7C5</color>
+    <!-- 启动页渐变 -->
+    <color name="launcher_gradient_start">#8E44AD</color>
+    <color name="launcher_gradient_center">#9B59B6</color>
+    <color name="launcher_gradient_end">#B07CC6</color>
+    <!-- 樱羽标题栏 -->
+    <color name="sakura_header_start">#FDF0F0</color>
+    <color name="sakura_header_center">#FCE4E0</color>
+    <color name="sakura_header_end">#F8D8D8</color>
 </resources>

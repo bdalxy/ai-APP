@@ -337,11 +337,21 @@ def chat_stream_start(user_input: str) -> str:
                 if token.startswith("__DONE__:"):
                     full_reply = token[len("__DONE__:"):]
                 elif token.startswith("__ERROR__:"):
-                    error_msg = token[len("__ERROR__:"):]
-                    _log.debug(f"[流式对话] 角色扮演器返回错误: {error_msg}")
+                    error_payload = token[len("__ERROR__:"):]
+                    # 解析格式: error_type:message  或 兼容旧格式: message
+                    if ":" in error_payload:
+                        error_type, error_msg = error_payload.split(":", 1)
+                    else:
+                        error_type, error_msg = "unknown", error_payload
+                    _log.debug(f"[流式对话] 角色扮演器返回错误: type={error_type}, msg={error_msg}")
                     stream["error"] = error_msg
+                    stream["error_type"] = error_type
                     try:
-                        token_queue.put_nowait(json.dumps({"status": "error", "message": error_msg}))
+                        token_queue.put_nowait(json.dumps({
+                            "status": "error",
+                            "error_type": error_type,
+                            "message": error_msg,
+                        }))
                     except queue.Full:
                         _log.warning("[流式对话] 队列满，丢弃错误消息")
                     return
@@ -368,16 +378,18 @@ def chat_stream_start(user_input: str) -> str:
         except RolePlayerError as e:
             _log.debug(f"[流式对话] RolePlayerError: {e}")
             stream["error"] = str(e)
+            stream["error_type"] = "role_player"
             try:
-                token_queue.put_nowait(json.dumps({"status": "error", "message": str(e)}))
+                token_queue.put_nowait(json.dumps({"status": "error", "error_type": "role_player", "message": str(e)}))
             except queue.Full:
                 _log.warning("[流式对话] 队列满，丢弃错误消息")
         except Exception as e:
             _log.debug(f"[流式对话] 后台线程未知错误: {e}")
             _log.debug(f"[流式对话] 异常详情: {traceback.format_exc()}")
             stream["error"] = str(e)
+            stream["error_type"] = "internal"
             try:
-                token_queue.put_nowait(json.dumps({"status": "error", "message": f"内部错误: {e}"}))
+                token_queue.put_nowait(json.dumps({"status": "error", "error_type": "internal", "message": f"内部错误: {e}"}))
             except queue.Full:
                 _log.warning("[流式对话] 队列满，丢弃错误消息")
         finally:
@@ -438,7 +450,11 @@ def chat_stream_poll(stream_id: str) -> str:
         with _streams_lock:
             _streams.pop(stream_id, None)
         if stream["error"]:
-            return json.dumps({"status": "error", "message": stream["error"]})
+            return json.dumps({
+                "status": "error",
+                "error_type": stream.get("error_type", "unknown"),
+                "message": stream["error"],
+            })
         return json.dumps({"status": "done", "reply": stream["full_reply"]})
 
     return json.dumps({"status": "waiting"})

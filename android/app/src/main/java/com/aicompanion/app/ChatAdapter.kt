@@ -16,6 +16,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.speech.VoicePlayer
 import java.text.SimpleDateFormat
@@ -23,12 +24,17 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 聊天消息 RecyclerView 适配器。
+ * 聊天消息 RecyclerView 适配器（基于 ListAdapter + DiffUtil）。
+ * 使用 DiffUtil.ItemCallback 进行高效增量更新，替代全量 notifyDataSetChanged()。
+ *
  * 支持 AI 消息（左对齐头像+气泡）、用户消息（右对齐气泡+状态）、打字指示器。
  * 支持连续消息合并：同组消息只显示首条头像/昵称，末条时间戳。
+ *
+ * 注意：由于流式输出需要频繁更新单条消息，Adapter 内部维护一份 localMessages
+ * 作为本地缓存，确保 submitList() 异步期间数据一致性。所有读操作（getItemViewType、
+ * onBindViewHolder、getItemCount 等）都基于 localMessages。
  */
 class ChatAdapter(
-    private val messages: MutableList<Message>,
     private val onMessageLongClick: ((Message, Int) -> Unit)? = null,
     /** 语音播放回调：(voiceFilePath, play) -> 播放/暂停 */
     private val onVoiceClick: ((String, Boolean) -> Unit)? = null,
@@ -36,12 +42,19 @@ class ChatAdapter(
     private val onMessagesTrimmed: (() -> Unit)? = null,
     /** 数据变更回调：添加/删除/替换/清空消息时触发 */
     private val onDataChanged: (() -> Unit)? = null
-) : RecyclerView.Adapter<ChatAdapter.BaseViewHolder>() {
+) : ListAdapter<Message, ChatAdapter.BaseViewHolder>(MessageDiffCallback) {
 
     init {
         setHasStableIds(true)
     }
 
+    // ======================== DiffUtil.ItemCallback ========================
+
+    /**
+     * Message 的 DiffUtil 比较回调。
+     * 基于消息 id 判断是否为同一项，基于内容哈希判断内容是否变化。
+     * 作为 companion object 提供，供 ListAdapter 构造函数使用。
+     */
     companion object {
         private const val VIEW_TYPE_TYPING = 0
         private const val VIEW_TYPE_AI = 1
@@ -68,6 +81,44 @@ class ChatAdapter(
             return "$minutes:${seconds.toString().padStart(2, '0')}"
         }
     }
+
+    /**
+     * DiffUtil.ItemCallback 实现：基于 Message.id 判断是否为同一项，
+     * 基于内容相关字段的哈希判断内容是否变化。
+     */
+    object MessageDiffCallback : DiffUtil.ItemCallback<Message>() {
+        override fun areItemsTheSame(oldItem: Message, newItem: Message): Boolean {
+            return oldItem.id == newItem.id
+        }
+
+        override fun areContentsTheSame(oldItem: Message, newItem: Message): Boolean {
+            return oldItem.content == newItem.content &&
+                oldItem.status == newItem.status &&
+                oldItem.isGroupStart == newItem.isGroupStart &&
+                oldItem.isGroupEnd == newItem.isGroupEnd &&
+                oldItem.msgType == newItem.msgType &&
+                oldItem.voiceFilePath == newItem.voiceFilePath &&
+                oldItem.voiceDurationMs == newItem.voiceDurationMs &&
+                oldItem.voicePlayed == newItem.voicePlayed &&
+                oldItem.isEdited == newItem.isEdited
+        }
+
+        override fun getChangePayload(oldItem: Message, newItem: Message): Any? {
+            // 返回变更内容用于局部刷新，当前返回 null 触发完整 onBindViewHolder
+            return null
+        }
+    }
+
+    // ======================== 本地消息缓存 ========================
+
+    /**
+     * 本地消息列表缓存。
+     * ListAdapter 的 submitList() 是异步的（DiffUtil 在后台线程计算），
+     * 流式输出场景需要频繁读写最新数据，因此维护本地缓存作为数据源。
+     * 所有公开的读方法（getItemViewType、onBindViewHolder、getItemCount 等）
+     * 都基于此列表，确保数据一致性。
+     */
+    private val localMessages = mutableListOf<Message>()
 
     // ======================== ViewHolder ========================
 
@@ -130,7 +181,7 @@ class ChatAdapter(
         }
     }
 
-    // ======================== Adapter 方法 ========================
+    // ======================== 播放状态 ========================
 
     /** 当前正在播放的语音消息 position（用于 UI 更新），-1 表示无 */
     @Volatile
@@ -185,8 +236,10 @@ class ChatAdapter(
         return spannable
     }
 
+    // ======================== ListAdapter 核心方法 ========================
+
     override fun getItemViewType(position: Int): Int {
-        val msg = messages[position]
+        val msg = localMessages[position]
         return when {
             msg.isTyping -> VIEW_TYPE_TYPING
             msg.msgType == Message.MsgType.VOICE && msg.isUser -> VIEW_TYPE_USER_VOICE
@@ -234,7 +287,7 @@ class ChatAdapter(
     }
 
     override fun onBindViewHolder(holder: BaseViewHolder, position: Int) {
-        val message = messages[position]
+        val message = localMessages[position]
         holder.bind(message)
 
         // 长按菜单
@@ -427,34 +480,39 @@ class ChatAdapter(
         }
     }
 
-    override fun getItemCount(): Int = messages.size
+    /** 返回本地缓存列表大小，确保 submitList() 异步期间数据一致性 */
+    override fun getItemCount(): Int = localMessages.size
 
-    override fun getItemId(position: Int): Long = messages[position].id.hashCode().toLong()
+    override fun getItemId(position: Int): Long = localMessages[position].id.hashCode().toLong()
 
-    // ======================== 消息管理 ========================
+    // ======================== 消息管理 API ========================
 
     /**
      * 添加消息，自动处理连续消息合并逻辑。
      * 如果上一条消息的发送者相同，则合并为一组。
+     *
+     * 使用 ListAdapter 的 submitList() 提交数据，DiffUtil 自动计算增量更新。
+     * 由于 submitList() 是异步的（DiffUtil 在后台线程计算），本方法维护 localMessages
+     * 作为本地缓存，确保调用者可以立即获取正确的消息数量。
+     *
+     * @param message 要添加的消息
+     * @return 新消息在列表中的索引位置
      */
-    fun addMessage(message: Message) {
-        if (messages.size >= MAX_MESSAGES) {
+    fun addMessage(message: Message): Int {
+        if (localMessages.size >= MAX_MESSAGES) {
             Log.w(TAG, "消息数量达到上限($MAX_MESSAGES)，移除最早消息")
-            messages.removeAt(0)
-            notifyItemRemoved(0)
+            localMessages.removeAt(0)
             onMessagesTrimmed?.invoke()
         }
 
         // 连续消息合并：检查上一条消息
-        val mergedMessage = if (messages.isNotEmpty()) {
-            val lastMsg = messages.last()
+        val mergedMessage = if (localMessages.isNotEmpty()) {
+            val lastMsg = localMessages.last()
             if (lastMsg.isUser == message.isUser && !lastMsg.isTyping && !message.isTyping) {
                 // 同一发送者，合并到同一组
                 val groupId = lastMsg.groupId
                 // 更新上一条消息为非组尾
-                val updatedLast = lastMsg.copy(isGroupEnd = false)
-                messages[messages.size - 1] = updatedLast
-                notifyItemChanged(messages.size - 1)
+                localMessages[localMessages.size - 1] = lastMsg.copy(isGroupEnd = false)
 
                 message.copy(
                     groupId = groupId,
@@ -468,45 +526,60 @@ class ChatAdapter(
             message
         }
 
-        messages.add(mergedMessage)
-        notifyItemInserted(messages.size - 1)
+        localMessages.add(mergedMessage)
+        val newPosition = localMessages.size - 1
+        submitList(localMessages.toList())
         onDataChanged?.invoke()
+        return newPosition
     }
 
-    fun getMessages(): List<Message> = messages.toList()
+    /** 获取当前消息列表的只读副本 */
+    fun getMessages(): List<Message> = localMessages.toList()
 
+    /** 替换全部消息（兼容旧 API） */
     fun replaceAll(newMessages: List<Message>) {
         replaceMessages(newMessages)
     }
 
+    /**
+     * 移除指定位置的消息（仅限打字指示器）。
+     * @return 被移除的消息，如果不是打字指示器则返回 null
+     */
     fun removeTypingAt(position: Int): Message? {
-        if (position < 0 || position >= messages.size) return null
-        val msg = messages[position]
+        if (position < 0 || position >= localMessages.size) return null
+        val msg = localMessages[position]
         if (!msg.isTyping) return null
-        messages.removeAt(position)
-        notifyItemRemoved(position)
+        localMessages.removeAt(position)
+        submitList(localMessages.toList())
         onDataChanged?.invoke()
         return msg
     }
 
+    /**
+     * 更新指定位置的消息。
+     * 使用 submitList() 提交更新后的列表，DiffUtil 自动计算增量更新。
+     */
     fun updateMessage(position: Int, message: Message) {
-        if (position < 0 || position >= messages.size) return
-        messages[position] = message
-        notifyItemChanged(position)
+        if (position < 0 || position >= localMessages.size) return
+        localMessages[position] = message
+        submitList(localMessages.toList())
     }
 
+    /** 清空所有消息 */
     fun clear() {
-        val count = messages.size
-        messages.clear()
-        notifyItemRangeRemoved(0, count)
+        localMessages.clear()
+        submitList(emptyList())
         onDataChanged?.invoke()
     }
 
+    /**
+     * 替换全部消息。
+     * 使用 submitList() 提交，ListAdapter 内部通过 DiffUtil 自动计算增量更新。
+     */
     fun replaceMessages(newMessages: List<Message>) {
-        val diffResult = DiffUtil.calculateDiff(MessageDiffCallback(messages, newMessages))
-        messages.clear()
-        messages.addAll(newMessages)
-        diffResult.dispatchUpdatesTo(this)
+        localMessages.clear()
+        localMessages.addAll(newMessages)
+        submitList(localMessages.toList())
         onDataChanged?.invoke()
     }
 
@@ -524,32 +597,6 @@ class ChatAdapter(
                 "${days}天前 ${timeFormat.get()!!.format(Date(timestamp))}"
             }
             else -> dateFormat.get()!!.format(Date(timestamp))
-        }
-    }
-
-    // ======================== DiffUtil ========================
-
-    private class MessageDiffCallback(
-        private val oldList: List<Message>,
-        private val newList: List<Message>,
-    ) : DiffUtil.Callback() {
-        override fun getOldListSize() = oldList.size
-        override fun getNewListSize() = newList.size
-        override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
-            return oldList[oldPos].id == newList[newPos].id
-        }
-        override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
-            val old = oldList[oldPos]
-            val new = newList[newPos]
-            return old.content == new.content &&
-                old.status == new.status &&
-                old.isGroupStart == new.isGroupStart &&
-                old.isGroupEnd == new.isGroupEnd &&
-                old.msgType == new.msgType &&
-                old.voiceFilePath == new.voiceFilePath &&
-                old.voiceDurationMs == new.voiceDurationMs &&
-                old.voicePlayed == new.voicePlayed &&
-                old.isEdited == new.isEdited
         }
     }
 }

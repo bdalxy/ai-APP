@@ -173,7 +173,8 @@
     <FrameLayout
         android:id="@+id/layoutLoading"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:visibility="gone">
 
         <include layout="@layout/layout_app_loading_state" />

@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
         applyInsets(binding.mainRoot)
 
         // 创建 Adapter
-        adapter = ChatAdapter(mutableListOf(),
+        adapter = ChatAdapter(
             onMessageLongClick = { message, position ->
                 // 长按消息添加触觉反馈
                 binding.rvMessages.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)

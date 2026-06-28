@@ -211,10 +211,18 @@ class DeepSeekClient:
         self._log.debug(f"[Chat] 请求: model={self._chat_model}, msgs={len(messages)}, temp={temperature}")
         try:
             response = self.session.post(url, json=payload, timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT))
+        except requests.exceptions.ConnectTimeout:
+            raise APITimeoutError(f"Chat API 连接超时 (连接={self.CONNECT_TIMEOUT}s)，请检查网络连接")
+        except requests.exceptions.ReadTimeout:
+            raise APITimeoutError(f"Chat API 读取超时 (读取={self.READ_TIMEOUT}s)，服务器响应缓慢")
         except requests.exceptions.Timeout:
             raise APITimeoutError(f"Chat API 请求超时 (连接={self.CONNECT_TIMEOUT}s, 读取={self.READ_TIMEOUT}s)")
         except requests.exceptions.ConnectionError as e:
-            raise APIConnectionError(f"Chat API 连接失败: {e}")
+            # 区分 DNS 解析失败和普通连接失败
+            error_str = str(e)
+            if "getaddrinfo" in error_str or "Name or service not known" in error_str or "nodename nor servname" in error_str:
+                raise APIConnectionError(f"Chat API DNS解析失败: {error_str[:100]}")
+            raise APIConnectionError(f"Chat API 连接失败: {error_str[:100]}")
         if response.status_code != 200:
             self._handle_http_error(response)
         try:
@@ -291,10 +299,18 @@ class DeepSeekClient:
                 timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT * 2),
                 stream=True,
             )
+        except requests.exceptions.ConnectTimeout:
+            raise APITimeoutError(f"Chat Stream API 连接超时 (连接={self.CONNECT_TIMEOUT}s)，请检查网络连接")
+        except requests.exceptions.ReadTimeout:
+            raise APITimeoutError(f"Chat Stream API 读取超时 (读取={self.READ_TIMEOUT * 2}s)，服务器响应缓慢")
         except requests.exceptions.Timeout:
             raise APITimeoutError("Chat Stream API 请求超时")
         except requests.exceptions.ConnectionError as e:
-            raise APIConnectionError(f"Chat Stream API 连接失败: {e}")
+            # 区分 DNS 解析失败和普通连接失败
+            error_str = str(e)
+            if "getaddrinfo" in error_str or "Name or service not known" in error_str or "nodename nor servname" in error_str:
+                raise APIConnectionError(f"Chat Stream API DNS解析失败: {error_str[:100]}")
+            raise APIConnectionError(f"Chat Stream API 连接失败: {error_str[:100]}")
 
         if response.status_code != 200:
             self._handle_http_error(response)
@@ -373,10 +389,17 @@ class DeepSeekClient:
             payload = {"model": self._embed_model, "input": batch}
             try:
                 response = self.session.post(url, json=payload, timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT))
+            except requests.exceptions.ConnectTimeout:
+                raise APITimeoutError(f"Embedding API 连接超时 (连接={self.CONNECT_TIMEOUT}s)")
+            except requests.exceptions.ReadTimeout:
+                raise APITimeoutError(f"Embedding API 读取超时 (读取={self.READ_TIMEOUT}s)")
             except requests.exceptions.Timeout:
                 raise APITimeoutError(f"Embedding API 请求超时")
             except requests.exceptions.ConnectionError as e:
-                raise APIConnectionError(f"Embedding API 连接失败: {e}")
+                error_str = str(e)
+                if "getaddrinfo" in error_str or "Name or service not known" in error_str:
+                    raise APIConnectionError(f"Embedding API DNS解析失败: {error_str[:100]}")
+                raise APIConnectionError(f"Embedding API 连接失败: {error_str[:100]}")
             if response.status_code != 200:
                 self._log.warning(
                     f"[Embed] API 不可用 (status={response.status_code})，"

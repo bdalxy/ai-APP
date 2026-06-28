@@ -8,7 +8,7 @@
         android:right="2dp"
         android:bottom="4dp">
         <shape android:shape="rectangle">
-            <solid android:color="#18FFB7C5" />
+            <solid android:color="@color/bubble_ai_shadow" />
             <corners android:radius="20dp" />
         </shape>
     </item>
@@ -23,7 +23,7 @@
             <corners android:radius="20dp" />
             <stroke
                 android:width="0.5dp"
-                android:color="#20FFB7C5" />
+                android:color="@color/bubble_ai_stroke" />
         </shape>
     </item>
 </layer-list>

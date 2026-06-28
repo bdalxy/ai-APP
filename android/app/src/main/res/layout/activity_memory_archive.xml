@@ -72,6 +72,15 @@
             android:visibility="gone">
             <include layout="@layout/layout_app_empty_state" />
         </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/layoutLoading"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone">
+            <include layout="@layout/layout_app_loading_state" />
+        </FrameLayout>
     </LinearLayout>
 
     <!-- 删除确认面板 -->

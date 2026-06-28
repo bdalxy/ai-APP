@@ -2,6 +2,7 @@ package com.aicompanion.app
 
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -17,7 +18,7 @@ class PluginManageActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var tabLayout: TabLayout
-    private lateinit var tvEmpty: TextView
+    private lateinit var layoutEmpty: View
     private lateinit var tvSummary: TextView
     private lateinit var adapter: PluginAdapter
 
@@ -35,7 +36,7 @@ class PluginManageActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.rvPlugins)
         tabLayout = findViewById(R.id.tabCategories)
-        tvEmpty = findViewById(R.id.tvPluginEmpty)
+        layoutEmpty = findViewById(R.id.layoutEmpty)
         tvSummary = findViewById(R.id.tvPluginSummary)
 
         adapter = PluginAdapter(
@@ -156,7 +157,18 @@ class PluginManageActivity : AppCompatActivity() {
         val filtered = if (currentCategory == "all") allPluginsCache else allPluginsCache.filter { it.category == currentCategory }
         tvSummary.text = getString(R.string.summary_plugins_format, allPluginsCache.size, allPluginsCache.count { it.enabled })
         adapter.submitList(filtered)
-        tvEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+        if (filtered.isEmpty()) {
+            layoutEmpty.visibility = View.VISIBLE
+            val emptyIcon = layoutEmpty.findViewById<ImageView>(R.id.ivEmptyIcon)
+            val emptyTitle = layoutEmpty.findViewById<TextView>(R.id.tvEmptyTitle)
+            val emptyDesc = layoutEmpty.findViewById<TextView>(R.id.tvEmptyDesc)
+            emptyIcon.setImageResource(R.drawable.ic_plugin)
+            emptyTitle.setText(R.string.empty_plugin_title)
+            emptyDesc.setText(R.string.empty_plugin_desc)
+            emptyDesc.visibility = View.VISIBLE
+        } else {
+            layoutEmpty.visibility = View.GONE
+        }
     }
 
     private fun handleToggle(plugin: PluginItem, newEnabled: Boolean) {

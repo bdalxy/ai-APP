@@ -44,7 +44,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_voice_wave"
-                tools:ignore="ContentDescription" />
+                android:contentDescription="@null" />
         </LinearLayout>
         <ImageView
             android:id="@+id/ivPlayPause"
@@ -55,6 +55,6 @@
             android:padding="8dp"
             android:clickable="true"
             android:focusable="true"
-            tools:ignore="ContentDescription" />
+            android:contentDescription="@string/cd_play_voice" />
     </LinearLayout>
 </FrameLayout>

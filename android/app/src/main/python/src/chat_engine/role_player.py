@@ -38,6 +38,15 @@ from src.chat_engine.card_parser import Card, CardParseError, CardParser
 from src.chat_engine.context_manager import ContextManager
 from src.chat_engine.prompt_builder import PromptBuilder
 from src.chat_engine.token_presets import TokenPreset, get_preset
+from src.exceptions import (
+    APIConnectionError,
+    APIContentFilterError,
+    APIKeyError,
+    APIQuotaError,
+    APIRateLimitError,
+    APIServerError,
+    APITimeoutError,
+)
 from src.utils.logger import get_logger
 
 
@@ -448,11 +457,50 @@ class RolePlayer:
                 f"[流式对话] AI 回复完成: 内容长度={len(full_reply)}"
             )
             yield f"__DONE__:{full_reply}"
-        except Exception as e:
-            self._log.error(f"[流式对话] 异常: {e}")
-            # 回退用户消息，防止 context 中出现不匹配的 user 消息
+        except APITimeoutError as e:
+            self._log.error(f"[流式对话] 超时异常: {e}")
             self.context.pop_last()
-            yield f"__ERROR__:{e}"
+            error_msg = str(e)
+            # 区分连接超时和读取超时
+            if "连接超时" in error_msg or "connect" in error_msg.lower():
+                yield f"__ERROR__:connect_timeout:{error_msg}"
+            elif "读取超时" in error_msg or "read" in error_msg.lower():
+                yield f"__ERROR__:read_timeout:{error_msg}"
+            else:
+                yield f"__ERROR__:timeout:{error_msg}"
+        except APIConnectionError as e:
+            self._log.error(f"[流式对话] 连接异常: {e}")
+            self.context.pop_last()
+            error_msg = str(e)
+            # 区分 DNS 解析失败和普通连接失败
+            if "DNS" in error_msg:
+                yield f"__ERROR__:dns:{error_msg}"
+            else:
+                yield f"__ERROR__:connection:{error_msg}"
+        except APIRateLimitError as e:
+            self._log.error(f"[流式对话] 频率限制: {e}")
+            self.context.pop_last()
+            yield f"__ERROR__:rate_limit:{e}"
+        except APIKeyError as e:
+            self._log.error(f"[流式对话] 认证失败: {e}")
+            self.context.pop_last()
+            yield f"__ERROR__:auth:{e}"
+        except APIQuotaError as e:
+            self._log.error(f"[流式对话] 配额不足: {e}")
+            self.context.pop_last()
+            yield f"__ERROR__:quota:{e}"
+        except APIContentFilterError as e:
+            self._log.error(f"[流式对话] 内容过滤: {e}")
+            self.context.pop_last()
+            yield f"__ERROR__:content_filter:{e}"
+        except APIServerError as e:
+            self._log.error(f"[流式对话] 服务器错误: {e}")
+            self.context.pop_last()
+            yield f"__ERROR__:server_error:{e}"
+        except Exception as e:
+            self._log.error(f"[流式对话] 未知异常: {e}")
+            self.context.pop_last()
+            yield f"__ERROR__:unknown:{e}"
         finally:
             # 无论成功、失败还是生成器未完全消费，都清空本轮注入的记忆，防止残留
             self.memories = []

@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -58,6 +61,8 @@ class ChatViewModel(
         private const val POLL_WAIT_MS = 30L
         private const val SEARCH_DEBOUNCE_MS = 300L
         private const val MULTI_PART_DELAY_MS = 300L
+        /** 429 限流最大重试次数 */
+        private const val MAX_RATE_LIMIT_RETRIES = 3
 
         /**
          * 从指定位置查找句子结束位置。
@@ -74,6 +79,12 @@ class ChatViewModel(
             return -1
         }
     }
+
+    /**
+     * 429 限流重试异常，用于在流式回调中触发指数退避重试。
+     * 不显示错误 UI，由 finally 块负责清理并启动重试协程。
+     */
+    private class RateLimitRetryException : Exception()
 
     /** 回调接口：通知 MainActivity 执行协调整操作 */
     interface ChatCallback {
@@ -132,6 +143,16 @@ class ChatViewModel(
     private val searchHandler = Handler(Looper.getMainLooper())
     /** 多段消息拆分 Handler（需在 destroy 中清理） */
     private var multiPartHandler: Handler? = null
+
+    // ======================== 网络监控 ========================
+
+    /** 网络连接管理器（用于自动重连） */
+    private var connectivityManager: ConnectivityManager? = null
+    /** 网络状态回调 */
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    /** 是否有待重试的请求（网络恢复后自动重试） */
+    @Volatile
+    private var pendingRetryOnReconnect = false
 
     // ======================== 初始化 ========================
 
@@ -364,6 +385,8 @@ class ChatViewModel(
         private var streamingAiMsgIndex: Int = -1
         /** 流式输出时打字指示器在 adapter 中的索引（-1 表示已移除） */
         private var streamingTypingIndex: Int = -1
+        /** 429 限流重试计数（每次新流重置为 0） */
+        private var rateLimitRetryCount = 0
 
         /**
          * 流式发送消息（callbackFlow 方案）。
@@ -384,22 +407,21 @@ class ChatViewModel(
             }
             isStreaming = true
             lastUserInput = userInput  // 保存用于重试
+            rateLimitRetryCount = 0    // 重置 429 限流重试计数
             updateSendButton(false)
             disableInput()
 
             // 添加用户消息气泡
             addUserBubble(userInput)
 
-            // 添加打字指示器
+            // 添加打字指示器（addMessage 返回新消息的索引）
             val typingMsg = Message(content = "", isUser = false, isTyping = true)
-            streamingTypingIndex = adapter.itemCount
-            adapter.addMessage(typingMsg)
+            streamingTypingIndex = adapter.addMessage(typingMsg)
             binding.rvMessages.smoothScrollToPosition(streamingTypingIndex)
 
             // 占位 AI 消息（打字结束后填充）
             val aiMsg = Message(content = "", isUser = false)
-            streamingAiMsgIndex = adapter.itemCount
-            adapter.addMessage(aiMsg)
+            streamingAiMsgIndex = adapter.addMessage(aiMsg)
 
             streamJob = lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -535,17 +557,41 @@ class ChatViewModel(
                                 }
                             }
                             "error" -> {
+                                // 解析错误类型（S2.2.4 增强：区分连接超时、读取超时、DNS、429 等）
+                                val errorType = pollJson.optString("error_type", "unknown")
                                 val errorMsg = pollJson.optString("message", context.getString(R.string.error_unknown))
+
+                                // 429 限流：指数退避重试（1s → 2s → 4s，最多3次）
+                                if (errorType == "rate_limit" && rateLimitRetryCount < MAX_RATE_LIMIT_RETRIES) {
+                                    rateLimitRetryCount++
+                                    UiThread.run {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.error_rate_limit_retrying, rateLimitRetryCount, MAX_RATE_LIMIT_RETRIES),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    throw RateLimitRetryException()
+                                }
+
+                                // 根据错误类型获取用户友好的提示文本
+                                val errorDisplayText = getErrorDisplayText(errorType, errorMsg)
                                 UiThread.run {
                                     adapter.updateMessage(
                                         streamingAiMsgIndex,
-                                        aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorMsg")
+                                        aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorDisplayText")
                                     )
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.toast_conversation_failed, errorMsg),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    // 网络类错误：显示带重试的 Snackbar + 注册网络恢复自动重连
+                                    if (isNetworkErrorType(errorType)) {
+                                        showRetrySnackbar(errorDisplayText)
+                                        registerNetworkCallback()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.toast_conversation_failed, errorDisplayText),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 }
                             }
                             else -> {
@@ -568,6 +614,9 @@ class ChatViewModel(
                             }
                         }
                     }
+                } catch (e: RateLimitRetryException) {
+                    // 429 限流：不显示错误 UI，由 finally 块处理指数退避重试
+                    Log.d(TAG, "429 限流，准备指数退避重试 (${rateLimitRetryCount}/$MAX_RATE_LIMIT_RETRIES)")
                 } catch (e: TimeoutCancellationException) {
                     Log.e(TAG, "Python调用超时", e)
                     UiThread.run {
@@ -587,13 +636,34 @@ class ChatViewModel(
                         showRetrySnackbar(context.getString(R.string.error_send_failed))
                     }
                 } finally {
+                    // 检查是否需要 429 限流退避重试
+                    val needsRetry = rateLimitRetryCount > 0
+                    val retryDelayMs = if (needsRetry) {
+                        1000L * (1 shl (rateLimitRetryCount - 1))  // 1s, 2s, 4s
+                    } else 0L
+                    val aiIndex = streamingAiMsgIndex
+
                     isStreaming = false
                     streamJob = null
                     streamingAiMsgIndex = -1
                     UiThread.run {
                         removeTypingIndicator()
-                        enableInput()
-                        updateSendButton(binding.etInput.text?.isNotBlank() == true)
+                        if (needsRetry) {
+                            // 移除被标记为错误的消息
+                            val messages = adapter.getMessages().toMutableList()
+                            if (aiIndex >= 0 && aiIndex < messages.size && !messages[aiIndex].isUser) {
+                                messages.removeAt(aiIndex)
+                                adapter.replaceAll(messages)
+                            }
+                            // 启动延迟重试协程：指数退避后重新发送
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                delay(retryDelayMs)
+                                sendMessageStream(lastUserInput)
+                            }
+                        } else {
+                            enableInput()
+                            updateSendButton(binding.etInput.text?.isNotBlank() == true)
+                        }
                     }
                 }
             }
@@ -606,6 +676,38 @@ class ChatViewModel(
                 streamingTypingIndex = -1
                 adapter.removeTypingAt(idx)
             }
+        }
+
+        /**
+         * 根据错误类型返回用户友好的显示文本。
+         * 对应 Python 端传递的 error_type 字段。
+         *
+         * @param errorType Python 端传递的错误类型标识
+         * @param fallback 原始错误消息（兜底用）
+         * @return 用户友好的错误提示文本
+         */
+        private fun getErrorDisplayText(errorType: String, fallback: String): String {
+            return when (errorType) {
+                "connect_timeout" -> context.getString(R.string.error_connection_timeout)
+                "read_timeout" -> context.getString(R.string.error_read_timeout)
+                "timeout" -> context.getString(R.string.error_timeout_short)
+                "dns" -> context.getString(R.string.error_dns_failure)
+                "connection" -> context.getString(R.string.error_connection_refused)
+                "rate_limit" -> context.getString(R.string.error_rate_limit_exhausted)
+                "server_error" -> context.getString(R.string.error_server_error)
+                "auth" -> context.getString(R.string.error_auth_failed)
+                "quota" -> context.getString(R.string.error_quota_exceeded)
+                "content_filter" -> context.getString(R.string.error_content_filtered)
+                else -> fallback  // 未知类型显示原始消息
+            }
+        }
+
+        /**
+         * 判断错误类型是否为网络相关（需要自动重连）。
+         * 网络错误包括：连接超时、读取超时、DNS 失败、连接拒绝、通用超时。
+         */
+        private fun isNetworkErrorType(errorType: String): Boolean {
+            return errorType in setOf("connect_timeout", "read_timeout", "timeout", "dns", "connection")
         }
 
         /** 取消当前活跃的流式对话，释放 Python 流资源和协程 */
@@ -670,8 +772,8 @@ class ChatViewModel(
 
     private fun addUserBubble(text: String) {
         val msg = Message(content = text, isUser = true)
-        adapter.addMessage(msg)
-        binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+        val position = adapter.addMessage(msg)
+        binding.rvMessages.smoothScrollToPosition(position)
     }
 
     // ======================== 输入状态控制 ========================
@@ -883,6 +985,7 @@ class ChatViewModel(
         searchHandler.removeCallbacksAndMessages(null)
         multiPartHandler?.removeCallbacksAndMessages(null)
         multiPartHandler = null
+        unregisterNetworkCallback()  // 取消网络恢复监听
         streamingHelper.cancelActiveStream()
         callback = null
         Log.d(TAG, "destroy: 资源清理完成")
@@ -920,6 +1023,63 @@ class ChatViewModel(
         } catch (_: Exception) {
             // Activity 可能已销毁，忽略
         }
+    }
+
+    // ======================== 网络恢复自动重连 ========================
+
+    /**
+     * 注册网络状态回调，在网络恢复后自动重试失败的请求。
+     * 当流式对话因网络错误失败时调用，网络恢复后自动触发 retryLastMessage()。
+     */
+    private fun registerNetworkCallback() {
+        if (networkCallback != null) return  // 已注册
+        pendingRetryOnReconnect = true
+
+        try {
+            connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return
+
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    Log.d(TAG, "网络已恢复，触发自动重连")
+                    if (pendingRetryOnReconnect) {
+                        pendingRetryOnReconnect = false
+                        unregisterNetworkCallback()
+                        UiThread.run {
+                            Toast.makeText(
+                                context,
+                                R.string.toast_network_restored_retrying,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        retryLastMessage()
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    Log.d(TAG, "网络连接丢失")
+                    // 不在此处清理，等待 onAvailable 恢复
+                }
+            }
+            networkCallback = callback
+            connectivityManager?.registerDefaultNetworkCallback(callback)
+            Log.d(TAG, "网络恢复监听已注册")
+        } catch (e: Exception) {
+            Log.w(TAG, "注册网络监听失败: ${e.message}")
+        }
+    }
+
+    /** 取消网络状态监听 */
+    private fun unregisterNetworkCallback() {
+        val callback = networkCallback ?: return
+        try {
+            connectivityManager?.unregisterNetworkCallback(callback)
+        } catch (_: Exception) {
+            // 回调可能已被系统清理
+        }
+        networkCallback = null
+        pendingRetryOnReconnect = false
+        Log.d(TAG, "网络恢复监听已取消")
     }
 
     // ======================== 便捷方法 ========================

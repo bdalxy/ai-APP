@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -39,7 +40,7 @@ class WorldBookActivity : AppCompatActivity() {
     private lateinit var layoutLoading: View
     private lateinit var tvEntryCount: TextView
     private lateinit var fabAddEntry: com.google.android.material.floatingactionbutton.FloatingActionButton
-    private lateinit var ivEmptyFeather: TextView
+    private lateinit var ivEmptyIcon: ImageView
 
     private val entries = mutableListOf<WorldBookEntry>()
     private lateinit var adapter: WorldBookAdapter
@@ -68,7 +69,7 @@ class WorldBookActivity : AppCompatActivity() {
         layoutLoading = findViewById(R.id.layoutLoading)
         tvEntryCount = findViewById(R.id.tvEntryCount)
         fabAddEntry = findViewById(R.id.fabAddEntry)
-        ivEmptyFeather = findViewById(R.id.ivEmptyFeather)
+        ivEmptyIcon = layoutEmpty.findViewById(R.id.ivEmptyIcon)
         ViewUtils.applyInsets(rootView)
     }
 
@@ -340,7 +341,16 @@ class WorldBookActivity : AppCompatActivity() {
     private fun showEmpty(show: Boolean) {
         layoutEmpty.visibility = if (show) View.VISIBLE else View.GONE
         rvEntries.visibility = if (show) View.GONE else View.VISIBLE
-        if (show) startFeatherAnimation() else stopFeatherAnimation()
+        if (show) {
+            ivEmptyIcon.setImageResource(R.drawable.ic_feather)
+            val emptyTitle = layoutEmpty.findViewById<TextView>(R.id.tvEmptyTitle)
+            emptyTitle.setText(R.string.empty_world_book)
+            val emptyDesc = layoutEmpty.findViewById<TextView>(R.id.tvEmptyDesc)
+            emptyDesc.visibility = View.GONE
+            startFeatherAnimation()
+        } else {
+            stopFeatherAnimation()
+        }
     }
 
     private fun updateEntryCount() {
@@ -349,13 +359,13 @@ class WorldBookActivity : AppCompatActivity() {
 
     private fun startFeatherAnimation() {
         featherAnimator?.cancel()
-        featherAnimator = ObjectAnimator.ofFloat(ivEmptyFeather, "rotation", 0f, 360f).apply {
+        featherAnimator = ObjectAnimator.ofFloat(ivEmptyIcon, "rotation", 0f, 360f).apply {
             duration = 4000; repeatCount = ObjectAnimator.INFINITE; interpolator = LinearInterpolator(); start()
         }
     }
 
     private fun stopFeatherAnimation() {
-        featherAnimator?.cancel(); featherAnimator = null; ivEmptyFeather.rotation = 0f
+        featherAnimator?.cancel(); featherAnimator = null; ivEmptyIcon.rotation = 0f
     }
 
     private fun currentTimeIso(): String {

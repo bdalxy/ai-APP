@@ -68,14 +68,23 @@
         android:paddingHorizontal="@dimen/spacing_page"
         android:paddingTop="8dp"
         android:paddingBottom="@dimen/bottom_spacer" />
-    <TextView
-        android:id="@+id/tvPluginEmpty"
+    <FrameLayout
+        android:id="@+id/layoutEmpty"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:text="@string/msg_no_plugins"
-        android:textColor="@color/text_tertiary"
-        android:textSize="@dimen/text_body"
-        android:gravity="center"
-        android:visibility="gone" />
+        android:visibility="gone">
+
+        <include layout="@layout/layout_app_empty_state" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutLoading"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <include layout="@layout/layout_app_loading_state" />
+    </FrameLayout>
 </LinearLayout>

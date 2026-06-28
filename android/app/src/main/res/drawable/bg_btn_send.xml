@@ -4,7 +4,7 @@
     android:shape="oval">
     <gradient
         android:angle="135"
-        android:startColor="#FFB7C5"
-        android:endColor="#9B59B6"
+        android:startColor="@color/btn_send_start"
+        android:endColor="@color/btn_send_end"
         android:type="linear" />
 </shape>

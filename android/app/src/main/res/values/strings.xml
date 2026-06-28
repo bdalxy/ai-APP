@@ -32,6 +32,7 @@
     <string name="cd_search">搜索</string>
     <string name="cd_clear_search">清除搜索</string>
     <string name="cd_avatar">角色头像</string>
+    <string name="cd_ai_avatar">AI 头像</string>
     <string name="cd_character_select">角色选择</string>
     <string name="cd_message_status">消息状态</string>
     <string name="cd_new_character">新建角色</string>
@@ -175,6 +176,8 @@
     <string name="title_character_edit">编辑角色</string>
     <string name="empty_character_guide">还没有角色</string>
     <string name="empty_character_desc">点击下方按钮创建你的第一个角色</string>
+    <string name="empty_plugin_title">暂无插件</string>
+    <string name="empty_plugin_desc">这里还没有安装任何插件</string>
 
     <!-- ===== 角色编辑页 (activity_character_edit) ===== -->
     <string name="title_create_character">创建角色</string>
@@ -271,6 +274,22 @@
     <string name="error_ai_empty_response">AI 回复异常，请重试</string>
     <string name="snackbar_retry_format">%s，点击重试</string>
     <string name="icon_loading">⏳</string>
+
+    <!-- ===== S2.2.4 网络异常错误提示 ===== -->
+    <string name="error_connection_timeout">连接超时，请检查网络连接</string>
+    <string name="error_read_timeout">读取超时，服务器响应缓慢，请稍后重试</string>
+    <string name="error_dns_failure">DNS解析失败，请检查网络设置</string>
+    <string name="error_connection_refused">网络连接失败，请检查网络</string>
+    <string name="error_rate_limit">请求频率过高，请稍后重试</string>
+    <string name="error_rate_limit_retrying">请求频率过高，正在重试（%1$d/%2$d）…</string>
+    <string name="error_rate_limit_exhausted">请求频率过高，重试已用尽，请稍后重试</string>
+    <string name="error_server_error">服务器错误，请稍后重试</string>
+    <string name="error_auth_failed">认证失败，请检查API Key</string>
+    <string name="error_quota_exceeded">API配额不足，请检查账户余额</string>
+    <string name="error_content_filtered">内容被安全过滤，请修改后重试</string>
+    <string name="error_network_unavailable">当前网络不可用，恢复后将自动重试</string>
+    <string name="snackbar_network_error_format">网络错误：%s，点击重试</string>
+    <string name="toast_network_restored_retrying">网络已恢复，正在重试…</string>
 
     <!-- ===== 主页面 (MainActivity) 运行时文本 ===== -->
     <string name="toast_session_created">已创建会话「%s」</string>
