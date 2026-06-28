@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -83,6 +84,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             "about" -> getString(R.string.section_about)
             "world_book" -> getString(R.string.section_world_book)
             "data_management" -> getString(R.string.section_data_management)
+            "display" -> getString(R.string.section_display_settings)
             else -> getString(R.string.title_settings)
         }
 
@@ -103,6 +105,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             "about" -> buildAboutPage()
             "world_book" -> buildWorldBookPage()
             "data_management" -> buildDataManagementPage()
+            "display" -> buildDisplayPage()
         }
     }
 
@@ -796,6 +799,141 @@ class SettingsDetailActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
+
+    // ==================== 显示设置 ====================
+
+    private fun buildDisplayPage() {
+        val fontSize = AppConfig.getFontSize(this)
+        val bubbleRadius = AppConfig.getBubbleRadius(this)
+        val showTimestamp = AppConfig.getShowTimestamp(this)
+
+        addSectionTitle(getString(R.string.section_display_settings))
+        addClickRow("深色模式", if (AppConfig.isDarkMode(this)) "已开启" else "已关闭", iconRes = R.drawable.ic_settings_display) {
+            showDarkModeDialog()
+        }
+        addDivider()
+        addClickRow("字体大小", fontSizeLabel(fontSize), iconRes = R.drawable.ic_settings_memory) {
+            showFontSizeDialog()
+        }
+        addDivider()
+        addClickRow("气泡圆角", "${bubbleRadius}dp", iconRes = R.drawable.ic_detail) {
+            showBubbleRadiusDialog()
+        }
+        addDivider()
+        addClickRow("消息时间戳", if (showTimestamp) "显示" else "隐藏", iconRes = R.drawable.ic_detail) {
+            showTimestampDialog()
+        }
+    }
+
+    private fun fontSizeLabel(size: String): String = when (size) {
+        "small" -> "小"
+        "large" -> "大"
+        else -> "中"
+    }
+
+    private fun showDarkModeDialog() {
+        val options = arrayOf("浅色模式", "深色模式", "跟随系统")
+        val current = when {
+            AppConfig.isDarkMode(this) -> 1
+            AppConfig.isFollowSystem(this) -> 2
+            else -> 0
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("深色模式")
+            .setSingleChoiceItems(options, current) { dialog, which ->
+                when (which) {
+                    0 -> {
+                        AppConfig.setThemeMode(this, AppConfig.THEME_LIGHT)
+                        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                    }
+                    1 -> {
+                        AppConfig.setThemeMode(this, AppConfig.THEME_DARK)
+                        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+                    }
+                    2 -> {
+                        AppConfig.setThemeMode(this, AppConfig.THEME_SYSTEM)
+                        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+                    }
+                }
+                dialog.dismiss()
+                Toast.makeText(this, "主题已切换，部分页面需重启生效", Toast.LENGTH_SHORT).show()
+                recreate()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showFontSizeDialog() {
+        val options = arrayOf("小", "中", "大")
+        val current = when (AppConfig.getFontSize(this)) {
+            "small" -> 0
+            "large" -> 2
+            else -> 1
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("字体大小")
+            .setSingleChoiceItems(options, current) { dialog, which ->
+                val size = when (which) { 0 -> "small"; 2 -> "large"; else -> "medium" }
+                AppConfig.setFontSize(this, size)
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showBubbleRadiusDialog() {
+        val current = AppConfig.getBubbleRadius(this)
+        val min = 4; val max = 24; val step = 2
+        val steps = (max - min) / step
+        val currentStep = ((current - min).coerceIn(0, max - min)) / step
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
+        }
+        val tvValue = TextView(this).apply {
+            text = "${current}dp"; textSize = 20f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
+        }
+        layout.addView(tvValue)
+        val seekBar = SeekBar(this).apply {
+            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                    tvValue.text = "${min + progress * step}dp"
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("气泡圆角")
+            .setView(layout)
+            .setPositiveButton("确定") { _, _ ->
+                AppConfig.setBubbleRadius(this, min + seekBar.progress * step)
+                recreate()
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun showTimestampDialog() {
+        val options = arrayOf("显示", "隐藏")
+        val current = if (AppConfig.getShowTimestamp(this)) 0 else 1
+        MaterialAlertDialogBuilder(this)
+            .setTitle("消息时间戳")
+            .setSingleChoiceItems(options, current) { dialog, which ->
+                AppConfig.setShowTimestamp(this, which == 0)
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    // ==================== 世界书 ====================
 
     private fun buildWorldBookPage() {
         WorldBookSection(this).build()

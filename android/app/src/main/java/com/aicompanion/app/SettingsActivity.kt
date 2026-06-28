@@ -58,6 +58,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.cardNotification.setOnClickListener {
             startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "notification"))
         }
+        binding.cardDisplay.setOnClickListener {
+            startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "display"))
+        }
         binding.cardAbout.setOnClickListener {
             startActivity(Intent(this, SettingsDetailActivity::class.java).putExtra("type", "about"))
         }

@@ -310,6 +310,7 @@ object AppConfig {
     private const val KEY_THEME_MODE = "theme_mode"
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
+    const val THEME_SYSTEM = "system"
 
     fun getThemeMode(context: Context): String {
         return getPrefs(context).getString(KEY_THEME_MODE, THEME_LIGHT) ?: THEME_LIGHT
@@ -317,6 +318,38 @@ object AppConfig {
 
     fun setThemeMode(context: Context, mode: String) {
         getPrefs(context).edit().putString(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun isDarkMode(context: Context): Boolean {
+        return getThemeMode(context) == THEME_DARK
+    }
+
+    fun isFollowSystem(context: Context): Boolean {
+        return getThemeMode(context) == THEME_SYSTEM
+    }
+
+    // ── 显示设置 ──
+    private const val KEY_FONT_SIZE = "font_size"
+    private const val KEY_BUBBLE_RADIUS = "bubble_radius"
+    private const val KEY_SHOW_TIMESTAMP = "show_timestamp"
+
+    fun getFontSize(context: Context): String {
+        return getPrefs(context).getString(KEY_FONT_SIZE, "medium") ?: "medium"
+    }
+    fun setFontSize(context: Context, size: String) {
+        getPrefs(context).edit().putString(KEY_FONT_SIZE, size).apply()
+    }
+    fun getBubbleRadius(context: Context): Int {
+        return getPrefs(context).getInt(KEY_BUBBLE_RADIUS, 16)
+    }
+    fun setBubbleRadius(context: Context, radius: Int) {
+        getPrefs(context).edit().putInt(KEY_BUBBLE_RADIUS, radius).apply()
+    }
+    fun getShowTimestamp(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_SHOW_TIMESTAMP, true)
+    }
+    fun setShowTimestamp(context: Context, show: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_SHOW_TIMESTAMP, show).apply()
     }
 
     /** 清除免打扰时段 */
