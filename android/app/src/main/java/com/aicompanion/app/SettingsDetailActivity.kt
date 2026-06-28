@@ -177,9 +177,11 @@ class SettingsDetailActivity : AppCompatActivity() {
     private fun buildChatPage() {
         val ctxSize = AppConfig.getContextSize(this)
         val temp = AppConfig.getTemperature(this)
-        val tempLabel = when { temp <= 0.5f -> getString(R.string.temp_label_conservative); temp >= 0.9f -> getString(R.string.temp_label_creative); else -> getString(R.string.temp_label_moderate) }
+        val tempLabel = String.format("%.1f", temp)
+        val topP = AppConfig.getTopP(this)
+        val freqPenalty = AppConfig.getFrequencyPenalty(this)
+        val presPenalty = AppConfig.getPresencePenalty(this)
         val maxTk = AppConfig.getMaxTokens(this)
-        val tokenLabel = when (maxTk) { 500 -> getString(R.string.token_label_concise); 2000 -> getString(R.string.token_label_detailed); else -> getString(R.string.token_label_moderate) }
         val dialogues = AppConfig.getExampleDialogues(this)
 
         addSectionTitle(getString(R.string.section_chat_params))
@@ -187,11 +189,15 @@ class SettingsDetailActivity : AppCompatActivity() {
         addDivider()
         addClickRow(getString(R.string.label_temperature), tempLabel, iconRes = R.drawable.ic_creative) { showTemperatureDialog() }
         addDivider()
-        addClickRow(getString(R.string.label_max_tokens), tokenLabel, iconRes = R.drawable.ic_detail) { showMaxTokensDialog() }
+        addClickRow(getString(R.string.label_top_p), String.format("%.2f", topP), iconRes = R.drawable.ic_detail) { showTopPDialog() }
+        addDivider()
+        addClickRow(getString(R.string.label_frequency_penalty), String.format("%.1f", freqPenalty), iconRes = R.drawable.ic_detail) { showFrequencyPenaltyDialog() }
+        addDivider()
+        addClickRow(getString(R.string.label_presence_penalty), String.format("%.1f", presPenalty), iconRes = R.drawable.ic_detail) { showPresencePenaltyDialog() }
+        addDivider()
+        addClickRow(getString(R.string.label_max_tokens), "${maxTk} token", iconRes = R.drawable.ic_detail) { showMaxTokensDialog() }
         addDivider()
         addClickRow(getString(R.string.label_example_dialogues), "${dialogues}条", iconRes = R.drawable.ic_example) { showExampleDialoguesDialog() }
-        addDivider()
-        addClickRow(getString(R.string.action_new_chat), getString(R.string.label_clear_history), iconRes = R.drawable.ic_new_chat) { showNewChatDialog() }
     }
 
     private fun showContextSizeDialog() {
@@ -274,27 +280,85 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
 
     private fun showTemperatureDialog() {
-        val values = floatArrayOf(0.5f, 0.7f, 0.9f)
-        val labels = arrayOf(getString(R.string.temp_label_0_5), getString(R.string.temp_label_0_7), getString(R.string.temp_label_0_9))
-        val descs = arrayOf(getString(R.string.desc_conservative), getString(R.string.desc_moderate), getString(R.string.desc_creative))
-        val current = AppConfig.getTemperature(this)
-        val idx = when { current <= 0.5f -> 0; current >= 0.9f -> 2; else -> 1 }
-        showSliderDialog(getString(R.string.label_temperature), getString(R.string.desc_temperature), labels, descs, idx, 2) { which ->
-            AppConfig.setTemperature(this, values[which])
+        showFloatSeekBarDialog(
+            getString(R.string.label_temperature), getString(R.string.desc_temperature_slider),
+            AppConfig.getTemperature(this), 0.1f, 2.0f, 0.1f, "%.1f"
+        ) { value ->
+            AppConfig.setTemperature(this, value)
+            applyAllParams(); recreate()
+        }
+    }
+
+    private fun showTopPDialog() {
+        showFloatSeekBarDialog(
+            getString(R.string.label_top_p), getString(R.string.desc_top_p),
+            AppConfig.getTopP(this), 0.0f, 1.0f, 0.05f, "%.2f"
+        ) { value ->
+            AppConfig.setTopP(this, value)
+            applyAllParams(); recreate()
+        }
+    }
+
+    private fun showFrequencyPenaltyDialog() {
+        showFloatSeekBarDialog(
+            getString(R.string.label_frequency_penalty), getString(R.string.desc_frequency_penalty),
+            AppConfig.getFrequencyPenalty(this), -2.0f, 2.0f, 0.1f, "%.1f"
+        ) { value ->
+            AppConfig.setFrequencyPenalty(this, value)
+            applyAllParams(); recreate()
+        }
+    }
+
+    private fun showPresencePenaltyDialog() {
+        showFloatSeekBarDialog(
+            getString(R.string.label_presence_penalty), getString(R.string.desc_presence_penalty),
+            AppConfig.getPresencePenalty(this), -2.0f, 2.0f, 0.1f, "%.1f"
+        ) { value ->
+            AppConfig.setPresencePenalty(this, value)
             applyAllParams(); recreate()
         }
     }
 
     private fun showMaxTokensDialog() {
-        val values = intArrayOf(500, 1000, 2000)
-        val labels = arrayOf(getString(R.string.token_label_500), getString(R.string.token_label_1000), getString(R.string.token_label_2000))
-        val descs = arrayOf(getString(R.string.desc_concise), getString(R.string.desc_moderate), getString(R.string.desc_detailed))
         val current = AppConfig.getMaxTokens(this)
-        val idx = values.toList().indexOf(current).coerceAtLeast(1)
-        showSliderDialog(getString(R.string.label_max_tokens), getString(R.string.desc_max_tokens), labels, descs, idx, 2) { which ->
-            AppConfig.setMaxTokens(this, values[which])
-            applyAllParams(); recreate()
+        val min = 256; val max = 4096; val step = 256
+        val steps = (max - min) / step
+        val currentStep = ((current - min).coerceIn(0, max - min)) / step
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
         }
+        layout.addView(TextView(this).apply {
+            text = getString(R.string.desc_max_tokens_slider); textSize = 13f
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
+        })
+        val tvValue = TextView(this).apply {
+            text = "${current} token"; textSize = 20f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
+        }
+        layout.addView(tvValue)
+        val seekBar = SeekBar(this).apply {
+            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                    val value = min + progress * step
+                    tvValue.text = "${value} token"
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.label_max_tokens))
+            .setView(layout)
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                AppConfig.setMaxTokens(this, min + seekBar.progress * step)
+                applyAllParams(); recreate()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     private fun showExampleDialoguesDialog() {
@@ -340,23 +404,17 @@ class SettingsDetailActivity : AppCompatActivity() {
         addClickRow("记忆容量上限", "${memoryCapacity}条", iconRes = R.drawable.ic_settings_memory) {
             showMemoryCapacityDialog()
         }
+        addDetailLabel("超出上限时，旧记忆将自动归档或清理")
         addDivider()
         addClickRow("去重相似度阈值", String.format("%.2f", dedupThreshold), iconRes = R.drawable.ic_settings_memory) {
             showDedupThresholdDialog()
         }
+        addDetailLabel("新记忆与已有记忆相似度超过此值则不重复保存")
         addDivider()
         addClickRow("衰减半衰期", "${decayHalfLife}天", iconRes = R.drawable.ic_settings_memory) {
             showDecayHalfLifeDialog()
         }
-        addDivider()
-        addSectionTitle(getString(R.string.section_memory_manage_label))
-        addClickRow(getString(R.string.label_view_memories), getString(R.string.label_browse_memories), iconRes = R.drawable.ic_settings_memory) {
-            startActivity(Intent(this, MemoryManageActivity::class.java))
-        }
-        addDivider()
-        addClickRow(getString(R.string.label_clear_memories), getString(R.string.label_delete_all_memories_data), iconRes = R.drawable.ic_settings_memory) {
-            showClearMemoryDialog()
-        }
+        addDetailLabel("记忆权重每过半衰期衰减一半，更久远的记忆权重更低")
     }
 
     private fun showClearMemoryDialog() {
@@ -968,6 +1026,14 @@ class SettingsDetailActivity : AppCompatActivity() {
         })
     }
 
+    internal fun addDetailLabel(text: String) {
+        contentLayout.addView(TextView(this).apply {
+            this.text = text; textSize = 11f
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
+            setPadding(dip(6), 0, dip(6), dip(6))
+        })
+    }
+
     internal fun addEmptyHint(text: String) {
         contentLayout.addView(TextView(this).apply {
             this.text = text; textSize = 14f
@@ -1077,16 +1143,62 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
+    private fun showFloatSeekBarDialog(
+        title: String, desc: String,
+        current: Float, min: Float, max: Float, step: Float, format: String,
+        onConfirm: (Float) -> Unit
+    ) {
+        val steps = ((max - min) / step).toInt()
+        val currentStep = (((current - min) / step).toInt()).coerceIn(0, steps)
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
+        }
+        layout.addView(TextView(this).apply {
+            text = desc; textSize = 13f
+            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
+        })
+        val tvValue = TextView(this).apply {
+            text = String.format(format, current); textSize = 20f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
+        }
+        layout.addView(tvValue)
+        val seekBar = SeekBar(this).apply {
+            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                    val value = min + progress * step
+                    tvValue.text = String.format(format, value)
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setView(layout)
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                onConfirm(min + seekBar.progress * step)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
+    }
+
     private fun applyAllParams() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val module = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
                 val ctx = AppConfig.getContextSize(this@SettingsDetailActivity)
                 val temp = AppConfig.getTemperature(this@SettingsDetailActivity).toDouble()
+                val topP = AppConfig.getTopP(this@SettingsDetailActivity).toDouble()
+                val freqPenalty = AppConfig.getFrequencyPenalty(this@SettingsDetailActivity).toDouble()
+                val presPenalty = AppConfig.getPresencePenalty(this@SettingsDetailActivity).toDouble()
                 val maxTk = AppConfig.getMaxTokens(this@SettingsDetailActivity)
                 val dialogues = AppConfig.getExampleDialogues(this@SettingsDetailActivity)
                 val model = AppConfig.getModel(this@SettingsDetailActivity).let { if (it.isBlank()) "deepseek-v4-flash" else it }
-                module?.callAttr("apply_params", ctx, temp, maxTk, dialogues, model)
+                module?.callAttr("apply_params", ctx, temp, topP, freqPenalty, presPenalty, maxTk, dialogues, model)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_params_apply_failed, e.message), Toast.LENGTH_SHORT).show()

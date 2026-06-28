@@ -77,6 +77,9 @@ class RolePlayer:
         max_context_tokens: int = 4000,
         temperature: float = 0.9,
         max_tokens: int = 2000,
+        top_p: float = 0.9,
+        frequency_penalty: float = 0.0,
+        presence_penalty: float = 0.0,
         preset: str | TokenPreset | None = None,
         model: str | None = None,
     ) -> None:
@@ -116,6 +119,9 @@ class RolePlayer:
         self.jailbreak_prompt: str = ""
         self.temperature: float = temperature
         self.max_tokens: int = max_tokens
+        self.top_p: float = top_p
+        self.frequency_penalty: float = frequency_penalty
+        self.presence_penalty: float = presence_penalty
         self._parser: CardParser = CardParser()
         self._log = get_logger()
 
@@ -344,6 +350,9 @@ class RolePlayer:
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                top_p=self.top_p,
+                frequency_penalty=self.frequency_penalty,
+                presence_penalty=self.presence_penalty,
             )
 
             ai_reply = response.content
@@ -422,6 +431,9 @@ class RolePlayer:
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                top_p=self.top_p,
+                frequency_penalty=self.frequency_penalty,
+                presence_penalty=self.presence_penalty,
             )
             full_reply = ""
             for token in gen:

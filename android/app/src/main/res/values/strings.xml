@@ -98,8 +98,16 @@
     <string name="section_chat_settings">对话设置</string>
     <string name="label_context_window">上下文窗口</string>
     <string name="label_temperature">创意度（温度）</string>
+    <string name="label_top_p">核采样（Top-P）</string>
+    <string name="label_frequency_penalty">频率惩罚</string>
+    <string name="label_presence_penalty">存在惩罚</string>
     <string name="label_max_tokens">回复详细度</string>
     <string name="label_example_dialogues">示例对话数</string>
+    <string name="desc_temperature_slider">越高越有创意，越低越保守（0.1-2.0，推荐0.7）</string>
+    <string name="desc_top_p">核采样概率阈值，控制词汇多样性（0.0-1.0，推荐0.9）</string>
+    <string name="desc_frequency_penalty">降低重复词语的概率（-2.0到2.0，推荐0.0）</string>
+    <string name="desc_presence_penalty">降低已出现话题的重复（-2.0到2.0，推荐0.0）</string>
+    <string name="desc_max_tokens_slider">AI 单次回复的最大 token 数（256-4096）</string>
     <string name="action_new_chat">开始新对话</string>
     <string name="action_clear_memory">清空对话记忆</string>
 

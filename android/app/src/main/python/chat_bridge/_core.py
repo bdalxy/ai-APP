@@ -63,6 +63,9 @@ def _resolve_card_path() -> str:
 def _build_custom_preset(
     context_size: int,
     temperature: float,
+    top_p: float,  # 保留参数用于日志，API 层直接使用
+    frequency_penalty: float,
+    presence_penalty: float,
     max_tokens: int,
     example_dialogues: int,
     model: str = "",
@@ -88,16 +91,17 @@ def _build_custom_preset(
     )
 
 
-def _record_params(context_size: int, temperature: float, max_tokens: int,
-                   example_dialogues: int, model: str) -> dict:
-    """记录当前生效的参数，并返回确认后的参数字典。
-
-    注意：只更新对话参数，不覆盖 _current_params 中的其他字段（如破限参数）。
-    """
+def _record_params(context_size: int, temperature: float, top_p: float,
+                   frequency_penalty: float, presence_penalty: float,
+                   max_tokens: int, example_dialogues: int, model: str) -> dict:
+    """记录当前生效的参数，并返回确认后的参数字典。"""
     actual_model = model or "deepseek-v4-flash"
     params = {
         "context_size": context_size,
         "temperature": temperature,
+        "top_p": top_p,
+        "frequency_penalty": frequency_penalty,
+        "presence_penalty": presence_penalty,
         "max_tokens": max_tokens,
         "example_dialogues": example_dialogues,
         "model": actual_model,
@@ -112,6 +116,9 @@ def _record_params(context_size: int, temperature: float, max_tokens: int,
 def init(
     context_size: int = 2000,
     temperature: float = 0.7,
+    top_p: float = 0.9,
+    frequency_penalty: float = 0.0,
+    presence_penalty: float = 0.0,
     max_tokens: int = 1000,
     example_dialogues: int = 1,
     model: str = "",
@@ -121,12 +128,12 @@ def init(
         if not settings.DEEPSEEK_API_KEY:
             return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
 
-        custom_preset = _build_custom_preset(context_size, temperature, max_tokens, example_dialogues, model)
+        custom_preset = _build_custom_preset(context_size, temperature, top_p, frequency_penalty, presence_penalty, max_tokens, example_dialogues, model)
         player = _ctx.initialize(preset=custom_preset, model=model if model else "")
         player.load_card(_resolve_card_path())
 
         info = player.get_card_info()
-        params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
+        params = _record_params(context_size, temperature, top_p, frequency_penalty, presence_penalty, max_tokens, example_dialogues, model)
         info.update(params)
 
         # 加载插件
@@ -582,6 +589,9 @@ def list_presets() -> dict:
 def apply_params(
     context_size: int = 2000,
     temperature: float = 0.7,
+    top_p: float = 0.9,
+    frequency_penalty: float = 0.0,
+    presence_penalty: float = 0.0,
     max_tokens: int = 1000,
     example_dialogues: int = 1,
     model: str = "",
@@ -596,13 +606,17 @@ def apply_params(
             return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
 
         player.temperature = temperature
+        player.top_p = top_p
+        player.frequency_penalty = frequency_penalty
+        player.presence_penalty = presence_penalty
         player.max_tokens = max_tokens
         if model:
             player.client.set_model(model)
 
-        params = _record_params(context_size, temperature, max_tokens, example_dialogues, model)
+        params = _record_params(context_size, temperature, top_p, frequency_penalty, presence_penalty, max_tokens, example_dialogues, model)
         _log.info(
-            f"[参数更新] context={context_size}, temp={temperature}, "
+            f"[参数更新] context={context_size}, temp={temperature}, top_p={top_p}, "
+            f"freq_penalty={frequency_penalty}, pres_penalty={presence_penalty}, "
             f"max_tokens={max_tokens}, dialogues={example_dialogues}, model={model or '默认'}"
         )
         return json.dumps({"status": "ok", "params": params})

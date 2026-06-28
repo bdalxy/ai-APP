@@ -20,6 +20,9 @@ object AppConfig {
     private const val KEY_MODEL = "model"
     private const val KEY_CONTEXT_SIZE = "context_size"
     private const val KEY_TEMPERATURE = "temperature"
+    private const val KEY_TOP_P = "top_p"
+    private const val KEY_FREQUENCY_PENALTY = "frequency_penalty"
+    private const val KEY_PRESENCE_PENALTY = "presence_penalty"
     private const val KEY_MAX_TOKENS = "max_tokens"
     private const val KEY_EXAMPLE_DIALOGUES = "example_dialogues"
 
@@ -161,6 +164,30 @@ object AppConfig {
 
     fun setTemperature(context: Context, temp: Float) {
         getPrefs(context).edit().putFloat(KEY_TEMPERATURE, temp).apply()
+    }
+
+    fun getTopP(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TOP_P, 0.9f)
+    }
+
+    fun setTopP(context: Context, topP: Float) {
+        getPrefs(context).edit().putFloat(KEY_TOP_P, topP).apply()
+    }
+
+    fun getFrequencyPenalty(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_FREQUENCY_PENALTY, 0.0f)
+    }
+
+    fun setFrequencyPenalty(context: Context, penalty: Float) {
+        getPrefs(context).edit().putFloat(KEY_FREQUENCY_PENALTY, penalty).apply()
+    }
+
+    fun getPresencePenalty(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_PRESENCE_PENALTY, 0.0f)
+    }
+
+    fun setPresencePenalty(context: Context, penalty: Float) {
+        getPrefs(context).edit().putFloat(KEY_PRESENCE_PENALTY, penalty).apply()
     }
 
     fun getMaxTokens(context: Context): Int {

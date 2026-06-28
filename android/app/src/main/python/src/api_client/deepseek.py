@@ -193,14 +193,21 @@ class DeepSeekClient:
             raise APIException(f"未知错误 ({status_code}): {error_msg}", status_code=status_code)
 
     @retry(max_retries=3, base_delay=1.0, max_delay=30.0, retryable_exceptions=(APITimeoutError, APIServerError, APIRateLimitError, APIConnectionError))
-    def chat(self, messages: list[dict[str, str]], temperature: float = 0.7, max_tokens: int = 2000, stream: bool = False) -> ChatResponse:
+    def chat(self, messages: list[dict[str, str]], temperature: float = 0.7, max_tokens: int = 2000,
+             top_p: float = 0.9, frequency_penalty: float = 0.0, presence_penalty: float = 0.0,
+             stream: bool = False) -> ChatResponse:
         self._ensure_auth()
         if not messages:
             raise ValueError("messages 不能为空")
         if stream:
             raise ValueError("stream=True 当前不支持，请使用 chat_stream() 方法")
         url = f"{self._base_url}/v1/chat/completions"
-        payload: dict[str, Any] = {"model": self._chat_model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens, "stream": stream}
+        payload: dict[str, Any] = {
+            "model": self._chat_model, "messages": messages,
+            "temperature": temperature, "max_tokens": max_tokens,
+            "top_p": top_p, "frequency_penalty": frequency_penalty, "presence_penalty": presence_penalty,
+            "stream": stream
+        }
         self._log.debug(f"[Chat] 请求: model={self._chat_model}, msgs={len(messages)}, temp={temperature}")
         try:
             response = self.session.post(url, json=payload, timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT))
@@ -239,6 +246,9 @@ class DeepSeekClient:
         messages: list[dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 2000,
+        top_p: float = 0.9,
+        frequency_penalty: float = 0.0,
+        presence_penalty: float = 0.0,
     ) -> Generator[str, None, ChatResponse]:
         """流式聊天，逐 token yield 内容。
 
@@ -267,6 +277,9 @@ class DeepSeekClient:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "top_p": top_p,
+            "frequency_penalty": frequency_penalty,
+            "presence_penalty": presence_penalty,
             "stream": True,
         }
 
