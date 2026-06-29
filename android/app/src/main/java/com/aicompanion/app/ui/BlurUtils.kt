@@ -13,7 +13,8 @@ import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
 import android.view.View
 import androidx.annotation.RequiresApi
-import android.graphics.drawable.BitmapDrawable
+import androidx.core.content.ContextCompat
+import com.aicompanion.app.R
 
 object BlurUtils {
 
@@ -76,7 +77,7 @@ object BlurUtils {
             } else {
                 blurWithRenderScriptInternal(context, bitmap, clampedRadius)
             }
-        } catch (e: Exception) { createFallbackBlurredBitmap(bitmap) }
+        } catch (e: Exception) { createFallbackBlurredBitmap(context, bitmap) }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -137,17 +138,18 @@ object BlurUtils {
         return bitmap
     }
 
-    private fun createFallbackBlurredBitmap(original: Bitmap): Bitmap? {
+    private fun createFallbackBlurredBitmap(context: Context, original: Bitmap): Bitmap? {
         val output = Bitmap.createBitmap(original.width, original.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         canvas.drawBitmap(original, 0f, 0f, null)
-        val overlayPaint = Paint().apply { color = 0x30FFFFFF.toInt() }
+        val overlayColor = ContextCompat.getColor(context, R.color.glass_bg)
+        val overlayPaint = Paint().apply { color = overlayColor }
         canvas.drawRect(0f, 0f, original.width.toFloat(), original.height.toFloat(), overlayPaint)
         return output
     }
 
     private fun applyFallbackBackground(view: View) {
-        view.setBackgroundColor(0xCCFFFFFF.toInt())
+        view.setBackgroundColor(ContextCompat.getColor(view.context, R.color.glass_bg_dark))
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
