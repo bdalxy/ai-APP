@@ -16,6 +16,13 @@ android {
         viewBinding = true
     }
 
+    // 修复 "PackagingOptions.jniLibs.useLegacyPackaging should be set to true"
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     defaultConfig {
         applicationId = "com.aicompanion.app"
         minSdk = 26
@@ -33,20 +40,6 @@ android {
         // 移除未使用的语言资源，仅保留中文和英文
         resourceConfigurations += setOf("en", "zh")
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // 📋 未引用资源标记（2026-06-27 扫描，暂不删除仅标记）
-    // 以下 drawable 文件在 res/drawable/ 中存在但未被任何
-    // XML/KT 文件引用，可在确认后手动删除以减小 APK 体积：
-    //
-    //   bg_btn_send_disabled.xml   — 发送按钮禁用态（未使用）
-    //   bg_divider.xml             — 分隔线（未使用）
-    //   bg_onboarding_dot.xml      — 引导页指示点（未使用）
-    //   bg_send_inactive_v2.xml    — 旧版发送按钮非激活态（未使用）
-    //   bg_settings_card.xml       — 设置卡片背景（未使用）
-    //   ic_close.xml               — 关闭图标（未使用）
-    //   ic_speaker.xml             — 扬声器图标（未使用）
-    // ═════════════════════════════════════════════════════════════
 
     signingConfigs {
         create("release") {
@@ -67,7 +60,14 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+            isDebuggable = false
+            isJniDebuggable = false
+            // 如果没有 release 签名，回退到 debug 签名（仅用于测试 R8 优化效果）
+            signingConfig = if (signingConfigs.getByName("release").storeFile?.exists() == true) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -77,6 +77,7 @@ android {
             // Debug 构建不开启混淆，方便调试
             isMinifyEnabled = false
             isShrinkResources = false
+            isDebuggable = true
         }
     }
 

@@ -83,4 +83,7 @@
     <!-- ===== 底部留白 ===== -->
     <dimen name="bottom_spacer">24dp</dimen>
     <dimen name="bottom_spacer_large">32dp</dimen>
+
+    <!-- ===== 横屏内容最大宽度（竖屏下也需定义默认值，避免 lint 报错） ===== -->
+    <dimen name="land_content_max_width">600dp</dimen>
 </resources>

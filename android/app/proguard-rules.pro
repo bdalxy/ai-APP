@@ -2,15 +2,30 @@
 # ProGuard / R8 规则 - AI Companion App
 # ==========================================
 
+# ── R8 优化配置 ──
+# 启用 R8 fullMode：更激进的优化（内联、类合并、死代码消除）
+# AGP 8.x 默认启用 fullMode，此处显式声明
+-optimizationpasses 5
+-allowaccessmodification
+-mergeinterfacesaggressively
+-dontpreverify
+-repackageclasses 'com.aicompanion.app.optimized'
+
 # ── Chaquopy Python 保护（不可删除）──
 -keep class com.chaquo.python.** { *; }
+-keep class com.chaquo.python.PyObject { *; }
+-keep class com.chaquo.python.Python { *; }
+-keep class com.chaquo.python.android.AndroidPlatform { *; }
 -dontwarn com.chaquo.python.**
+-dontwarn com.chaquo.python.internal.**
 
 # ── Kotlin 序列化保护 ──
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes EnclosingMethod
 -keepattributes InnerClasses
+-keepattributes Exceptions
+-keepattributes SourceFile,LineNumberTable
 
 # ── 应用核心类保护（避免 R8 误删）──
 -keep class com.aicompanion.app.AICompanionApp { *; }
@@ -21,6 +36,10 @@
 -keep class com.aicompanion.app.CharacterData { *; }
 -keep class com.aicompanion.app.ConversationSessionManager { *; }
 -keep class com.aicompanion.app.ConversationSession { *; }
+
+# ── 模块接口保护（反射调用）──
+-keep interface com.aicompanion.app.module.** { *; }
+-keep class com.aicompanion.app.module.** { *; }
 
 # ── ViewBinding 保护 ──
 -keep class * extends androidx.viewbinding.ViewBinding { *; }
@@ -67,3 +86,7 @@
 # javax.annotation 在 Android 中不可用，但某些库（如 tink）仍引用
 -dontwarn javax.annotation.**
 -dontwarn javax.annotation.concurrent.**
+# Chaquopy 生成的代理类
+-dontwarn com.chaquo.python.gen.**
+# Kotlin 反射相关
+-dontwarn kotlin.reflect.**

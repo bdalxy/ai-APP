@@ -1,6 +1,7 @@
 package com.aicompanion.app
 
 import android.animation.ValueAnimator
+import android.content.Context
 import android.text.SpannableString
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
