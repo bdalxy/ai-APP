@@ -1,6 +1,6 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
     <!-- 上下文窗口图标 - 展开箭头 -->
-    <path android:fillColor="#9B59B6"
+    <path android:fillColor="@color/primary"
         android:pathData="M4,6h16v2H4zM4,11h16v2H4zM4,16h13v2H4zM19,16v4l3,-2 -3,-2z"/>
 </vector>

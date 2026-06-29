@@ -717,7 +717,7 @@ class MemoryOrchestrator:
     # 标签管理接口
     # =========================================================================
 
-    def add_tag(self, name: str, color: str = "#9B59B6") -> int:
+    def add_tag(self, name: str, color: str = "#B0C4DE") -> int:
         """添加标签。
 
         Returns:

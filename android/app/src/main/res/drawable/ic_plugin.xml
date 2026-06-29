@@ -6,6 +6,6 @@
     android:viewportHeight="24">
     <!-- 水晶/星形插件图标 -->
     <path
-        android:fillColor="#9B59B6"
+        android:fillColor="@color/primary"
         android:pathData="M12,2 L15,8 L21,9 L16,14 L18,21 L12,17 L6,21 L8,14 L3,9 L9,8 Z" />
 </vector>

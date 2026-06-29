@@ -208,7 +208,7 @@ class MemoryTag:
         memory_count: 关联的记忆数量。
     """
     name: str = ""
-    color: str = "#9B59B6"
+    color: str = "#9090A0"
     created_at: str = ""
     memory_count: int = 0
 

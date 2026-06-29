@@ -9,6 +9,8 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.aicompanion.app.R
 
 /**
@@ -26,6 +28,7 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
+        // 半透明黑色遮罩层（标准 Android scrim，非主题色）
         setBackgroundColor(Color.argb(80, 0, 0, 0))
         isClickable = true
 
@@ -38,7 +41,10 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
             ).apply { gravity = Gravity.CENTER }
             setPadding(48, 36, 48, 36)
             background = GradientDrawable().apply {
-                setColor(Color.argb(220, 45, 27, 58))
+                // 卡片背景：text_primary #4A3B3A + alpha 220（深色暖调）
+                setColor(ColorUtils.setAlphaComponent(
+                    ContextCompat.getColor(context, R.color.text_primary), 220
+                ))
                 cornerRadius = 24f
             }
         }
@@ -49,7 +55,8 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
                 gravity = Gravity.CENTER
             }
             setImageResource(R.drawable.ic_voice_wave)
-            setColorFilter(Color.parseColor("#FFB7C5"))
+            // 粉色波形图标（对应 R.color.typing_dot #FFB7C5）
+            setColorFilter(ContextCompat.getColor(context, R.color.typing_dot))
         }
         card.addView(waveIcon)
 
@@ -64,7 +71,8 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
             }
             text = "0:00"
             textSize = 28f
-            setTextColor(Color.parseColor("#FFB7C5"))
+            // 粉色时长文字（对应 R.color.typing_dot #FFB7C5）
+            setTextColor(ContextCompat.getColor(context, R.color.typing_dot))
         }
         card.addView(durationText)
 
@@ -79,7 +87,10 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
             }
             text = context.getString(R.string.voice_recording)
             textSize = 14f
-            setTextColor(Color.argb(180, 255, 183, 197))
+            // 粉色提示文字（对应 R.color.typing_dot #FFB7C5 + alpha 180）
+            setTextColor(ColorUtils.setAlphaComponent(
+                ContextCompat.getColor(context, R.color.typing_dot), 180
+            ))
         }
         card.addView(hintText)
 

@@ -42,20 +42,20 @@ class ParticleView @JvmOverloads constructor(
             return nightMode == Configuration.UI_MODE_NIGHT_YES
         }
 
-    /** 根据主题返回不同的颜色池 */
+    /** 根据主题返回不同的颜色池（使用樱羽主题色系） */
     private fun getColors(): IntArray {
         return if (isDarkMode) {
             intArrayOf(
-                Color.argb(128, 255, 183, 197),   // 粉色半透
-                Color.argb(128, 155, 89, 182),     // 紫色半透
-                Color.argb(96, 255, 255, 255)      // 白色微透
+                Color.argb(128, 255, 183, 197),       // 粉色半透（对应 typing_dot #FFB7C5）
+                Color.argb(128, 176, 196, 222),        // 淡天蓝半透（对应 sakura_sky #B0C4DE）
+                Color.argb(96, 255, 255, 255)          // 白色微透
             )
         } else {
             intArrayOf(
-                Color.argb(100, 155, 89, 182),     // 紫色半透
-                Color.argb(100, 255, 183, 197),    // 粉色半透
-                Color.argb(60, 120, 60, 140),      // 深紫微透
-                Color.argb(40, 180, 160, 200)      // 灰紫微透
+                Color.argb(100, 176, 196, 222),        // 淡天蓝半透（对应 sakura_sky #B0C4DE）
+                Color.argb(100, 255, 183, 197),        // 粉色半透（对应 typing_dot #FFB7C5）
+                Color.argb(60, 253, 240, 240),         // 淡樱粉微透（对应 sakura_pink #FDF0F0）
+                Color.argb(40, 176, 196, 222)          // 淡天蓝微透（对应 sakura_sky #B0C4DE）
             )
         }
     }

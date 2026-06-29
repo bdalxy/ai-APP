@@ -1,11 +1,12 @@
 package com.aicompanion.app
 
 import android.animation.ArgbEvaluator
-import android.graphics.Color
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 
@@ -24,19 +25,21 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager
  * - 80%~100% 过渡到浅灰
  */
 class MemoryCardAdapter(
+    context: Context,
     private val onCardLongClick: (MemoryCardData, View, Int) -> Unit
 ) : RecyclerView.Adapter<MemoryCardAdapter.ViewHolder>() {
 
     private val cards = mutableListOf<MemoryCardData>()
 
-    // ── 色温渐变相关 ──
+    // ── 色温渐变相关（从资源中获取主题色）──
+    /** 暖色（淡樱粉），对应 R.color.sakura_pink #FDF0F0 */
+    private val warmColor = ContextCompat.getColor(context, R.color.sakura_pink)
+    /** 冷色（淡天蓝），对应 R.color.sakura_blue #D4E8F0 */
+    private val coolColor = ContextCompat.getColor(context, R.color.sakura_blue)
+    /** 灰色（浅灰），对应 R.color.memory_archive_gray #E8E8E8 */
+    private val grayColor = ContextCompat.getColor(context, R.color.memory_archive_gray)
+
     companion object {
-        /** 暖色（淡樱粉） */
-        private const val WARM_COLOR = 0xFFFDF0F0.toInt()
-        /** 冷色（淡天蓝） */
-        private const val COOL_COLOR = 0xFFD4E8F0.toInt()
-        /** 灰色（浅灰） */
-        private const val GRAY_COLOR = 0xFFE8E8E8.toInt()
         /** 每张卡片可变的随机高度偏移（用于瀑布流效果） */
         private val RANDOM_HEIGHT_OFFSETS = listOf(-40, -20, 0, 20, 40, 60)
     }
@@ -156,12 +159,12 @@ class MemoryCardAdapter(
             progress < 0.5f -> {
                 // 暖色 → 冷色
                 val p = progress / 0.5f
-                evaluator.evaluate(p, WARM_COLOR, COOL_COLOR) as Int
+                evaluator.evaluate(p, warmColor, coolColor) as Int
             }
             else -> {
                 // 冷色 → 灰色
                 val p = (progress - 0.5f) / 0.5f
-                evaluator.evaluate(p, COOL_COLOR, GRAY_COLOR) as Int
+                evaluator.evaluate(p, coolColor, grayColor) as Int
             }
         }
     }

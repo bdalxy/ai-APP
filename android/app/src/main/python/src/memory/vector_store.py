@@ -1668,7 +1668,7 @@ class VectorStore:
     CREATE TABLE IF NOT EXISTS {_TAGS_TABLE} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        color TEXT NOT NULL DEFAULT '#9B59B6',
+        color TEXT NOT NULL DEFAULT '#B0C4DE',
         created_at TEXT NOT NULL DEFAULT ''
     )
     """
@@ -1698,7 +1698,7 @@ class VectorStore:
         except sqlite3.Error as e:
             raise MemoryStorageError(f"创建标签表失败: {e}", detail=self.db_path) from e
 
-    def add_tag(self, name: str, color: str = "#9B59B6") -> int:
+    def add_tag(self, name: str, color: str = "#B0C4DE") -> int:
         """添加标签。
 
         Args:

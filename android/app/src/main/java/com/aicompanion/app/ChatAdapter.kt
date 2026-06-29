@@ -1,7 +1,6 @@
 package com.aicompanion.app
 
 import android.animation.ValueAnimator
-import android.graphics.Color
 import android.text.SpannableString
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
@@ -207,12 +206,17 @@ class ChatAdapter(
     /**
      * 对文本内容应用搜索关键词高亮。
      * 使用淡樱粉色背景 + 深色文字，不区分大小写。
+     * 颜色来源：R.color.glow_pink（背景）、R.color.text_on_pink（文字）。
      */
-    private fun applyHighlight(text: String): CharSequence {
+    private fun applyHighlight(text: String, context: Context): CharSequence {
         if (highlightKeyword.isBlank()) return text
         val keywordLower = highlightKeyword.lowercase(Locale.getDefault())
         val textLower = text.lowercase(Locale.getDefault())
         val spannable = SpannableString(text)
+
+        // 从资源中获取主题颜色
+        val highlightBg = ContextCompat.getColor(context, R.color.glow_pink)
+        val highlightFg = ContextCompat.getColor(context, R.color.text_on_pink)
 
         var startIndex = 0
         while (startIndex < textLower.length) {
@@ -220,13 +224,13 @@ class ChatAdapter(
             if (matchIndex == -1) break
             // 淡樱粉色背景 + 深色文字
             spannable.setSpan(
-                BackgroundColorSpan(Color.parseColor("#FFD0D9")),
+                BackgroundColorSpan(highlightBg),
                 matchIndex,
                 matchIndex + highlightKeyword.length,
                 SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
             )
             spannable.setSpan(
-                ForegroundColorSpan(Color.parseColor("#2D1B3A")),
+                ForegroundColorSpan(highlightFg),
                 matchIndex,
                 matchIndex + highlightKeyword.length,
                 SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -311,7 +315,7 @@ class ChatAdapter(
 
         // 消息内容（应用搜索高亮）
         holder.tvContent.text = if (highlightKeyword.isNotBlank()) {
-            applyHighlight(message.content)
+            applyHighlight(message.content, context)
         } else {
             message.content
         }
@@ -351,7 +355,7 @@ class ChatAdapter(
 
         // 消息内容（应用搜索高亮）
         holder.tvContent.text = if (highlightKeyword.isNotBlank()) {
-            applyHighlight(message.content)
+            applyHighlight(message.content, context)
         } else {
             message.content
         }

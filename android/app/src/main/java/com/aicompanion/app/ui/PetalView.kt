@@ -3,12 +3,14 @@ package com.aicompanion.app.ui
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
+import com.aicompanion.app.R
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -32,13 +34,6 @@ class PetalView @JvmOverloads constructor(
 
     companion object {
         private const val PETAL_COUNT = 5
-        private val PETAL_COLORS = intArrayOf(
-            Color.parseColor("#FDF0F0"),
-            Color.parseColor("#FCE4E0"),
-            Color.parseColor("#F8D0D8"),
-            Color.parseColor("#FDE8EC"),
-            Color.parseColor("#F9D8DC")
-        )
         private const val FALL_DURATION_MS = 3000L
         private const val FRAME_INTERVAL_MS = 16L
     }
@@ -51,7 +46,18 @@ class PetalView @JvmOverloads constructor(
     private var viewWidth = 0f
     private var viewHeight = 0f
 
+    /** 花瓣颜色池（从主题资源中获取） */
+    private val petalColors: IntArray
+
     init {
+        // 从资源中获取主题色作为花瓣颜色（匹配樱羽粉系）
+        petalColors = intArrayOf(
+            ContextCompat.getColor(context, R.color.sakura_pink),           // #FDF0F0 淡樱粉
+            ContextCompat.getColor(context, R.color.sakura_gradient_start), // #FCE4E0 樱羽渐变起
+            ContextCompat.getColor(context, R.color.sakura_header_end),     // #F8D8D8 樱羽标题栏尾（最接近 #F8D0D8）
+            ContextCompat.getColor(context, R.color.sakura_pink),           // #FDF0F0 淡樱粉（最接近 #FDE8EC）
+            ContextCompat.getColor(context, R.color.sakura_header_end)      // #F8D8D8 樱羽标题栏尾（最接近 #F9D8DC）
+        )
         petalPaint.style = Paint.Style.FILL
         petalPaint.isAntiAlias = true
         generatePetals()
@@ -64,7 +70,7 @@ class PetalView @JvmOverloads constructor(
                 x = Random.nextFloat(),
                 y = Random.nextFloat(),
                 scale = Random.nextFloat() * 0.3f + 0.6f,
-                color = PETAL_COLORS[Random.nextInt(PETAL_COLORS.size)],
+                color = petalColors[Random.nextInt(petalColors.size)],
                 rotation = Random.nextFloat() * 360f,
                 phase = Random.nextFloat() * 2f * PI.toFloat(),
                 amplitude = Random.nextFloat() * 0.04f + 0.02f,
@@ -151,7 +157,10 @@ class PetalView @JvmOverloads constructor(
         petalPaint.alpha = 200
         canvas.drawPath(petalPath, petalPaint)
 
-        petalPaint.color = Color.argb(60, 255, 255, 255)
+        // 花瓣中线高光（白色微透，对应 R.color.sakura_white）
+        petalPaint.color = ColorUtils.setAlphaComponent(
+            ContextCompat.getColor(context, R.color.sakura_white), 60
+        )
         petalPaint.strokeWidth = 1f
         petalPaint.style = Paint.Style.STROKE
         canvas.drawLine(0f, -baseSize * 0.6f, 0f, baseSize * 0.2f, petalPaint)

@@ -428,7 +428,7 @@ def analyze_quality() -> str:
 # =============================================================================
 
 
-def add_tag(name: str, color: str = "#9B59B6") -> str:
+def add_tag(name: str, color: str = "#B0C4DE") -> str:
     """添加标签。"""
     orchestrator = _ctx.orchestrator
     if orchestrator is None:

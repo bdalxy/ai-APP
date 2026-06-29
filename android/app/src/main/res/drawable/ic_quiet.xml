@@ -1,6 +1,6 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
     <!-- 月亮/免打扰图标 - 免打扰时段 -->
-    <path android:fillColor="#9B59B6"
+    <path android:fillColor="@color/primary"
         android:pathData="M12,3c-0.46,0 -0.93,0.04 -1.4,0.14C7.78,3.91 5.66,6.94 6.44,10.86L7.23,14.5C7.5,15.77 7.83,17.11 8.51,18.23L8.79,18.7C9.13,19.27 9.71,19.6 10.3,19.6h3.4c0.59,0 1.17,-0.33 1.51,-0.9l0.28,-0.47c0.68,-1.12 1.01,-2.46 1.28,-3.73l0.79,-3.64C18.34,6.94 16.22,3.91 13.4,3.14C12.93,3.04 12.46,3 12,3zM10,21h4c0,1.1 -0.9,2 -2,2S10,22.1 10,21z"/>
 </vector>

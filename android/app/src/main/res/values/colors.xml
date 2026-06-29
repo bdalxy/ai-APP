@@ -118,7 +118,7 @@
     <color name="plugin_tag_builtin_border">#40FFDCE3</color>    <!-- 内置标签边框：淡樱粉25% -->
 
     <!-- 保留兼容旧引用 -->
-    <color name="elysian_purple">#9B59B6</color>
+    <color name="elysian_purple">@color/primary</color>
     <color name="elysian_pink">#FFDCE3</color>
     <color name="elysian_pink_light">@color/sakura_pink</color>
     <color name="sakura_bg">@color/sakura_pink</color>
@@ -131,19 +131,19 @@
     <!-- 气泡阴影/描边 -->
     <color name="bubble_ai_shadow">#18FFB7C5</color>
     <color name="bubble_ai_stroke">#20FFB7C5</color>
-    <color name="bubble_user_shadow">#209B59B6</color>
+    <color name="bubble_user_shadow">#20FFDCE3</color>
     <!-- 输入框聚焦描边 -->
-    <color name="input_focused_border">#3D9B59B6</color>
+    <color name="input_focused_border">#3DB0C4DE</color>
     <!-- 主按钮 -->
     <color name="btn_primary_start">#FFDCE3</color>
     <color name="btn_primary_end">#D4E8F0</color>
     <color name="btn_primary_stroke">#80FFFFFF</color>
     <!-- 发送按钮 -->
     <color name="btn_send_start">#FFB7C5</color>
-    <color name="btn_send_end">#9B59B6</color>
+    <color name="btn_send_end">#D4E8F0</color>
     <!-- 发送按钮非激活态v2 -->
-    <color name="send_inactive_v2_solid">#269B59B6</color>
-    <color name="send_inactive_v2_stroke">#409B59B6</color>
+    <color name="send_inactive_v2_solid">#18B0C4DE</color>
+    <color name="send_inactive_v2_stroke">#40B0C4DE</color>
     <!-- 设置卡片 -->
     <color name="settings_card_bg">#1A1028</color>
     <color name="settings_card_stroke">#2DFFFFFF</color>
@@ -157,9 +157,9 @@
     <!-- 打字光点 -->
     <color name="typing_dot">#FFB7C5</color>
     <!-- 启动页渐变 -->
-    <color name="launcher_gradient_start">#8E44AD</color>
-    <color name="launcher_gradient_center">#9B59B6</color>
-    <color name="launcher_gradient_end">#B07CC6</color>
+    <color name="launcher_gradient_start">#FFDCE3</color>
+    <color name="launcher_gradient_center">#D4E8F0</color>
+    <color name="launcher_gradient_end">#B0C4DE</color>
     <!-- 樱羽标题栏 -->
     <color name="sakura_header_start">#FDF0F0</color>
     <color name="sakura_header_center">#FCE4E0</color>

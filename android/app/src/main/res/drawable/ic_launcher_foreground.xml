@@ -10,6 +10,6 @@
         android:pathData="M30,30 L78,30 C82.4,30 86,33.6 86,38 L86,65 C86,69.4 82.4,73 78,73 L58,73 L44,84 L44,73 L30,73 C25.6,73 22,69.4 22,65 L22,38 C22,33.6 25.6,30 30,30Z"/>
     <!-- AI 星星/火花（紫色） -->
     <path
-        android:fillColor="#9B59B6"
+        android:fillColor="@color/primary"
         android:pathData="M54,42 L56,48 L62,48 L57,52 L59,58 L54,54 L49,58 L51,52 L46,48 L52,48 Z"/>
 </vector>

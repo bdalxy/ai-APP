@@ -6,7 +6,6 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.media.AudioAttributes
@@ -24,6 +23,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
@@ -158,7 +158,7 @@ class MemoryArchiveActivity : AppCompatActivity() {
         // 防止 item 跳动
         layoutManager.gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_NONE
 
-        adapter = MemoryCardAdapter { card, view, position ->
+        adapter = MemoryCardAdapter(this) { card, view, position ->
             onCardLongPressed(card, view, position)
         }
 
@@ -422,14 +422,20 @@ class MemoryArchiveActivity : AppCompatActivity() {
     private fun showCrackEffect(view: View) {
         val crackView = object : View(this) {
             private val crackPaint = Paint().apply {
-                color = Color.parseColor("#80E57373")  // 半透明红色裂纹
+                // 半透明红色裂纹（对应 R.color.accent_red #E57373 + alpha 0x80）
+                color = ColorUtils.setAlphaComponent(
+                    ContextCompat.getColor(this@MemoryArchiveActivity, R.color.accent_red), 0x80
+                )
                 strokeWidth = 2.5f
                 style = Paint.Style.STROKE
                 isAntiAlias = true
                 strokeCap = Paint.Cap.ROUND
             }
             private val glowPaint = Paint().apply {
-                color = Color.parseColor("#40FFFFFF")  // 白色光晕
+                // 白色光晕（对应 R.color.sakura_white #FFFFFF + alpha 0x40）
+                color = ColorUtils.setAlphaComponent(
+                    ContextCompat.getColor(this@MemoryArchiveActivity, R.color.sakura_white), 0x40
+                )
                 strokeWidth = 5f
                 style = Paint.Style.STROKE
                 isAntiAlias = true
@@ -578,12 +584,12 @@ class MemoryArchiveActivity : AppCompatActivity() {
         // 先隐藏原始卡片
         view.visibility = View.INVISIBLE
 
-        // 创建 4 个碎片
+        // 创建 4 个碎片（使用主题色系 + alpha 0xE6）
         val fragmentColors = listOf(
-            Color.parseColor("#E6FFFFFF"),
-            Color.parseColor("#E6FDF0F0"),
-            Color.parseColor("#E6D4E8F0"),
-            Color.parseColor("#E6FCE4E0")
+            ColorUtils.setAlphaComponent(ContextCompat.getColor(this, R.color.sakura_white), 0xE6),           // #E6FFFFFF
+            ColorUtils.setAlphaComponent(ContextCompat.getColor(this, R.color.sakura_pink), 0xE6),            // #E6FDF0F0
+            ColorUtils.setAlphaComponent(ContextCompat.getColor(this, R.color.sakura_blue), 0xE6),            // #E6D4E8F0
+            ColorUtils.setAlphaComponent(ContextCompat.getColor(this, R.color.sakura_gradient_start), 0xE6)   // #E6FCE4E0
         )
 
         val fragments = mutableListOf<View>()

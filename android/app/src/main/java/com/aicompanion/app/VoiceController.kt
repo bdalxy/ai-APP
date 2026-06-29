@@ -1,12 +1,12 @@
 package com.aicompanion.app
 
 import android.content.Context
-import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.MotionEvent
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.aicompanion.app.databinding.ActivityMainBinding
 import com.aicompanion.app.utils.UiThread
@@ -215,7 +215,7 @@ class VoiceController(
                 Log.d(TAG, "语音打断：停止 TTS 后开始语音识别")
             }
             speechManager.startRecording()
-            binding.btnVoice.setColorFilter(Color.parseColor("#FF6B6B"))
+            binding.btnVoice.setColorFilter(ContextCompat.getColor(context, R.color.accent_red))
             Toast.makeText(context, "正在聆听...", Toast.LENGTH_SHORT).show()
             lifecycleScope.launch {
                 while (speechManager.isRecording) { delay(200) }
@@ -249,7 +249,7 @@ class VoiceController(
             }
             voiceRecorder.start()
             isVoiceRecordingCancelled = false
-            binding.btnVoice.setColorFilter(Color.parseColor("#FF6B6B"))
+            binding.btnVoice.setColorFilter(ContextCompat.getColor(context, R.color.accent_red))
         } catch (e: Exception) {
             Log.e(TAG, "启动语音录制失败", e)
             Toast.makeText(context, "启动语音录制失败: ${e.message}", Toast.LENGTH_SHORT).show()
