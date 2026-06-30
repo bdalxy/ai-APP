@@ -14,15 +14,18 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -32,6 +35,8 @@ import com.aicompanion.app.module.tts.TtsModule
 import com.aicompanion.app.module.tts.TtsModuleImpl
 import com.aicompanion.app.views.RecordingOverlayView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -136,8 +141,7 @@ class MainActivity : AppCompatActivity() {
                 else voiceController.pauseVoiceMessage()
             },
             onMessagesTrimmed = {
-                binding.tvArchiveHint.visibility = View.VISIBLE
-                chatViewModel.streamingHelper.onMessagesTrimmed()
+                chatViewModel.onMessagesTrimmed()
             },
             onDataChanged = {
                 updateChatEmptyState()
@@ -147,8 +151,14 @@ class MainActivity : AppCompatActivity() {
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
         binding.rvMessages.itemAnimator = MessageItemAnimator()
 
-        // 创建三个协调器
-        chatViewModel = ChatViewModel(this, binding, adapter, lifecycleScope)
+        // 创建 ChatViewModel（通过 ViewModelProvider + 自定义 Factory）
+        chatViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return ChatViewModel(application, adapter) as T
+            }
+        }).get(ChatViewModel::class.java)
+
         voiceController = VoiceController(
             context = this,
             binding = binding,
@@ -167,6 +177,9 @@ class MainActivity : AppCompatActivity() {
 
         // 设置回调
         setupCallbacks()
+
+        // 观察 ViewModel LiveData
+        observeViewModel()
 
         // 绑定 UI 事件
         setupUI()
@@ -191,7 +204,7 @@ class MainActivity : AppCompatActivity() {
                 ttsModule.clearSpeechManager()
             }
         } catch (_: Exception) {}
-        chatViewModel.destroy()
+        // chatViewModel 清理由 onCleared() 自动完成，无需手动调用
         voiceController.destroy()
         if (::recordingOverlay.isInitialized) {
             recordingOverlay.hide()
@@ -237,6 +250,175 @@ class MainActivity : AppCompatActivity() {
         return super.dispatchTouchEvent(ev)
     }
 
+    // ======================== ViewModel 观察 ========================
+
+    private fun observeViewModel() {
+        // 输入框启用状态
+        chatViewModel.inputEnabled.observe(this) { enabled ->
+            binding.etInput.isEnabled = enabled
+        }
+
+        // 发送按钮状态
+        chatViewModel.sendButtonState.observe(this) { state ->
+            binding.btnSend.isEnabled = state.enabled
+            binding.btnSend.setBackgroundResource(state.bgRes)
+            if (state.text.isNotEmpty()) {
+                binding.btnSend.text = state.text
+            }
+            if (state.triggerAnimation) {
+                binding.btnSend.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                if (state.enabled) {
+                    binding.btnSend.scaleX = 0.8f
+                    binding.btnSend.scaleY = 0.8f
+                    binding.btnSend.animate()
+                        .scaleX(1f).scaleY(1f)
+                        .setDuration(200)
+                        .withEndAction { binding.btnSend.setLayerType(View.LAYER_TYPE_NONE, null) }
+                        .start()
+                } else {
+                    binding.btnSend.animate()
+                        .scaleX(0.8f).scaleY(0.8f)
+                        .setDuration(150)
+                        .withEndAction {
+                            binding.btnSend.scaleX = 1f
+                            binding.btnSend.scaleY = 1f
+                            binding.btnSend.setLayerType(View.LAYER_TYPE_NONE, null)
+                        }
+                        .start()
+                }
+            }
+        }
+
+        // 搜索栏可见性
+        chatViewModel.searchBarVisible.observe(this) { visible ->
+            binding.layoutSearch?.visibility = if (visible) View.VISIBLE else View.GONE
+        }
+
+        // 搜索结果计数
+        chatViewModel.searchResultCountText.observe(this) { text ->
+            binding.tvSearchResultCount?.text = text
+        }
+
+        chatViewModel.searchResultCountVisible.observe(this) { visible ->
+            binding.tvSearchResultCount?.visibility = if (visible) View.VISIBLE else View.GONE
+        }
+
+        // 归档提示
+        chatViewModel.archiveHintVisible.observe(this) { visible ->
+            binding.tvArchiveHint.visibility = if (visible) View.VISIBLE else View.GONE
+        }
+
+        // 滚动到指定位置
+        chatViewModel.scrollToPosition.observe(this) { event ->
+            if (event.smooth) {
+                binding.rvMessages.smoothScrollToPosition(event.position)
+            } else {
+                binding.rvMessages.scrollToPosition(event.position)
+            }
+        }
+
+        // Toast 事件
+        chatViewModel.toastEvent.observe(this) { event ->
+            event.getContentIfNotHandled()?.let { message ->
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Snackbar 事件
+        chatViewModel.snackbarEvent.observe(this) { event ->
+            event.getContentIfNotHandled()?.let { data ->
+                val snackbar = Snackbar.make(binding.root, data.message, Snackbar.LENGTH_LONG)
+                if (data.showRetry) {
+                    snackbar.setAction(R.string.action_retry) { chatViewModel.retryLastMessage() }
+                }
+                snackbar.show()
+            }
+        }
+
+        // 输入框文本操作（编辑模式填充）
+        chatViewModel.inputTextAction.observe(this) { event ->
+            event.getContentIfNotHandled()?.let { action ->
+                when (action) {
+                    is InputTextAction.Set -> {
+                        binding.etInput.setText(action.text)
+                        binding.etInput.setSelection(action.selection)
+                    }
+                }
+            }
+        }
+
+        // 清空输入框
+        chatViewModel.clearInput.observe(this) { event ->
+            event.getContentIfNotHandled()?.let {
+                binding.etInput.text.clear()
+            }
+        }
+
+        // 请求输入框焦点
+        chatViewModel.requestInputFocus.observe(this) { event ->
+            event.getContentIfNotHandled()?.let {
+                binding.etInput.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.showSoftInput(binding.etInput, InputMethodManager.SHOW_IMPLICIT)
+            }
+        }
+
+        // 请求搜索框焦点
+        chatViewModel.requestSearchFocus.observe(this) { event ->
+            event.getContentIfNotHandled()?.let {
+                binding.etSearch?.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                binding.etSearch?.let { view -> imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT) }
+            }
+        }
+
+        // 隐藏键盘
+        chatViewModel.hideKeyboard.observe(this) { event ->
+            event.getContentIfNotHandled()?.let {
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                val focusedView = currentFocus
+                if (focusedView != null) {
+                    imm?.hideSoftInputFromWindow(focusedView.windowToken, 0)
+                } else {
+                    imm?.hideSoftInputFromWindow(binding.etInput.windowToken, 0)
+                }
+            }
+        }
+
+        // 清空搜索框
+        chatViewModel.clearSearchText.observe(this) { event ->
+            event.getContentIfNotHandled()?.let {
+                binding.etSearch?.setText("")
+            }
+        }
+
+        // 消息上下文菜单
+        chatViewModel.contextMenuEvent.observe(this) { event ->
+            event.getContentIfNotHandled()?.let { (message, position) ->
+                val items = mutableListOf(getString(R.string.action_copy))
+                if (message.isUser) {
+                    items.add(getString(R.string.action_edit))
+                    items.add(getString(R.string.btn_delete))
+                }
+                MaterialAlertDialogBuilder(this)
+                    .setItems(items.toTypedArray()) { _, which ->
+                        when (which) {
+                            0 -> chatViewModel.copyMessage(message.content)
+                            1 -> {
+                                if (message.isUser) {
+                                    chatViewModel.startEditingMessage(message, position)
+                                } else {
+                                    chatViewModel.deleteMessage(position)
+                                }
+                            }
+                            2 -> chatViewModel.deleteMessage(position)
+                        }
+                    }
+                    .show()
+            }
+        }
+    }
+
     // ======================== 回调设置 ========================
 
     private fun setupCallbacks() {
@@ -262,6 +444,36 @@ class MainActivity : AppCompatActivity() {
                 voiceController.resetVoiceInputFlag()
                 voiceController.stopTtsAndClear()
             }
+
+            override fun onShowExportFormatDialog() {
+                val formats = arrayOf(
+                    getString(R.string.export_format_json),
+                    getString(R.string.export_format_txt)
+                )
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(getString(R.string.label_choose_export_format))
+                    .setItems(formats) { _, which ->
+                        val format = if (which == 0) "json" else "txt"
+                        chatViewModel.exportConversation(format)
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+            }
+
+            override fun onShareFile(uri: Uri, format: String) {
+                try {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = if (format == "json") "application/json" else "text/plain"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(
+                        Intent.createChooser(shareIntent, getString(R.string.chooser_share_conversation))
+                    )
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "分享失败: ${e.message}")
+                }
+            }
         }
 
         // VoiceController 回调
@@ -285,7 +497,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onVoiceInputReady(text: String) {
                 // 语音识别完成后自动发送
-                chatViewModel.sendMessage()
+                chatViewModel.sendMessage(text)
             }
 
             override fun onError(error: String) {
@@ -335,7 +547,7 @@ class MainActivity : AppCompatActivity() {
         // 发送按钮
         binding.btnSend.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            chatViewModel.sendMessage()
+            chatViewModel.sendMessage(binding.etInput.text.toString())
         }
 
         // 语音按钮（触摸事件 → VoiceController）
@@ -349,14 +561,14 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // 设置按钮（搜索图标 → 点击搜索，长按设置）
-        binding.btnSettings.setOnClickListener {
+        // 搜索按钮：点击触发搜索模式
+        binding.btnSearch?.setOnClickListener {
             chatViewModel.toggleSearchMode()
         }
-        binding.btnSettings.setOnLongClickListener {
+
+        // 设置按钮：点击直接进入设置页
+        binding.btnSettings?.setOnClickListener {
             ActivityTransitionHelper.startWithSlideIn(this, Intent(this, SettingsActivity::class.java))
-            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            true
         }
 
         // 新建会话按钮
@@ -378,6 +590,10 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.closeDrawers()
             chatViewModel.toggleSearchMode()
         }
+        binding.btnDrawerSettings?.setOnClickListener {
+            binding.drawerLayout.closeDrawers()
+            ActivityTransitionHelper.startWithSlideIn(this, Intent(this, SettingsActivity::class.java))
+        }
 
         // 滚动到底部按钮
         binding.btnScrollBottom.setOnClickListener {
@@ -395,12 +611,14 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     View.GONE
                 }
+                // 更新 isAtBottom 状态（供 ChatViewModel 流式输出时判断是否自动滚动）
+                chatViewModel.isAtBottom = !recyclerView.canScrollVertically(1)
             }
         })
 
         // 点击聊天区域收起键盘
         binding.rvMessages.setOnTouchListener { _, _ ->
-            chatViewModel.hideKeyboard()
+            chatViewModel.requestHideKeyboard()
             false
         }
 
@@ -416,7 +634,7 @@ class MainActivity : AppCompatActivity() {
         // 输入框发送动作
         binding.etInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
-                chatViewModel.sendMessage()
+                chatViewModel.sendMessage(binding.etInput.text.toString())
                 true
             } else false
         }
@@ -433,6 +651,24 @@ class MainActivity : AppCompatActivity() {
         binding.ivAvatar.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             openCharacterSelect()
+        }
+
+        // 搜索框文本变化（从 ChatViewModel 移出的监听器）
+        binding.etSearch?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                chatViewModel.onSearchTextChanged(s?.toString() ?: "")
+            }
+        })
+
+        // 搜索取消按钮
+        binding.btnCancel?.setOnClickListener {
+            if (binding.etSearch?.text?.isNotEmpty() == true) {
+                binding.etSearch?.setText("")  // 触发 TextWatcher → 恢复全部消息
+            } else {
+                chatViewModel.onSearchCancelClicked()
+            }
         }
 
         // 左滑手势 → 打开会话抽屉
@@ -514,7 +750,8 @@ class MainActivity : AppCompatActivity() {
                 if (module == null) {
                     Log.e("MainActivity", "无法获取 Python chat_bridge 模块")
                     withContext(Dispatchers.Main) {
-                        binding.tvSplashStatus.text = getString(R.string.error_init_failed, "Python 模块加载失败")
+                        dismissSplash()
+                        Toast.makeText(this@MainActivity, R.string.error_init_python_module, Toast.LENGTH_LONG).show()
                     }
                     return@launch
                 }
@@ -554,7 +791,8 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("MainActivity", "Python 初始化失败", e)
                 withContext(Dispatchers.Main) {
-                    binding.tvSplashStatus.text = getString(R.string.error_init_failed, e.message)
+                    dismissSplash()
+                    binding.tvSplashStatus.text = getString(R.string.error_init_failed, e.message ?: "")
                 }
             }
         }
@@ -565,15 +803,19 @@ class MainActivity : AppCompatActivity() {
      * @return true 成功，false 失败（API Key 为空）
      */
     private suspend fun injectApiKey(module: com.chaquo.python.PyObject): Boolean {
-        val apiKey = AppConfig.getApiKey(this)
+        var apiKey = AppConfig.getApiKey(this)
         if (apiKey.isNullOrBlank()) {
             withContext(Dispatchers.Main) {
-                binding.tvSplashStatus.text = getString(R.string.error_init_api_key)
-                Toast.makeText(this@MainActivity, R.string.error_init_api_key, Toast.LENGTH_LONG).show()
+                binding.tvStatus.text = getString(R.string.error_init_api_key)
+                binding.tvStatus.setTextColor(getColor(R.color.accent_red))
+                dismissSplash()
+                showApiKeyMissingDialog()
             }
             return false
         }
         module.callAttr("set_api_key", apiKey)
+        // 传递后立即清空 Kotlin 端变量，减少明文在内存中的停留时间
+        apiKey = ""
         return true
     }
 
@@ -583,12 +825,15 @@ class MainActivity : AppCompatActivity() {
     private fun initChatEngine(module: com.chaquo.python.PyObject) {
         val ctxSize = AppConfig.getContextSize(this)
         val temp = AppConfig.getTemperature(this).toDouble()
+        val topP = AppConfig.getTopP(this).toDouble()
+        val freqPenalty = AppConfig.getFrequencyPenalty(this).toDouble()
+        val presPenalty = AppConfig.getPresencePenalty(this).toDouble()
         val maxTk = AppConfig.getMaxTokens(this)
         val dialogues = AppConfig.getExampleDialogues(this)
         val model = AppConfig.getModel(this).let {
             if (it.isBlank()) "" else it
         }
-        module.callAttr("init", ctxSize, temp, maxTk, dialogues, model)
+        module.callAttr("init", ctxSize, temp, topP, freqPenalty, presPenalty, maxTk, dialogues, model)
     }
 
     /**
@@ -701,6 +946,21 @@ class MainActivity : AppCompatActivity() {
                 }
             })
             ?.start()
+    }
+
+    /**
+     * 显示 API Key 未配置的引导对话框，避免用户被卡在启动画面。
+     */
+    private fun showApiKeyMissingDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_api_key_missing_title)
+            .setMessage(R.string.dialog_api_key_missing_message)
+            .setPositiveButton(R.string.dialog_api_key_missing_goto_settings) { _, _ ->
+                startActivity(Intent(this, SettingsActivity::class.java))
+            }
+            .setNegativeButton(R.string.dialog_api_key_missing_later, null)
+            .setCancelable(false)
+            .show()
     }
 
     /**
@@ -851,7 +1111,7 @@ class MainActivity : AppCompatActivity() {
             updateWebSearchUI(webIcon, webStatus, newState)
             Toast.makeText(
                 this,
-                if (newState) "联网搜索已开启" else "联网搜索已关闭",
+                if (newState) getString(R.string.toast_online_search_on) else getString(R.string.toast_online_search_off),
                 Toast.LENGTH_SHORT
             ).show()
         }

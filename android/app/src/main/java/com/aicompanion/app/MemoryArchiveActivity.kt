@@ -339,7 +339,7 @@ class MemoryArchiveActivity : AppCompatActivity() {
                 createdAt = obj.optString("created_at", ""),
                 importance = obj.optDouble("importance", 0.0)
             )
-            parsedCards.add(MemoryCardData.fromMemoryItem(memoryItem))
+            parsedCards.add(MemoryCardData.fromMemoryItem(memoryItem, this))
         }
 
         adapter.addAll(parsedCards)
@@ -684,7 +684,7 @@ class MemoryArchiveActivity : AppCompatActivity() {
                     val module = py.getModule("chat_bridge")
                     module.callAttr("delete_memory", card.rowid)
                 }
-                Log.d(TAG, "记忆已删除: rowid=${card.rowid}, content=${card.content.take(30)}...")
+                Log.d(TAG, "记忆已删除: rowid=${card.rowid}, len=${card.content.length}")
             } catch (e: Exception) {
                 Log.w(TAG, "删除记忆失败: ${e.message}")
             }

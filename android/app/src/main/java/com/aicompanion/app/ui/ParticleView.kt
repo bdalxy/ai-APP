@@ -4,11 +4,12 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
+import androidx.core.content.ContextCompat
+import com.aicompanion.app.R
 import kotlin.random.Random
 
 /**
@@ -42,20 +43,20 @@ class ParticleView @JvmOverloads constructor(
             return nightMode == Configuration.UI_MODE_NIGHT_YES
         }
 
-    /** 根据主题返回不同的颜色池（使用樱羽主题色系） */
+    /** 根据主题返回不同的颜色池（使用樱羽主题色系资源） */
     private fun getColors(): IntArray {
         return if (isDarkMode) {
             intArrayOf(
-                Color.argb(128, 255, 183, 197),       // 粉色半透（对应 typing_dot #FFB7C5）
-                Color.argb(128, 176, 196, 222),        // 淡天蓝半透（对应 sakura_sky #B0C4DE）
-                Color.argb(96, 255, 255, 255)          // 白色微透
+                ContextCompat.getColor(context, R.color.particle_pink_translucent),
+                ContextCompat.getColor(context, R.color.particle_sky_translucent),
+                ContextCompat.getColor(context, R.color.particle_white_faint)
             )
         } else {
             intArrayOf(
-                Color.argb(100, 176, 196, 222),        // 淡天蓝半透（对应 sakura_sky #B0C4DE）
-                Color.argb(100, 255, 183, 197),        // 粉色半透（对应 typing_dot #FFB7C5）
-                Color.argb(60, 253, 240, 240),         // 淡樱粉微透（对应 sakura_pink #FDF0F0）
-                Color.argb(40, 176, 196, 222)          // 淡天蓝微透（对应 sakura_sky #B0C4DE）
+                ContextCompat.getColor(context, R.color.particle_sky_light),
+                ContextCompat.getColor(context, R.color.particle_pink_light),
+                ContextCompat.getColor(context, R.color.particle_pink_mist),
+                ContextCompat.getColor(context, R.color.particle_sky_mist)
             )
         }
     }

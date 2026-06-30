@@ -1,6 +1,13 @@
 """
 核心聊天引擎桥接模块 — init / chat / reset / apply_params 等。
+
+=== i18n 标记 ===
+以下硬编码中文字符串已用 # TODO-i18n: 标记，未来如需多语言支持，
+请将这些字符串迁移到 Python 端的资源系统（如 gettext 或自定义 i18n 模块）。
+当前 Python 端运行在 Android Chaquopy 环境中，无 Android 资源系统，
+故暂不迁移，仅做标记。
 """
+# TODO-i18n: 本文件中所有硬编码中文字符串均需在未来迁移到 i18n 系统
 import json
 import os
 import queue
@@ -82,8 +89,8 @@ def _build_custom_preset(
     from src.chat_engine.token_presets import TokenPreset
     return TokenPreset(
         key="custom",
-        label="自定义",
-        description="手动调整",
+        label="自定义",  # TODO-i18n
+        description="手动调整",  # TODO-i18n
         model=model or "deepseek-v4-flash",
         temperature=temperature,
         max_tokens=max_tokens,
@@ -134,7 +141,7 @@ def init(
     """初始化聊天引擎。"""
     try:
         if not settings.DEEPSEEK_API_KEY:
-            return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
+            return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})  # TODO-i18n
 
         custom_preset = _build_custom_preset(context_size, temperature, top_p, frequency_penalty, presence_penalty, max_tokens, example_dialogues, model)
         player = _ctx.initialize(preset=custom_preset, model=model if model else "")
@@ -150,7 +157,7 @@ def init(
 
         return json.dumps({"status": "ok", "card": info, "params": params})
     except FileNotFoundError as e:
-        return json.dumps({"status": "error", "message": f"角色卡文件不存在: {e}"})
+        return json.dumps({"status": "error", "message": f"角色卡文件不存在: {e}"})  # TODO-i18n
     except RolePlayerError as e:
         return json.dumps({"status": "error", "message": str(e)})
     except Exception as e:
@@ -240,10 +247,10 @@ def chat(user_input: str) -> dict:
     orchestrator = _ctx.orchestrator
 
     if player is None:
-        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})  # TODO-i18n
 
     if not user_input or not user_input.strip():
-        return json.dumps({"status": "error", "message": "消息不能为空"})
+        return json.dumps({"status": "error", "message": "消息不能为空"})  # TODO-i18n
 
     try:
         user_input = user_input.strip()
@@ -302,10 +309,10 @@ def chat_stream_start(user_input: str) -> str:
     orchestrator = _ctx.orchestrator
 
     if player is None:
-        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})  # TODO-i18n
 
     if not user_input or not user_input.strip():
-        return json.dumps({"status": "error", "message": "消息不能为空"})
+        return json.dumps({"status": "error", "message": "消息不能为空"})  # TODO-i18n
 
     user_input = user_input.strip()
 
@@ -397,7 +404,7 @@ def chat_stream_start(user_input: str) -> str:
             stream["error"] = str(e)
             stream["error_type"] = "internal"
             try:
-                token_queue.put_nowait(json.dumps({"status": "error", "error_type": "internal", "message": f"内部错误: {e}"}))
+                token_queue.put_nowait(json.dumps({"status": "error", "error_type": "internal", "message": f"内部错误: {e}"}))  # TODO-i18n
             except queue.Full:
                 _log.warning("[流式对话] 队列满，丢弃错误消息")
         finally:
@@ -430,7 +437,7 @@ def chat_stream_poll(stream_id: str) -> str:
     with _streams_lock:
         stream = _streams.get(stream_id)
     if not stream:
-        return json.dumps({"status": "error", "message": "无效的 stream_id"})
+        return json.dumps({"status": "error", "message": "无效的 stream_id"})  # TODO-i18n
 
     # 每次只取一个事件，实现真正的逐 token 流式输出
     try:
@@ -451,7 +458,7 @@ def chat_stream_poll(stream_id: str) -> str:
                 stream["queue"].get_nowait()
             except queue.Empty:
                 break
-        return json.dumps({"status": "error", "message": "对话超时（超过5分钟无响应），请重试"})
+        return json.dumps({"status": "error", "message": "对话超时（超过5分钟无响应），请重试"})  # TODO-i18n
 
     if stream["done"]:
         # 在锁内清理已结束的流会话
@@ -560,16 +567,16 @@ def restore_history(conversation_json: str) -> dict:
     """
     player = _ctx.player
     if player is None:
-        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+        return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})  # TODO-i18n
 
     try:
         messages = json.loads(conversation_json)
         if not isinstance(messages, list):
-            return json.dumps({"status": "error", "message": "conversation_json 必须是 JSON 数组"})
+            return json.dumps({"status": "error", "message": "conversation_json 必须是 JSON 数组"})  # TODO-i18n
         player.restore_history(messages)
         return json.dumps({"status": "ok", "count": len(messages)})
     except json.JSONDecodeError as e:
-        return json.dumps({"status": "error", "message": f"JSON 解析失败: {e}"})
+        return json.dumps({"status": "error", "message": f"JSON 解析失败: {e}"})  # TODO-i18n
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
@@ -580,7 +587,7 @@ def get_card_info() -> dict:
     """获取当前角色卡信息。"""
     player = _ctx.player
     if player is None:
-        return json.dumps({"status": "error", "message": "引擎未初始化"})
+        return json.dumps({"status": "error", "message": "引擎未初始化"})  # TODO-i18n
     try:
         from typing import Any
         info: dict[str, Any] = dict(player.get_card_info())
@@ -595,7 +602,7 @@ def get_card_info() -> dict:
 def set_api_key(key: str) -> dict:
     """设置 DeepSeek API Key（运行时设置，不写入文件）。"""
     if not key or not key.strip():
-        return json.dumps({"status": "error", "message": "API Key 不能为空"})
+        return json.dumps({"status": "error", "message": "API Key 不能为空"})  # TODO-i18n
     key = key.strip()
     os.environ["DEEPSEEK_API_KEY"] = key
     settings.DEEPSEEK_API_KEY = key
@@ -624,11 +631,11 @@ def apply_params(
     """运行时更新对话参数（不重建引擎，保留对话上下文）。"""
     try:
         if not settings.DEEPSEEK_API_KEY:
-            return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})
+            return json.dumps({"status": "error", "message": "API Key 未配置，请先设置 API Key"})  # TODO-i18n
 
         player = _ctx.player
         if player is None:
-            return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})
+            return json.dumps({"status": "error", "message": "引擎未初始化，请先调用 init()"})  # TODO-i18n
 
         player.temperature = temperature
         player.top_p = top_p
@@ -672,7 +679,7 @@ def search_conversation(keyword: str, conversation_json: str) -> str:
     try:
         messages = json.loads(conversation_json)
     except Exception:
-        return json.dumps({"status": "error", "message": "无效的对话数据格式"})
+        return json.dumps({"status": "error", "message": "无效的对话数据格式"})  # TODO-i18n
 
     if not keyword or not keyword.strip():
         return json.dumps({"status": "ok", "matches": [], "total": 0})
@@ -711,20 +718,20 @@ def export_history(format: str = "json") -> dict:
     """
     player = _ctx.player
     if player is None:
-        return json.dumps({"status": "error", "message": "引擎未初始化，没有对话历史"})
+        return json.dumps({"status": "error", "message": "引擎未初始化，没有对话历史"})  # TODO-i18n
 
     try:
         context = player.get_context()
         if not context:
-            return json.dumps({"status": "error", "message": "对话历史为空"})
+            return json.dumps({"status": "error", "message": "对话历史为空"})  # TODO-i18n
 
         card_info = player.get_card_info()
-        card_name = card_info.get("name", "未知角色")
+        card_name = card_info.get("name", "未知角色")  # TODO-i18n: "未知角色"
 
         if format == "txt":
-            lines = [f"AI 角色扮演对话记录", f"角色: {card_name}", f"导出时间: {format_timestamp_iso()}", "=" * 40, ""]
+            lines = [f"AI 角色扮演对话记录", f"角色: {card_name}", f"导出时间: {format_timestamp_iso()}", "=" * 40, ""]  # TODO-i18n: export labels
             for msg in context:
-                role_name = "用户" if msg["role"] == "user" else card_name
+                role_name = "用户" if msg["role"] == "user" else card_name  # TODO-i18n: "用户"
                 lines.append(f"[{role_name}]")
                 lines.append(msg["content"])
                 lines.append("")

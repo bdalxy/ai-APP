@@ -50,6 +50,7 @@ class ProactiveScheduler:
     """
 
     _DEFAULT_INTERVAL_SECONDS: int = 1800  # 30 分钟
+    _MIN_SEND_INTERVAL_SECONDS: int = 300  # 最短发送间隔 5 分钟，防止频繁推送
 
     def __init__(self) -> None:
         self._file_path: Path = settings.DATA_DIR / _STATE_FILENAME
@@ -132,6 +133,18 @@ class ProactiveScheduler:
         if self._engine is None:
             self._log.debug("[调度器] 引擎未注入，跳过")
             return False
+
+        # 频率限制：检查距上次发送是否超过最短间隔
+        last_sent = self.get_last_sent_time()
+        if last_sent is not None:
+            from datetime import timedelta
+            elapsed = now_cst() - last_sent
+            if elapsed < timedelta(seconds=self._MIN_SEND_INTERVAL_SECONDS):
+                self._log.debug(
+                    f"[调度器] 频率限制：距上次发送仅 {elapsed.total_seconds():.0f}s，"
+                    f"需 >= {self._MIN_SEND_INTERVAL_SECONDS}s，跳过"
+                )
+                return False
 
         try:
             # 延迟导入避免循环依赖

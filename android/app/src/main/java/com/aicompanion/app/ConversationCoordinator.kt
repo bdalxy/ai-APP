@@ -29,6 +29,9 @@ class ConversationCoordinator(
         private const val TAG = "ConvCoordinator"
     }
 
+    /** ISS-090: 使用 ApplicationContext 避免持有 Activity 生命周期引用 */
+    private val appContext: Context = context.applicationContext
+
     /** 回调接口：通知 MainActivity 执行 UI 更新和 Python 重置 */
     interface ConversationCallback {
         /** 会话已切换，需要更新消息列表 */
@@ -62,7 +65,7 @@ class ConversationCoordinator(
                 ConversationSessionManager.saveMessages(sessionId, messages)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.toast_save_failed), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(appContext, appContext.getString(R.string.toast_save_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -81,7 +84,7 @@ class ConversationCoordinator(
             } catch (e: Exception) {
                 Log.w(TAG, "加载会话失败: ${e.message}", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.toast_load_session_failed), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(appContext, appContext.getString(R.string.toast_load_session_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -103,21 +106,21 @@ class ConversationCoordinator(
     /** 显示新建会话对话框 */
     fun showNewChatDialog() {
         val input = EditText(context).apply {
-            hint = context.getString(R.string.dialog_session_name)
+            hint = appContext.getString(R.string.dialog_session_name)
             setSingleLine(true)
             val sessions = ConversationSessionManager.getSessions()
-            val newIndex = sessions.count { it.name.startsWith(context.getString(R.string.default_session_name)) } + 1
-            setText(context.getString(R.string.default_session_name) + " $newIndex")
+            val newIndex = sessions.count { it.name.startsWith(appContext.getString(R.string.default_session_name)) } + 1
+            setText(appContext.getString(R.string.default_session_name) + " $newIndex")
             setSelection(text.length)
         }
         val dialog = MaterialAlertDialogBuilder(context)
             .setTitle(R.string.default_session_name)
             .setView(input)
-            .setPositiveButton("创建") { _, _ ->
-                val name = input.text.toString().trim().ifEmpty { context.getString(R.string.default_session_name) }
+            .setPositiveButton(R.string.dialog_create_session) { _, _ ->
+                val name = input.text.toString().trim().ifEmpty { appContext.getString(R.string.default_session_name) }
                 createNewSession(name)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .create()
         dialog.show()
         input.postDelayed({
@@ -158,7 +161,7 @@ class ConversationCoordinator(
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    callback?.onError("创建会话失败: ${e.message}")
+                    callback?.onError(appContext.getString(R.string.error_create_session_failed, e.message))
                 }
             }
         }
@@ -177,32 +180,32 @@ class ConversationCoordinator(
         }
 
         val displayNames = sessions.map { session ->
-            val marker = if (session.id == currentId) " [当前]" else ""
+            val marker = if (session.id == currentId) appContext.getString(R.string.label_current_session) else ""
             val preview = if (session.lastMessage.isNotEmpty()) " — ${session.lastMessage}" else ""
             val time = formatTimestamp(session.updatedAt)
             "${session.name}$marker\n$preview\n$time"
         }.toTypedArray()
 
         MaterialAlertDialogBuilder(context)
-            .setTitle("会话列表")
+            .setTitle(R.string.drawer_session_list_title)
             .setItems(displayNames) { _, which ->
                 val selected = sessions[which]
                 if (selected.id != currentId) {
                     switchToSession(selected.id)
                 }
             }
-            .setPositiveButton("新建会话") { _, _ ->
+            .setPositiveButton(R.string.drawer_new_chat) { _, _ ->
                 showNewChatDialog()
             }
-            .setNeutralButton("重命名") { _, _ ->
+            .setNeutralButton(R.string.dialog_rename) { _, _ ->
                 val currentSession = sessions.find { it.id == currentId }
                 if (currentSession != null) {
                     showRenameDialog(currentSession)
                 }
             }
-            .setNegativeButton("删除") { _, _ ->
+            .setNegativeButton(R.string.btn_delete) { _, _ ->
                 if (sessions.size <= 1) {
-                    Toast.makeText(context, "至少保留一个会话", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.toast_keep_one_session, Toast.LENGTH_SHORT).show()
                     return@setNegativeButton
                 }
                 showDeleteSessionDialog(sessions, currentId)
@@ -219,28 +222,28 @@ class ConversationCoordinator(
     ) {
         val names = sessions.map { s ->
             "${s.name} (${s.messageCount}条消息)" +
-            if (s.id == currentId) " [当前]" else ""
+            if (s.id == currentId) appContext.getString(R.string.label_current_session) else ""
         }.toTypedArray()
 
         MaterialAlertDialogBuilder(context)
-            .setTitle("选择要删除的会话")
+            .setTitle(R.string.dialog_title_select_session_delete)
             .setItems(names) { _, which ->
                 val session = sessions[which]
                 showDeleteConfirmDialog(session)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 
     /** 显示删除确认对话框 */
     private fun showDeleteConfirmDialog(session: ConversationSession) {
         MaterialAlertDialogBuilder(context)
-            .setTitle("删除会话")
-            .setMessage("确定要删除「${session.name}」吗？\n该会话的 ${session.messageCount} 条消息将被永久删除，无法恢复。")
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(R.string.dialog_title_delete_session)
+            .setMessage(appContext.getString(R.string.msg_delete_session_confirm, session.name, session.messageCount))
+            .setPositiveButton(R.string.btn_delete) { _, _ ->
                 deleteSessionAndSwitch(session.id)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 
@@ -275,7 +278,7 @@ class ConversationCoordinator(
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    callback?.onError("删除会话失败: ${e.message}")
+                    callback?.onError(appContext.getString(R.string.error_delete_session_failed, e.message))
                 }
             }
         }
@@ -291,16 +294,16 @@ class ConversationCoordinator(
             setSelection(text.length)
         }
         MaterialAlertDialogBuilder(context)
-            .setTitle("重命名会话")
+            .setTitle(R.string.dialog_title_rename_session)
             .setView(input)
-            .setPositiveButton("确定") { _, _ ->
+            .setPositiveButton(R.string.btn_confirm) { _, _ ->
                 val newName = input.text.toString().trim()
                 if (newName.isNotEmpty() && newName != session.name) {
                     ConversationSessionManager.renameSession(session.id, newName)
-                    Toast.makeText(context, "已重命名为「${newName}」", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(appContext, appContext.getString(R.string.toast_session_renamed, newName), Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 
@@ -331,7 +334,7 @@ class ConversationCoordinator(
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    callback?.onError("切换会话失败: ${e.message}")
+                    callback?.onError(appContext.getString(R.string.error_switch_session_failed, e.message))
                 }
             }
         }
@@ -344,10 +347,10 @@ class ConversationCoordinator(
         val now = System.currentTimeMillis()
         val diff = now - timestamp
         return when {
-            diff < 60_000 -> "刚刚"
-            diff < 3_600_000 -> "${diff / 60_000}分钟前"
-            diff < 86_400_000 -> "${diff / 3_600_000}小时前"
-            diff < 172_800_000 -> "昨天"
+            diff < 60_000 -> appContext.getString(R.string.time_just_now)
+            diff < 3_600_000 -> appContext.getString(R.string.time_minutes_ago, diff / 60_000)
+            diff < 86_400_000 -> appContext.getString(R.string.time_hours_ago, diff / 3_600_000)
+            diff < 172_800_000 -> appContext.getString(R.string.time_yesterday)
             else -> {
                 val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
                 sdf.format(Date(timestamp))

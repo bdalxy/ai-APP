@@ -24,12 +24,10 @@
       （小米/华为/OPPO/vivo 后台保活必需）
     - RECEIVE_BOOT_COMPLETED: 开机自启动（重启后恢复定时器）
     - ACCESS_NOTIFICATION_POLICY: 通知使用权（部分厂商限制通知）
-    - SYSTEM_ALERT_WINDOW: 悬浮窗权限（部分厂商通知弹窗需要）
     ───────────────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- 前台服务类型：Android 14+ 需要声明 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
@@ -56,6 +54,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.AICompanion"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false"
         android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
         android:hardwareAccelerated="true"
@@ -162,6 +161,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- 开机自启动：恢复主动推送定时器 -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

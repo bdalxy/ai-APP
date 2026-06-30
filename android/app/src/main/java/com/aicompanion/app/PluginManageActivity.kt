@@ -14,6 +14,14 @@ import com.aicompanion.app.plugin.PluginRegistry
 import com.aicompanion.app.plugin.PluginType
 import com.google.android.material.tabs.TabLayout
 
+/**
+ * 插件管理页面。
+ *
+ * ISS-095: 本页面直接调用 Python chat_bridge 模块而非通过 PluginModuleImpl。
+ * 这是有意为之的设计决策：插件管理页面需要获取插件的详细统计信息
+ * （callCount、errorCount、lastError 等），这些数据在 PluginModule 接口中
+ * 不可用（PluginMeta 只包含基本元数据）。日常的插件启停操作应通过 PluginModuleImpl。
+ */
 class PluginManageActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
@@ -197,9 +205,9 @@ class PluginManageActivity : AppCompatActivity() {
         val message = buildString {
             append(getString(R.string.label_plugin_version)); append(plugin.version); append("\n")
             append(getString(R.string.label_plugin_author)); append(plugin.author); append("\n")
-            append(getString(R.string.label_plugin_category)); append(plugin.categoryLabel); append("\n")
+            append(getString(R.string.label_plugin_category)); append(if (plugin.categoryLabelResId != 0) getString(plugin.categoryLabelResId) else plugin.category); append("\n")
             if (plugin.isBuiltIn) append(getString(R.string.label_plugin_builtin))
-            append(getString(R.string.label_plugin_status)); append(plugin.statusLabel); append("\n")
+            append(getString(R.string.label_plugin_status)); append(getString(plugin.statusLabelResId)); append("\n")
             append(getString(R.string.label_plugin_stats))
             append(getString(R.string.label_plugin_call_count)); append(plugin.callCount); append("\n")
             append(getString(R.string.label_plugin_error_count)); append(plugin.errorCount); append("\n")
@@ -233,18 +241,18 @@ private fun PluginInfo.toPluginItem(): PluginItem {
         name = this.name,
         version = this.version,
         description = this.description,
-        category = this.type.category,
+        category = this.category.ifEmpty { this.type.category },
         enabled = this.isEnabled,
         author = this.author,
         icon = "plugin",
         isBuiltIn = this.isBuiltIn,
-        dependencies = this.permissionRequired,
-        conflicts = emptyList(),
+        dependencies = this.dependencies.ifEmpty { this.permissionRequired },
+        conflicts = this.conflicts,
         hooks = emptyList(),
-        callCount = 0,
-        errorCount = 0,
-        installTime = System.currentTimeMillis(),
-        lastCallTime = 0,
-        lastError = ""
+        callCount = this.callCount,
+        errorCount = this.errorCount,
+        installTime = this.installTime,
+        lastCallTime = this.lastCallTime,
+        lastError = this.lastError
     )
 }

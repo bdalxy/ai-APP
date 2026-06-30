@@ -80,6 +80,8 @@
     public static *** d(...);
     public static *** v(...);
     public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
 }
 
 # ── R8 缺失类警告抑制 ──

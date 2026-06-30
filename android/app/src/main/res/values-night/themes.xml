@@ -22,5 +22,114 @@
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:editTextColor">@color/text_primary</item>
-        </style>
+    </style>
+
+    <!-- 设置项标题（深色模式） -->
+    <style name="SettingsItemTitle" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <!-- 设置项副标题（深色模式） -->
+    <style name="SettingsItemSubtitle" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- 毛玻璃卡片（深色模式） -->
+    <style name="GlassCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/glass_bg_dark</item>
+        <item name="strokeColor">@color/glass_border</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <!-- ===== AppButton 系列（深色模式） ===== -->
+    <style name="AppButton.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="android:textColor">@color/onPrimary</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:background">@drawable/bg_btn_primary</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minWidth">80dp</item>
+        <item name="android:minHeight">@dimen/button_default</item>
+    </style>
+
+    <style name="AppButton.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textColor">@color/primary</item>
+        <item name="strokeColor">@color/primary</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:minHeight">@dimen/button_default</item>
+    </style>
+
+    <style name="AppButton.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">@color/primary</item>
+        <item name="android:textSize">@dimen/text_body_small</item>
+        <item name="android:minHeight">@dimen/button_medium</item>
+    </style>
+
+    <!-- ===== AppSwitch 开关样式（深色模式） ===== -->
+    <style name="AppSwitch" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="android:thumb">@drawable/bg_switch_thumb</item>
+        <item name="android:track">@drawable/bg_switch_track</item>
+    </style>
+
+    <!-- ===== AppInput 输入框样式（深色模式） ===== -->
+    <style name="AppInput" parent="Widget.AppCompat.EditText">
+        <item name="android:background">@drawable/bg_input_field</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_tertiary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <style name="AppInput.Search" parent="AppInput">
+        <item name="android:layout_height">40dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <style name="AppInput.Multiline" parent="AppInput">
+        <item name="android:singleLine">false</item>
+        <item name="android:maxLines">4</item>
+        <item name="android:gravity">top</item>
+    </style>
+
+    <!-- ===== AppChip 标签样式（深色模式） ===== -->
+    <style name="AppChip">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/onPrimary</item>
+        <item name="android:paddingHorizontal">8dp</item>
+        <item name="android:paddingVertical">2dp</item>
+        <item name="android:background">@drawable/bg_type_label</item>
+    </style>
+
+    <!-- ===== AppText 文本样式（深色模式） ===== -->
+    <style name="AppText" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+    </style>
+
+    <style name="AppText.PageTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_heading</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AppText.CardTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AppText.CardSubtitle">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="AppText.Caption">
+        <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:textSize">@dimen/text_caption</item>
+    </style>
 </resources>

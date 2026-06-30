@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from src.utils.logger import get_logger
@@ -53,7 +53,7 @@ class TopicGenerator:
 
     def generate_topic(self, card: "Card", memories: list[str], time_of_day: str | None = None, api_client: "DeepSeekClient | None" = None, user_preferences: list[str] | None = None) -> str:
         if time_of_day is None:
-            time_of_day = self._get_time_period(datetime.now())
+            time_of_day = self._get_time_period(datetime.now(tz=timezone.utc))
         if time_of_day not in self._TIME_PERIOD_CONFIG:
             raise ValueError(f"无效的时间段: {time_of_day}")
         prefs = user_preferences or []

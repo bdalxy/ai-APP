@@ -19,18 +19,18 @@ class CharacterPreviewActivity : AppCompatActivity() {
         val personality = intent.getStringExtra("character_personality") ?: ""
         val greeting = intent.getStringExtra("character_greeting") ?: ""
         val backstory = intent.getStringExtra("character_backstory") ?: ""
-        binding.tvPreviewName.text = name.ifBlank { "未命名角色" }
-        binding.tvPreviewPersonality.text = personality.ifBlank { "暂无性格描述" }
-        binding.tvPreviewGreeting.text = greeting.ifBlank { "你好呀~今天过得怎么样？" }
+        binding.tvPreviewName.text = name.ifBlank { getString(R.string.char_unnamed) }
+        binding.tvPreviewPersonality.text = personality.ifBlank { getString(R.string.char_no_personality) }
+        binding.tvPreviewGreeting.text = greeting.ifBlank { getString(R.string.char_default_greeting) }
         if (personality.isNotBlank() || backstory.isNotBlank()) {
             binding.cardDetails.visibility = View.VISIBLE
             if (personality.isNotBlank()) {
                 binding.tvDetailPersonality.visibility = View.VISIBLE
-                binding.tvDetailPersonality.text = "性格特征：$personality"
+                binding.tvDetailPersonality.text = getString(R.string.char_detail_personality_fmt, personality)
             }
             if (backstory.isNotBlank()) {
                 binding.tvDetailBackstory.visibility = View.VISIBLE
-                binding.tvDetailBackstory.text = "背景故事：$backstory"
+                binding.tvDetailBackstory.text = getString(R.string.char_detail_backstory_fmt, backstory)
             }
         } else {
             binding.cardDetails.visibility = View.GONE

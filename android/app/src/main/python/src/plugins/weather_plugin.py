@@ -3,6 +3,7 @@
 import random
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Optional, Dict, Tuple
 
 import requests
@@ -44,6 +45,8 @@ class WeatherPlugin(BasePlugin):
         super().__init__()
         # 缓存: {city: (timestamp, formatted_result)}
         self._cache: Dict[str, Tuple[float, str]] = {}
+        # 线程池用于异步 HTTP 请求，避免阻塞 Chaquopy 主线程
+        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="weather")
 
     def pre_process(self, user_input: str) -> Optional[str]:
         m = re.match(r"^/weather\s+(.+)", user_input.strip())
@@ -64,15 +67,17 @@ class WeatherPlugin(BasePlugin):
                 return result
             del self._cache[city]
 
-        # 尝试真实 API
+        # 尝试真实 API（在线程池中执行，避免阻塞主线程）
         try:
-            result = self._fetch_from_api(city)
+            future = self._executor.submit(self._fetch_from_api, city)
+            result = future.result(timeout=self._REQUEST_TIMEOUT + 2)
             if result is not None:
                 self._cache[city] = (time.time(), result)
                 return result
-        except Exception as e:
-            # 记录异常但继续走回退逻辑
-            pass
+        except TimeoutError:
+            pass  # 超时，回退到模拟数据
+        except Exception:
+            pass  # 其他异常，回退到模拟数据
 
         # 回退到模拟数据
         return self._get_simulated_weather(city)

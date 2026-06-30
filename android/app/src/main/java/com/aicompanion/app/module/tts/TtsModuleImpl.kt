@@ -70,8 +70,10 @@ class TtsModuleImpl : TtsModule {
         if (text.isBlank()) return
 
         try {
+            // 注意：当前 SpeechManager 从 AppConfig 读取语速，不直接接受 speed 参数。
+            // 如需支持动态语速，需在此处调用 AppConfig.setTtsSpeechRate() 或扩展 SpeechManager 接口。
             manager.startSpeaking(text)
-            Log.d(TAG, "开始朗读: ${text.take(30)}...")
+            Log.d(TAG, "开始朗读: len=${text.length}, speed=$speed")
         } catch (e: Exception) {
             Log.e(TAG, "朗读失败", e)
         }

@@ -25,7 +25,7 @@ object ConversationSessionManager {
     private const val SESSIONS_FILE = "sessions.json"
     private const val SESSION_FILE_PREFIX = "session_"
     private const val SESSION_FILE_SUFFIX = ".json"
-    private const val PREFS_NAME = "app_prefs"
+    private const val PREFS_NAME = "ai_companion_sessions"
     private const val KEY_CURRENT_SESSION = "current_session_id"
     /** 最后一条消息预览的最大字符数 */
     private const val PREVIEW_MAX_LENGTH = 50
@@ -41,6 +41,7 @@ object ConversationSessionManager {
     /** 文件目录（在 init 中设置） */
     private var filesDir: File? = null
     private var prefs: android.content.SharedPreferences? = null
+    private var appContext: Context? = null
 
     // ======================== 初始化 ========================
 
@@ -48,17 +49,21 @@ object ConversationSessionManager {
      * 初始化会话管理器。
      * 从 sessions.json 加载会话列表，从 SharedPreferences 恢复当前会话 ID。
      * 首次启动时自动创建默认会话并尝试迁移旧的 conversation.json。
+     *
+     * PREFS_NAME 已改为加密存储（ISS-060）：会话预览存储在加密 SharedPreferences。
      */
     fun init(context: Context) {
+        appContext = context.applicationContext
         filesDir = context.filesDir
-        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // ISS-060: 改用加密 SharedPreferences 存储会话信息
+        prefs = SecureStorage.getEncryptedPrefs(context, PREFS_NAME)
         currentSessionId = prefs?.getString(KEY_CURRENT_SESSION, null)
         loadSessionsFromFile()
 
         // 首次启动：无会话时创建默认会话
         if (sessions.isEmpty()) {
             val character = CharacterStorage.getCurrent(context)
-            val defaultSession = createSessionInternal("默认会话", character.id)
+            val defaultSession = createSessionInternal(context.getString(R.string.conversation_default_session_name), character.id)
             // 尝试迁移旧的 conversation.json
             migrateOldConversation(defaultSession.id)
         } else if (currentSessionId == null || sessions.none { it.id == currentSessionId }) {
@@ -75,9 +80,7 @@ object ConversationSessionManager {
     }
 
     /** 获取当前会话 ID。 */
-    fun getCurrentSessionId(): String = synchronized(lock) {
-        currentSessionId ?: sessions.firstOrNull()?.id ?: ""
-    }
+    fun getCurrentSessionId(): String = currentSessionId ?: sessions.firstOrNull()?.id ?: ""
 
     /** 设置当前会话 ID（持久化到 SharedPreferences）。 */
     fun setCurrentSessionId(id: String) {
@@ -103,8 +106,14 @@ object ConversationSessionManager {
     fun deleteSession(id: String) {
         synchronized(lock) {
             sessions.removeAll { it.id == id }
-            // 删除消息文件
+            // 删除明文消息文件（如果存在）
             getSessionFile(id).delete()
+            // 删除加密消息文件（ISS-059）
+            appContext?.let { ctx ->
+                try {
+                    SecureStorage.deleteEncryptedFile(ctx, getSessionFileName(id))
+                } catch (_: Exception) {}
+            }
             // 如果删除的是当前会话，切换到第一个剩余会话
             if (currentSessionId == id) {
                 currentSessionId = sessions.firstOrNull()?.id
@@ -137,6 +146,7 @@ object ConversationSessionManager {
     suspend fun saveMessages(sessionId: String, messages: List<Message>) {
         withContext(Dispatchers.IO) {
             try {
+                val ctx = appContext ?: return@withContext
                 val jsonArray = JSONArray()
                 for (msg in messages) {
                     val obj = JSONObject()
@@ -145,7 +155,6 @@ object ConversationSessionManager {
                     obj.put("isUser", msg.isUser)
                     obj.put("isTyping", msg.isTyping)
                     obj.put("timestamp", msg.timestamp)
-                    // 语音字段
                     obj.put("msgType", msg.msgType.name)
                     obj.put("voiceFilePath", msg.voiceFilePath)
                     obj.put("voiceDurationMs", msg.voiceDurationMs)
@@ -154,17 +163,10 @@ object ConversationSessionManager {
                 }
                 val jsonStr = jsonArray.toString()
 
-                // 原子写入：先写临时文件，验证后再替换
-                val sessionFile = getSessionFile(sessionId)
-                val tmpFile = File(sessionFile.parent, "${sessionFile.name}.tmp")
-                tmpFile.writeText(jsonStr, Charsets.UTF_8)
-                // 验证写入的 JSON 可解析
-                JSONArray(tmpFile.readText(Charsets.UTF_8))
-                // 原子替换
-                if (!tmpFile.renameTo(sessionFile)) {
-                    sessionFile.writeText(jsonStr, Charsets.UTF_8)
-                    tmpFile.delete()
-                }
+                // ISS-059: 使用加密文件存储会话消息
+                SecureStorage.writeEncryptedFile(ctx, getSessionFileName(sessionId), jsonStr)
+                // 删除旧的明文文件（如果存在）
+                getSessionFile(sessionId).delete()
 
                 // 更新会话预览
                 val lastMsg = messages.lastOrNull()
@@ -187,10 +189,22 @@ object ConversationSessionManager {
      */
     suspend fun loadMessages(sessionId: String): List<Message> = withContext(Dispatchers.IO) {
         try {
-            val file = getSessionFile(sessionId)
-            if (!file.exists()) return@withContext emptyList<Message>()
-
-            val json = file.readText(Charsets.UTF_8)
+            val ctx = appContext ?: return@withContext emptyList<Message>()
+            // ISS-059: 优先从加密文件读取，回退到明文文件
+            val json = SecureStorage.readEncryptedFile(ctx, getSessionFileName(sessionId))
+                ?: run {
+                    // 回退：读取旧的明文文件（迁移场景）
+                    val plainFile = getSessionFile(sessionId)
+                    if (plainFile.exists()) {
+                        val content = plainFile.readText(Charsets.UTF_8)
+                        // 迁移到加密存储
+                        SecureStorage.writeEncryptedFile(ctx, getSessionFileName(sessionId), content)
+                        plainFile.delete()
+                        content
+                    } else {
+                        return@withContext emptyList<Message>()
+                    }
+                }
             val jsonArray = JSONArray(json)
             val messages = mutableListOf<Message>()
             for (i in 0 until jsonArray.length()) {
@@ -222,7 +236,6 @@ object ConversationSessionManager {
 
     /** 更新会话预览信息（最后一条消息和时间戳）。 */
     fun updateSessionPreview(sessionId: String, lastMessage: String, messageCount: Int) {
-        var needSave = false
         synchronized(lock) {
             val index = sessions.indexOfFirst { it.id == sessionId }
             if (index >= 0) {
@@ -231,11 +244,8 @@ object ConversationSessionManager {
                     messageCount = messageCount,
                     updatedAt = System.currentTimeMillis()
                 )
-                needSave = true
+                saveSessionsToFile()
             }
-        }
-        if (needSave) {
-            saveSessionsToFile()
         }
     }
 
@@ -245,6 +255,11 @@ object ConversationSessionManager {
     private fun getSessionFile(sessionId: String): File {
         val dir = filesDir ?: throw IllegalStateException("ConversationSessionManager 未初始化，请先调用 init()")
         return File(dir, "$SESSION_FILE_PREFIX$sessionId$SESSION_FILE_SUFFIX")
+    }
+
+    /** 获取加密会话消息文件名（ISS-059）。 */
+    private fun getSessionFileName(sessionId: String): String {
+        return "${SESSION_FILE_PREFIX}${sessionId}.enc"
     }
 
     /** 内部创建会话方法（不切换当前会话）。 */

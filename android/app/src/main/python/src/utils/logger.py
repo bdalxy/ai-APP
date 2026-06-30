@@ -11,6 +11,7 @@ Android 兼容性：如果 loguru 不可用，自动降级为 Python 标准库 l
 import re
 import sys
 import logging as std_logging
+from logging.handlers import RotatingFileHandler
 
 # ── 敏感信息过滤 ──
 
@@ -100,7 +101,7 @@ def configure_logger(
     if _HAS_LOGURU:
         _configure_loguru(level, log_file, rotation, retention)
     else:
-        _configure_std_logging(level)
+        _configure_std_logging(level, log_file)
 
 
 def _configure_loguru(level, log_file, rotation, retention):
@@ -132,8 +133,15 @@ def _configure_loguru(level, log_file, rotation, retention):
     _loguru_logger.debug(f"日志系统已配置（loguru），级别: {level}")
 
 
-def _configure_std_logging(level):
-    """配置标准 logging（Android 端）"""
+def _configure_std_logging(level, log_file=None, max_bytes=10*1024*1024, backup_count=3):
+    """配置标准 logging（Android 端）。
+    
+    Args:
+        level: 日志级别。
+        log_file: 日志文件路径，为 None 则不输出文件。
+        max_bytes: 日志文件最大字节数，默认 10 MB。
+        backup_count: 保留的备份文件数，默认 3。
+    """
     std_logger = std_logging.getLogger("ai_companion")
     std_logger.setLevel(getattr(std_logging, level.upper(), std_logging.INFO))
     if not std_logger.handlers:
@@ -143,6 +151,23 @@ def _configure_std_logging(level):
         ))
         handler.addFilter(SensitiveLoggingFilter())  # 敏感信息脱敏
         std_logger.addHandler(handler)
+    # 添加文件日志轮转（防止日志文件无限增长）
+    if log_file and not any(isinstance(h, RotatingFileHandler) for h in std_logger.handlers):
+        try:
+            file_handler = RotatingFileHandler(
+                log_file,
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding="utf-8",
+            )
+            file_handler.setFormatter(std_logging.Formatter(
+                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+            ))
+            file_handler.addFilter(SensitiveLoggingFilter())
+            std_logger.addHandler(file_handler)
+            std_logger.info(f"日志文件输出已启用: {log_file}")
+        except OSError as e:
+            std_logger.warning(f"无法创建日志文件: {e}")
     std_logger.debug(f"日志系统已配置（标准 logging），级别: {level}")
 
 

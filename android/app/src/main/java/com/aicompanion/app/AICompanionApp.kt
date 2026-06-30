@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.StrictMode
 import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import com.aicompanion.app.module.ModuleEventBus
 import com.aicompanion.app.module.ModuleRegistry
@@ -19,6 +20,7 @@ import com.aicompanion.app.module.worldbook.WorldBookModuleImpl
 import com.aicompanion.app.module.worldbook.WorldBookModule
 import com.aicompanion.app.plugin.BuiltinPlugins
 import com.aicompanion.app.plugin.PluginRegistry
+import com.aicompanion.app.speech.VoiceRecorder
 import com.chaquo.python.android.PyApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,20 +65,20 @@ class AICompanionApp : PyApplication() {
                 val content = latestFile?.readText()?.take(500) ?: ""
 
                 val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
-                    .setTitle("检测到崩溃日志")
-                    .setMessage("上次运行应用时发生了崩溃。\n\n时间: ${crashFiles.size} 条崩溃记录\n\n${content}")
-                    .setPositiveButton("查看详情") { _, _ ->
+                    .setTitle(R.string.crash_log_dialog_title)
+                    .setMessage(context.getString(R.string.crash_log_dialog_message, crashFiles.size, content))
+                    .setPositiveButton(R.string.crash_log_view_detail) { _, _ ->
                         context.startActivity(Intent(context, CrashLogViewerActivity::class.java))
                     }
-                    .setNegativeButton("忽略") { _, _ ->
+                    .setNegativeButton(R.string.crash_log_ignore) { _, _ ->
                         CrashHandler.clearMarker(context)
                     }
-                    .setNeutralButton("复制到剪贴板") { _, _ ->
+                    .setNeutralButton(R.string.crash_log_copy) { _, _ ->
                         try {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             val clip = android.content.ClipData.newPlainText("崩溃日志", content)
                             clipboard.setPrimaryClip(clip)
-                            android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, R.string.crash_log_copied, Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
                             Log.w(TAG, "复制到剪贴板失败: ${e.message}")
                         }
@@ -162,6 +164,16 @@ class AICompanionApp : PyApplication() {
                 Log.d(TAG, "NotificationHelper 渠道创建完成")
             } catch (e: Exception) {
                 Log.w(TAG, "NotificationHelper 渠道创建失败: ${e.message}")
+            }
+        }
+
+        // 启动时清理过期录音文件（后台线程，不影响启动速度）
+        appScope.launch {
+            try {
+                VoiceRecorder.cleanupOldRecordings(this@AICompanionApp)
+                Log.d(TAG, "启动时过期录音清理完成")
+            } catch (e: Exception) {
+                Log.w(TAG, "启动时过期录音清理失败: ${e.message}")
             }
         }
 

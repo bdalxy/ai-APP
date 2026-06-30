@@ -23,12 +23,20 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * 世界书设置区域 UI 组件。
+ *
+ * ISS-093: 本类直接依赖 SettingsDetailActivity 而非抽象接口。
+ * 这是有意为之的设计决策：WorldBookSection 是 SettingsDetailActivity 专用的 UI 组件，
+ * 需要访问 Activity 的 lifecycleScope、addSectionTitle()、addEmptyHint() 等内部方法。
+ * 如果需要复用，可以将这些方法提取为 WorldBookViewHost 接口。
+ */
 class WorldBookSection(private val activity: SettingsDetailActivity) {
 
     private fun getModule() = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
 
     fun build() {
-        activity.addSectionTitle("世界书（知识/常识注入）")
+        activity.addSectionTitle(activity.getString(R.string.section_world_book))
 
         val loadingLayout = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -39,7 +47,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             indeterminateTintList = ContextCompat.getColorStateList(activity, R.color.primary)
         })
         loadingLayout.addView(TextView(activity).apply {
-            text = "加载中..."; textSize = 14f
+            text = activity.getString(R.string.status_loading); textSize = 14f
             setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
             setPadding(0, 12, 0, 0)
             gravity = Gravity.CENTER
@@ -54,7 +62,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                 if (json.optString("status") != "ok") {
                     withContext(Dispatchers.Main) {
                         activity.contentLayout.removeView(loadingLayout)
-                        activity.addEmptyHint("世界书加载失败")
+                        activity.addEmptyHint(activity.getString(R.string.world_book_load_failed))
                     }
                     return@launch
                 }
@@ -72,9 +80,9 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                     activity.contentLayout.removeView(loadingLayout)
 
                     if (books.length() == 0) {
-                        activity.addEmptyHint("暂无世界书，点击下方按钮创建")
+                        activity.addEmptyHint(activity.getString(R.string.world_book_empty_hint))
                     } else {
-                        activity.addHintText("点击条目编辑，右滑开关启用/禁用")
+                        activity.addHintText(activity.getString(R.string.world_book_usage_hint))
                         activity.addDivider()
                         for (i in 0 until books.length()) {
                             val book = books.getJSONObject(i)
@@ -88,7 +96,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
                     activity.addDivider()
                     val createBtn = Button(activity).apply {
-                        text = "＋ 创建世界书"; textSize = 14f
+                        text = activity.getString(R.string.world_book_create_btn); textSize = 14f
                         setTextColor(ContextCompat.getColor(activity, R.color.primary))
                         setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                         setPadding(0, 12, 0, 12)
@@ -100,7 +108,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                 Log.e("SettingsDetail", "worldBook 失败: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     activity.contentLayout.removeView(loadingLayout)
-                    activity.addEmptyHint("世界书加载失败: ${e.message}")
+                    activity.addEmptyHint(activity.getString(R.string.world_book_load_failed_with_msg, e.message))
                 }
             }
         }
@@ -130,7 +138,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             setPadding(0, 0, 0, 2)
         })
         textLayout.addView(TextView(activity).apply {
-            text = "${entries}条 · ${description.take(30)}"
+            text = activity.getString(R.string.world_book_entry_summary, entries, description.take(30))
             textSize = 12f; setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
             maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
         })
@@ -147,23 +155,23 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                         withContext(Dispatchers.Main) {
                             if (j.optString("status") == "ok") {
                                 saveEnabledWorldBooks()
-                                Toast.makeText(activity, "已启用「${name}」", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(activity, activity.getString(R.string.world_book_toast_enabled, name), Toast.LENGTH_SHORT).show()
                             } else {
                                 switchView.isChecked = false
-                                Toast.makeText(activity, "启用失败: ${j.optString("message")}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(activity, activity.getString(R.string.world_book_toast_enable_failed, j.optString("message")), Toast.LENGTH_SHORT).show()
                             }
                         }
                     } else {
                         module?.callAttr("disable_world_book", name)
                         withContext(Dispatchers.Main) {
                             saveEnabledWorldBooks()
-                            Toast.makeText(activity, "已禁用「${name}」", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(activity, activity.getString(R.string.world_book_toast_disabled, name), Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         switchView.isChecked = !checked
-                        Toast.makeText(activity, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, activity.getString(R.string.world_book_toast_operation_failed, e.message), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -177,36 +185,36 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 0)
         }
         val etName = EditText(activity).apply {
-            hint = "世界书名称（如：二次元幻想世界）"; textSize = 14f
+            hint = activity.getString(R.string.world_book_hint_name); textSize = 14f
             setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
             setPadding(0, 8, 0, 8)
         }
         layout.addView(TextView(activity).apply {
-            text = "名称"; textSize = 13f
+            text = activity.getString(R.string.world_book_label_name); textSize = 13f
             setTextColor(ContextCompat.getColor(activity, R.color.darker_gray))
         })
         layout.addView(etName)
         layout.addView(activity.createDividerView())
         val etDesc = EditText(activity).apply {
-            hint = "简短描述（如：一个剑与魔法的异世界）"; textSize = 14f
+            hint = activity.getString(R.string.world_book_hint_description); textSize = 14f
             setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
             setPadding(0, 8, 0, 8); maxLines = 3
         }
         layout.addView(TextView(activity).apply {
-            text = "描述"; textSize = 13f
+            text = activity.getString(R.string.world_book_label_description); textSize = 13f
             setTextColor(ContextCompat.getColor(activity, R.color.darker_gray))
         })
         layout.addView(etDesc)
 
         MaterialAlertDialogBuilder(activity)
-            .setTitle("创建世界书")
+            .setTitle(activity.getString(R.string.world_book_dialog_create_title))
             .setView(layout)
-            .setPositiveButton("创建") { _, _ ->
+            .setPositiveButton(activity.getString(R.string.world_book_btn_create)) { _, _ ->
                 val name = etName.text.toString().trim()
-                if (name.isEmpty()) { Toast.makeText(activity, "名称不能为空", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
+                if (name.isEmpty()) { Toast.makeText(activity, activity.getString(R.string.world_book_error_name_empty), Toast.LENGTH_SHORT).show(); return@setPositiveButton }
                 createWorldBook(name, etDesc.text.toString().trim())
             }
-            .setNegativeButton("取消", null).show()
+            .setNegativeButton(activity.getString(R.string.btn_cancel), null).show()
     }
 
     private fun createWorldBook(name: String, description: String) {
@@ -215,13 +223,13 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val result = module?.callAttr("create_world_book", name, description, "[]")?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") == "ok") {
-                Toast.makeText(activity, "世界书「${name}」已创建", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_created, name), Toast.LENGTH_SHORT).show()
                 activity.recreate()
             } else {
-                Toast.makeText(activity, "创建失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_create_failed, json.optString("message")), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(activity, "创建失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_create_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -231,7 +239,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val result = module?.callAttr("get_world_book", name)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
-                Toast.makeText(activity, "加载失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show(); return
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_load_failed, json.optString("message")), Toast.LENGTH_SHORT).show(); return
             }
             val book = json.optJSONObject("book") ?: return
             val description = book.optString("description", "")
@@ -241,16 +249,16 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                 orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 0)
             }
             layout.addView(TextView(activity).apply {
-                text = "描述：${description.take(50)}"; textSize = 13f
+                text = activity.getString(R.string.world_book_label_desc_with_value, description.take(50)); textSize = 13f
                 setTextColor(ContextCompat.getColor(activity, R.color.darker_gray)); setPadding(0, 0, 0, 8)
             })
             layout.addView(TextView(activity).apply {
-                text = "条目数：${entryCount} 条"; textSize = 13f
+                text = activity.getString(R.string.world_book_label_entry_count, entryCount); textSize = 13f
                 setTextColor(ContextCompat.getColor(activity, R.color.darker_gray)); setPadding(0, 0, 0, 12)
             })
             layout.addView(activity.createDividerView())
             val editDescBtn = Button(activity).apply {
-                text = "编辑描述"; textSize = 14f
+                text = activity.getString(R.string.world_book_action_edit_description); textSize = 14f
                 setTextColor(ContextCompat.getColor(activity, R.color.primary))
                 setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                 setPadding(0, 12, 0, 12)
@@ -259,7 +267,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             layout.addView(editDescBtn)
             layout.addView(activity.createDividerView())
             val editEntriesBtn = Button(activity).apply {
-                text = "管理条目（${entryCount}条）"; textSize = 14f
+                text = activity.getString(R.string.world_book_action_manage_entries, entryCount); textSize = 14f
                 setTextColor(ContextCompat.getColor(activity, R.color.primary))
                 setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                 setPadding(0, 12, 0, 12)
@@ -268,7 +276,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             layout.addView(editEntriesBtn)
             layout.addView(activity.createDividerView())
             val auditBtn = Button(activity).apply {
-                text = "交叉审核"; textSize = 14f
+                text = activity.getString(R.string.world_book_action_audit); textSize = 14f
                 setTextColor(ContextCompat.getColor(activity, R.color.secondary))
                 setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                 setPadding(0, 12, 0, 12)
@@ -277,7 +285,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             layout.addView(auditBtn)
             layout.addView(activity.createDividerView())
             val deleteBtn = Button(activity).apply {
-                text = "删除世界书"; textSize = 14f
+                text = activity.getString(R.string.world_book_action_delete); textSize = 14f
                 setTextColor(ContextCompat.getColor(activity, R.color.accent_red))
                 setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                 setPadding(0, 12, 0, 12)
@@ -286,12 +294,12 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             layout.addView(deleteBtn)
 
             MaterialAlertDialogBuilder(activity)
-                .setTitle("编辑世界书 — ${name}")
+                .setTitle(activity.getString(R.string.world_book_dialog_edit_title, name))
                 .setView(layout)
-                .setPositiveButton("关闭", null).show()
+                .setPositiveButton(activity.getString(R.string.btn_close), null).show()
         } catch (e: Exception) {
             Log.e("SettingsDetail", "editWorldBook 失败: ${e.message}", e)
-            Toast.makeText(activity, "加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_load_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -306,13 +314,13 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
         layout.addView(etDesc)
         MaterialAlertDialogBuilder(activity)
-            .setTitle("编辑描述")
+            .setTitle(activity.getString(R.string.world_book_action_edit_description))
             .setView(layout)
-            .setPositiveButton("保存") { _, _ ->
+            .setPositiveButton(activity.getString(R.string.btn_save)) { _, _ ->
                 val newDesc = etDesc.text.toString().trim()
                 updateWorldBookDescription(name, newDesc)
             }
-            .setNegativeButton("取消", null).show()
+            .setNegativeButton(activity.getString(R.string.btn_cancel), null).show()
     }
 
     private fun updateWorldBookDescription(name: String, description: String) {
@@ -325,22 +333,22 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val result = module?.callAttr("update_world_book", name, description, entries)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") == "ok") {
-                Toast.makeText(activity, "描述已更新", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_desc_updated), Toast.LENGTH_SHORT).show()
                 activity.recreate()
             } else {
-                Toast.makeText(activity, "更新失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_update_failed, json.optString("message")), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(activity, "更新失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_update_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun showDeleteWorldBookConfirmDialog(name: String) {
         MaterialAlertDialogBuilder(activity)
-            .setTitle("删除世界书")
-            .setMessage("确定要删除世界书「${name}」吗？\n\n此操作不可撤销！")
-            .setPositiveButton("确认删除") { _, _ -> deleteWorldBook(name) }
-            .setNegativeButton("取消", null).show()
+            .setTitle(activity.getString(R.string.world_book_action_delete))
+            .setMessage(activity.getString(R.string.world_book_msg_delete_confirm, name))
+            .setPositiveButton(activity.getString(R.string.world_book_btn_confirm_delete)) { _, _ -> deleteWorldBook(name) }
+            .setNegativeButton(activity.getString(R.string.btn_cancel), null).show()
     }
 
     private fun deleteWorldBook(name: String) {
@@ -350,13 +358,13 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val json = JSONObject(result)
             if (json.optString("status") == "ok") {
                 saveEnabledWorldBooks()
-                Toast.makeText(activity, "世界书「${name}」已删除", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_deleted, name), Toast.LENGTH_SHORT).show()
                 activity.recreate()
             } else {
-                Toast.makeText(activity, "删除失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_delete_failed, json.optString("message")), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(activity, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_delete_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -370,8 +378,8 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             activity.prefs.edit().putString("enabled_world_books", names.joinToString(",")).apply()
         } catch (e: Exception) {
             Log.e("SettingsDetail", "saveEnabledWorldBooks 失败: ${e.message}", e)
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(activity, "保存世界书状态失败", Toast.LENGTH_SHORT).show()
+            activity.lifecycleScope.launch(Dispatchers.Main) {
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_save_state_failed), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -382,7 +390,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val result = module?.callAttr("get_world_book", bookName)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
-                Toast.makeText(activity, "加载失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show(); return
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_load_failed, json.optString("message")), Toast.LENGTH_SHORT).show(); return
             }
             val book = json.optJSONObject("book") ?: return
             val entries = book.optJSONArray("entries") ?: JSONArray()
@@ -395,7 +403,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
             if (entries.length() == 0) {
                 layout.addView(TextView(activity).apply {
-                    text = "暂无条目，点击下方按钮添加"; textSize = 14f
+                    text = activity.getString(R.string.world_book_empty_entries); textSize = 14f
                     setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
                     setPadding(0, 16, 0, 16); gravity = android.view.Gravity.CENTER
                 })
@@ -407,8 +415,8 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                     val keys = entry.optJSONArray("keys")
                     val keysStr = if (keys != null && keys.length() > 0) {
                         (0 until minOf(keys.length(), 3)).map { keys.optString(it) }.joinToString(", ")
-                    } else "无关键词"
-                    val constant = if (entry.optBoolean("constant", false)) " [常量]" else ""
+                    } else activity.getString(R.string.world_book_label_no_keywords)
+                    val constant = if (entry.optBoolean("constant", false)) activity.getString(R.string.world_book_suffix_constant) else ""
 
                     val row = LinearLayout(activity).apply {
                         orientation = LinearLayout.HORIZONTAL
@@ -447,7 +455,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
             layout.addView(activity.createDividerView())
             val addBtn = Button(activity).apply {
-                text = "＋ 添加条目"; textSize = 14f
+                text = activity.getString(R.string.world_book_btn_add_entry); textSize = 14f
                 setTextColor(ContextCompat.getColor(activity, R.color.primary))
                 setBackgroundColor(ContextCompat.getColor(activity, android.R.color.transparent))
                 setPadding(0, 12, 0, 12)
@@ -457,12 +465,12 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
             scrollView.addView(layout)
             MaterialAlertDialogBuilder(activity)
-                .setTitle("管理条目 — ${bookName}")
+                .setTitle(activity.getString(R.string.world_book_dialog_manage_entries, bookName))
                 .setView(scrollView)
-                .setPositiveButton("关闭", null).show()
+                .setPositiveButton(activity.getString(R.string.btn_close), null).show()
         } catch (e: Exception) {
             Log.e("SettingsDetail", "entryList 失败: ${e.message}", e)
-            Toast.makeText(activity, "加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_load_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -484,19 +492,19 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
         }
         val layout = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
-        val etId = addEditField(layout, "条目ID *", entryId, "如 entry_001")
+        val etId = addEditField(layout, activity.getString(R.string.world_book_label_entry_id), entryId, activity.getString(R.string.world_book_hint_entry_id))
         if (!isNew) etId.isEnabled = false
 
-        val etContent = addEditField(layout, "触发内容 *", entryContent, "触发时注入的上下文文本（至少20字）")
+        val etContent = addEditField(layout, activity.getString(R.string.world_book_label_entry_content), entryContent, activity.getString(R.string.world_book_hint_entry_content))
         etContent.minLines = 3
 
-        val etKeys = addEditField(layout, "关键词（逗号分隔）", entryKeys, "如: 猫, 宠物, 喵")
+        val etKeys = addEditField(layout, activity.getString(R.string.world_book_label_entry_keys), entryKeys, activity.getString(R.string.world_book_hint_entry_keys))
 
-        val etComment = addEditField(layout, "备注", entryComment, "开发者的备注说明")
+        val etComment = addEditField(layout, activity.getString(R.string.world_book_label_entry_comment), entryComment, activity.getString(R.string.world_book_hint_entry_comment))
 
         val switchConstant = SwitchCompat(activity).apply {
             isChecked = entryConstant
-            text = "始终注入（constant）"
+            text = activity.getString(R.string.world_book_label_always_inject)
             setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
             setPadding(0, 8, 0, 8)
         }
@@ -508,7 +516,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             setPadding(0, 8, 0, 8)
         }
         probLayout.addView(TextView(activity).apply {
-            text = "触发概率: "; textSize = 14f
+            text = activity.getString(R.string.world_book_label_probability); textSize = 14f
             setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
         })
         val tvProb = TextView(activity).apply {
@@ -535,7 +543,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             setPadding(0, 8, 0, 8)
         }
         priLayout.addView(TextView(activity).apply {
-            text = "优先级: "; textSize = 14f
+            text = activity.getString(R.string.world_book_label_priority); textSize = 14f
             setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
         })
         val tvPriority = TextView(activity).apply {
@@ -557,14 +565,14 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
         scrollView.addView(layout)
 
-        val title = if (isNew) "添加条目" else "编辑条目 — $entryId"
+        val title = if (isNew) activity.getString(R.string.world_book_dialog_add_entry) else activity.getString(R.string.world_book_dialog_edit_entry, entryId)
         MaterialAlertDialogBuilder(activity)
             .setTitle(title)
             .setView(scrollView)
-            .setPositiveButton("保存") { _, _ ->
+            .setPositiveButton(activity.getString(R.string.btn_save)) { _, _ ->
                 saveEntry(bookName, entryId, isNew, etId, etContent, etKeys, etComment, switchConstant.isChecked, seekProb.progress, seekPriority.progress)
             }
-            .setNegativeButton("取消", null).show()
+            .setNegativeButton(activity.getString(R.string.btn_cancel), null).show()
     }
 
     private fun addEditField(parent: LinearLayout, label: String, value: String, hint: String): EditText {
@@ -588,8 +596,8 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
     private fun saveEntry(bookName: String, entryId: String, isNew: Boolean, etId: EditText, etContent: EditText, etKeys: EditText, etComment: EditText, constant: Boolean, probability: Int, priority: Int) {
         val newId = etId.text.toString().trim()
         val content = etContent.text.toString().trim()
-        if (newId.isEmpty()) { Toast.makeText(activity, "条目ID不能为空", Toast.LENGTH_SHORT).show(); return }
-        if (content.isEmpty()) { Toast.makeText(activity, "触发内容不能为空", Toast.LENGTH_SHORT).show(); return }
+        if (newId.isEmpty()) { Toast.makeText(activity, activity.getString(R.string.world_book_error_entry_id_empty), Toast.LENGTH_SHORT).show(); return }
+        if (content.isEmpty()) { Toast.makeText(activity, activity.getString(R.string.world_book_error_entry_content_empty), Toast.LENGTH_SHORT).show(); return }
 
         val keysStr = etKeys.text.toString().trim()
         val keys = if (keysStr.isNotEmpty()) JSONArray(keysStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }) else JSONArray()
@@ -613,36 +621,36 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             }
             val json = JSONObject(result)
             if (json.optString("status") == "ok") {
-                Toast.makeText(activity, if (isNew) "条目已添加" else "条目已更新", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, if (isNew) activity.getString(R.string.world_book_toast_entry_added) else activity.getString(R.string.world_book_toast_entry_updated), Toast.LENGTH_SHORT).show()
                 activity.recreate()
             } else {
-                Toast.makeText(activity, "保存失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_entry_save_failed, json.optString("message")), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(activity, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_entry_save_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun confirmDeleteEntry(bookName: String, entryId: String) {
         MaterialAlertDialogBuilder(activity)
-            .setTitle("删除条目")
-            .setMessage("确认删除条目「${entryId}」吗？此操作不可撤销。")
-            .setPositiveButton("确认删除") { _, _ ->
+            .setTitle(activity.getString(R.string.world_book_dialog_delete_entry))
+            .setMessage(activity.getString(R.string.world_book_msg_delete_entry_confirm, entryId))
+            .setPositiveButton(activity.getString(R.string.world_book_btn_confirm_delete)) { _, _ ->
                 try {
                     val module = getModule()
                     val result = module?.callAttr("delete_world_book_entry", bookName, entryId)?.toString() ?: "{}"
                     val json = JSONObject(result)
                     if (json.optString("status") == "ok") {
-                        Toast.makeText(activity, "条目已删除", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, activity.getString(R.string.world_book_toast_entry_deleted), Toast.LENGTH_SHORT).show()
                         activity.recreate()
                     } else {
-                        Toast.makeText(activity, "删除失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, activity.getString(R.string.world_book_toast_delete_failed, json.optString("message")), Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(activity, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, activity.getString(R.string.world_book_toast_delete_failed, e.message), Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("取消", null).show()
+            .setNegativeButton(activity.getString(R.string.btn_cancel), null).show()
     }
 
     private fun showAuditReportDialog(bookName: String) {
@@ -651,7 +659,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val result = module?.callAttr("validate_world_book", bookName)?.toString() ?: "{}"
             val json = JSONObject(result)
             if (json.optString("status") != "ok") {
-                Toast.makeText(activity, "审核失败: ${json.optString("message")}", Toast.LENGTH_SHORT).show(); return
+                Toast.makeText(activity, activity.getString(R.string.world_book_toast_audit_failed, json.optString("message")), Toast.LENGTH_SHORT).show(); return
             }
             val report = json.optJSONObject("report") ?: return
             val totalScore = report.optInt("score", 0)
@@ -666,15 +674,15 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
             val layout = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
             val scoreColor = if (passed) R.color.primary else R.color.accent_red
-            val scoreEmoji = if (passed) "通过" else "未通过"
+            val scoreEmoji = if (passed) activity.getString(R.string.world_book_audit_passed) else activity.getString(R.string.world_book_audit_failed_label)
             layout.addView(TextView(activity).apply {
-                text = "综合评分: ${totalScore} 分 [$scoreEmoji]"; textSize = 18f
+                text = activity.getString(R.string.world_book_label_audit_score, totalScore, scoreEmoji); textSize = 18f
                 setTextColor(ContextCompat.getColor(activity, scoreColor))
                 setPadding(0, 8, 0, 4); gravity = android.view.Gravity.CENTER
                 setTypeface(null, android.graphics.Typeface.BOLD)
             })
             layout.addView(TextView(activity).apply {
-                text = "条目: ${summary.optInt("total_entries")} · 常量: ${summary.optInt("constant_entries")} · 关键词: ${summary.optInt("total_keywords")} · 平均长度: ${summary.optInt("avg_content_length")}字"
+                text = activity.getString(R.string.world_book_label_audit_summary, summary.optInt("total_entries"), summary.optInt("constant_entries"), summary.optInt("total_keywords"), summary.optInt("avg_content_length"))
                 textSize = 12f; setTextColor(ContextCompat.getColor(activity, R.color.text_secondary))
                 setPadding(0, 0, 0, 12); gravity = android.view.Gravity.CENTER
             })
@@ -688,7 +696,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                 val suggestions = dim.optJSONArray("suggestions") ?: JSONArray()
 
                 layout.addView(TextView(activity).apply {
-                    text = "$dimName: ${dimScore}分"; textSize = 15f
+                    text = activity.getString(R.string.world_book_audit_dim_score, dimName, dimScore); textSize = 15f
                     setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
                     setPadding(0, 12, 0, 4)
                     setTypeface(null, android.graphics.Typeface.BOLD)
@@ -696,7 +704,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
                 if (issues.length() == 0 && suggestions.length() == 0) {
                     layout.addView(TextView(activity).apply {
-                        text = "无问题"; textSize = 13f
+                        text = activity.getString(R.string.world_book_label_no_issues); textSize = 13f
                         setTextColor(ContextCompat.getColor(activity, R.color.primary))
                         setPadding(16, 0, 0, 4)
                     })
@@ -712,9 +720,9 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                         else -> R.color.text_secondary
                     }
                     val icon = when (level) {
-                        "error" -> "✗ "
-                        "warning" -> "⚠ "
-                        else -> "ℹ "
+                        "error" -> activity.getString(R.string.world_book_prefix_error)
+                        "warning" -> activity.getString(R.string.world_book_prefix_warning)
+                        else -> activity.getString(R.string.world_book_prefix_info)
                     }
                     layout.addView(TextView(activity).apply {
                         text = "$icon$msg"; textSize = 12f
@@ -726,7 +734,7 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
                 for (i in 0 until suggestions.length()) {
                     val sug = suggestions.optString(i, "")
                     layout.addView(TextView(activity).apply {
-                        text = "→ $sug"; textSize = 12f
+                        text = activity.getString(R.string.world_book_prefix_suggestion, sug); textSize = 12f
                         setTextColor(ContextCompat.getColor(activity, R.color.primary))
                         setPadding(24, 2, 0, 2)
                     })
@@ -735,12 +743,12 @@ class WorldBookSection(private val activity: SettingsDetailActivity) {
 
             scrollView.addView(layout)
             MaterialAlertDialogBuilder(activity)
-                .setTitle("交叉审核报告 — ${bookName}")
+                .setTitle(activity.getString(R.string.world_book_dialog_audit_title, bookName))
                 .setView(scrollView)
-                .setPositiveButton("关闭", null).show()
+                .setPositiveButton(activity.getString(R.string.btn_close), null).show()
         } catch (e: Exception) {
             Log.e("SettingsDetail", "audit 失败: ${e.message}", e)
-            Toast.makeText(activity, "审核失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.world_book_toast_audit_failed, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -64,7 +64,7 @@ class VoiceController(
     // ── 唤醒词检测 ──
     private var wakeWordJob: Job? = null
     private var isWakeWordDetectionActive = false
-    private val wakeWords = listOf("星遥", "星遥星遥", "hey星遥", "你好星遥")
+    private val wakeWords by lazy { context.resources.getStringArray(R.array.voice_wake_words).toList() }
 
     fun init() {
         initSpeechManager()
@@ -89,7 +89,7 @@ class VoiceController(
             override fun onSpeechError(error: String) {
                 Log.e(TAG, "语音识别错误: $error")
                 UiThread.run {
-                    Toast.makeText(context, "语音识别失败: $error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.voice_speech_error, error), Toast.LENGTH_SHORT).show()
                 }
             }
             override fun onSpeechStart() { Log.d(TAG, "TTS 开始播放") }
@@ -119,6 +119,8 @@ class VoiceController(
                     } else {
                         sendVoiceMessage(audioFilePath, durationMs)
                     }
+                    // 录制完成后清理过期录音文件
+                    VoiceRecorder.cleanupOldRecordings(context)
                 }
             }
             override fun onError(error: String) {
@@ -126,7 +128,7 @@ class VoiceController(
                 UiThread.run {
                     stopDurationUpdater()
                     callback?.onRecordingOverlayHide()
-                    Toast.makeText(context, "录制失败: $error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.voice_record_error, error), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -154,7 +156,7 @@ class VoiceController(
                         adapter.playingPosition = -1
                         adapter.notifyItemChanged(pos)
                     }
-                    Toast.makeText(context, "播放失败: $error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.voice_play_error, error), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -193,7 +195,7 @@ class VoiceController(
 
     fun onVoiceButtonClick() {
         if (isStreamingProvider()) {
-            Toast.makeText(context, "AI 正在回复中，请稍候", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.voice_ai_replying, Toast.LENGTH_SHORT).show()
             return
         }
         if (speechManager.isRecording) {
@@ -216,7 +218,7 @@ class VoiceController(
             }
             speechManager.startRecording()
             binding.btnVoice.setColorFilter(ContextCompat.getColor(context, R.color.accent_red))
-            Toast.makeText(context, "正在聆听...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.voice_listening, Toast.LENGTH_SHORT).show()
             lifecycleScope.launch {
                 while (speechManager.isRecording) { delay(200) }
                 UiThread.run {
@@ -227,18 +229,18 @@ class VoiceController(
             }.also { recordingWaitJob = it }
         } catch (e: Exception) {
             Log.e(TAG, "启动语音识别失败", e)
-            Toast.makeText(context, "启动语音识别失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.voice_speech_start_error, e.message), Toast.LENGTH_SHORT).show()
             binding.btnVoice.clearColorFilter()
         }
     }
 
     private fun startVoiceRecord() {
         if (!this::voiceRecorder.isInitialized) {
-            Toast.makeText(context, "语音引擎未就绪，请稍后再试", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.voice_engine_not_ready, Toast.LENGTH_SHORT).show()
             return
         }
         if (isStreamingProvider()) {
-            Toast.makeText(context, "AI 正在回复中，请稍候", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.voice_ai_replying, Toast.LENGTH_SHORT).show()
             return
         }
         try {
@@ -252,7 +254,7 @@ class VoiceController(
             binding.btnVoice.setColorFilter(ContextCompat.getColor(context, R.color.accent_red))
         } catch (e: Exception) {
             Log.e(TAG, "启动语音录制失败", e)
-            Toast.makeText(context, "启动语音录制失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.voice_record_start_error, e.message), Toast.LENGTH_SHORT).show()
             binding.btnVoice.clearColorFilter()
         }
     }
@@ -277,7 +279,7 @@ class VoiceController(
             stopDurationUpdater()
             callback?.onRecordingOverlayHide()
             binding.btnVoice.clearColorFilter()
-            Toast.makeText(context, "已取消录音", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.voice_record_cancelled, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.e(TAG, "取消语音录制失败", e)
             stopDurationUpdater()
@@ -302,7 +304,7 @@ class VoiceController(
 
     fun playVoiceMessage(filePath: String) {
         if (!this::voicePlayer.isInitialized) {
-            Toast.makeText(context, "语音引擎未就绪", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.voice_engine_not_ready_short, Toast.LENGTH_SHORT).show()
             return
         }
         if (voicePlayer.state == VoicePlayer.State.PAUSED && voicePlayer.getCurrentFilePath() == filePath) {
@@ -516,6 +518,8 @@ class VoiceController(
         stopDurationUpdater()
         recordingHandler.removeCallbacksAndMessages(null)
         callback = null
+        // 销毁时清理过期录音文件
+        VoiceRecorder.cleanupOldRecordings(context)
         Log.d(TAG, "语音资源释放完成")
     }
 }

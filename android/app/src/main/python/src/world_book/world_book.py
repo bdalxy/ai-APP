@@ -439,9 +439,20 @@ class WorldBookEngine:
                 logger.error(f"加载世界书失败 {json_file}: {e}")
 
     def _load_book(self, file_path: str) -> Optional[WorldBook]:
-        """从文件加载世界书"""
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        """从文件加载世界书（ISS-064: 支持加密文件解密）。"""
+        from src.utils import crypto_utils
+        try:
+            with open(file_path, 'rb') as f:
+                raw = f.read()
+            # 尝试解密（加密文件），回退到明文 JSON
+            json_str = crypto_utils.decrypt(raw, crypto_utils.get_device_password())
+            if json_str is None:
+                # 回退：明文 JSON
+                json_str = raw.decode('utf-8')
+            data = json.loads(json_str)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            _log.warning(f"世界书文件解析失败（可能已加密但密码不匹配）: {file_path}")
+            return None
 
         entries = []
         for entry_data in data.get("entries", []):

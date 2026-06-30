@@ -20,7 +20,6 @@ import java.util.Locale
 class SettingsActivity : AppCompatActivity() {
 
     companion object {
-        private val INTERVAL_OPTIONS = AppConfig.INTERVAL_OPTIONS
         private val INTERVAL_MS = AppConfig.INTERVAL_MS
     }
 
@@ -117,7 +116,7 @@ class SettingsActivity : AppCompatActivity() {
 
         val enabled = AppConfig.getProactiveEnabled(this)
         val intervalMs = AppConfig.getProactiveInterval(this)
-        val intervalLabel = INTERVAL_OPTIONS[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
+        val intervalLabel = AppConfig.getIntervalOptions(this)[INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0)]
         val start = AppConfig.getQuietStart(this)
         val end = AppConfig.getQuietEnd(this)
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) getString(R.string.summary_quiet_time_format, start, end) else getString(R.string.summary_quiet_time_none)
@@ -200,7 +199,7 @@ class SettingsActivity : AppCompatActivity() {
 
                 val character = CharacterStorage.getCurrent(this@SettingsActivity)
                 val characterName = character.name
-                val content = when (format) { "json" -> ChatExporter.exportToJson(messages, characterName); else -> ChatExporter.exportToTxt(messages, characterName) }
+                val content = when (format) { "json" -> ChatExporter.exportToJson(messages, characterName, this@SettingsActivity); else -> ChatExporter.exportToTxt(messages, characterName, this@SettingsActivity) }
                 val fileName = ChatExporter.generateFileName(format, characterName)
                 val uri = ChatExporter.saveToFile(content, fileName, this@SettingsActivity)
                 if (uri == null) {

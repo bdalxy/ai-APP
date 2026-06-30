@@ -1,7 +1,7 @@
 """DeepSeek API 客户端模块。
 
 封装 DeepSeek Chat Completion 和 Embedding API 调用，
-提供统一的错误处理、成本追踪和 HTTP 连接池复用。
+提供统一的错误处理和 HTTP 连接池复用。
 
 依赖：
     - requests: HTTP 请求（连接池复用）
@@ -12,7 +12,6 @@
 """
 
 import json
-import threading
 from dataclasses import dataclass
 from typing import Any, Generator
 
@@ -51,56 +50,6 @@ class EmbeddingResponse:
     usage: dict[str, int]
 
 
-class CostTracker:
-    """API 调用成本追踪器。"""
-
-    # 注：价格为近似值（元/百万tokens），实际价格请参考 DeepSeek 官方定价
-    # 价格会随官方调整而变化，此处仅用于成本估算，不保证精确
-    PRICING: dict[str, dict[str, float]] = {
-        "deepseek-v4-flash": {"input": 1.0, "output": 2.0},
-        "deepseek-v4-pro": {"input": 1.0, "output": 2.0},
-        "deepseek-embedding-v2": {"input": 0.01, "output": 0.0},
-        "default": {"input": 1.0, "output": 2.0},
-    }
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._total_input_tokens: int = 0
-        self._total_output_tokens: int = 0
-        self._total_cost: float = 0.0
-        self._log = get_logger()
-
-    def record(self, model: str, prompt_tokens: int, completion_tokens: int = 0) -> None:
-        pricing = self.PRICING.get(model, self.PRICING["default"])
-        input_cost = prompt_tokens * pricing["input"] / 1_000_000
-        output_cost = completion_tokens * pricing["output"] / 1_000_000
-        call_cost = input_cost + output_cost
-        with self._lock:
-            self._total_input_tokens += prompt_tokens
-            self._total_output_tokens += completion_tokens
-            self._total_cost += call_cost
-        self._log.debug(f"[成本] 本次: input={prompt_tokens}, output={completion_tokens}, 费用={call_cost:.6f} | 累计: {self._total_cost:.6f}")
-
-    def get_total_cost(self) -> float:
-        with self._lock:
-            return self._total_cost
-
-    def get_total_tokens(self) -> dict[str, int]:
-        with self._lock:
-            return {
-                "input_tokens": self._total_input_tokens,
-                "output_tokens": self._total_output_tokens,
-                "total_tokens": self._total_input_tokens + self._total_output_tokens,
-            }
-
-    def reset(self) -> None:
-        with self._lock:
-            self._total_input_tokens = 0
-            self._total_output_tokens = 0
-            self._total_cost = 0.0
-        self._log.info("[成本] 成本追踪已重置")
-
-
 class DeepSeekClient:
     """DeepSeek API 客户端。"""
 
@@ -121,7 +70,6 @@ class DeepSeekClient:
         # 如果初始为空，将在首次 API 调用时通过 _ensure_auth() 延迟校验
         if self._api_key:
             self.session.headers["Authorization"] = f"Bearer {self._api_key}"
-        self.cost_tracker = CostTracker()
         self._embed_cache = LRUCache(capacity=500)
         self._log = get_logger()
         self._log.info(f"DeepSeekClient 初始化完成 | base_url={self._base_url}, chat_model={self._chat_model}, embed_model={self._embed_model}, embed_cache=LRU(500)")
@@ -244,7 +192,6 @@ class DeepSeekClient:
             usage={"prompt_tokens": usage_raw.get("prompt_tokens", 0), "completion_tokens": usage_raw.get("completion_tokens", 0), "total_tokens": usage_raw.get("total_tokens", 0)},
             finish_reason=choice.get("finish_reason", "unknown"),
         )
-        self.cost_tracker.record(model=result.model, prompt_tokens=result.usage["prompt_tokens"], completion_tokens=result.usage["completion_tokens"])
         self._log.info(f"[Chat] 成功: model={result.model}, tokens={result.usage['total_tokens']}, finish={result.finish_reason}")
         return result
 
@@ -360,11 +307,6 @@ class DeepSeekClient:
             usage=usage,
             finish_reason=finish_reason,
         )
-        self.cost_tracker.record(
-            model=result.model,
-            prompt_tokens=result.usage["prompt_tokens"],
-            completion_tokens=result.usage["completion_tokens"],
-        )
         self._log.info(
             f"[Chat Stream] 成功: model={result.model}, tokens={result.usage['total_tokens']}, "
             f"finish={result.finish_reason}, 内容长度={len(full_content)}"
@@ -419,7 +361,6 @@ class DeepSeekClient:
             model=self._embed_model,
             usage={"prompt_tokens": total_prompt_tokens, "completion_tokens": 0, "total_tokens": total_prompt_tokens},
         )
-        self.cost_tracker.record(model=self._embed_model, prompt_tokens=total_prompt_tokens, completion_tokens=0)
         vec_dim = len(all_embeddings[0]) if all_embeddings else 0
         self._log.info(f"[Embed] 成功: 文本={len(texts)}, 批次={batch_count}, 向量维度={vec_dim}, tokens={total_prompt_tokens}")
         return result
@@ -530,15 +471,6 @@ class DeepSeekClient:
         """重置 Embedding 缓存（清空缓存和统计计数器）。"""
         self._embed_cache.reset()
         self._log.info("[EmbedCache] 缓存已重置")
-
-    def get_total_cost(self) -> float:
-        return self.cost_tracker.get_total_cost()
-
-    def get_total_tokens(self) -> dict[str, int]:
-        return self.cost_tracker.get_total_tokens()
-
-    def reset_cost(self) -> None:
-        self.cost_tracker.reset()
 
     def close(self) -> None:
         self.session.close()

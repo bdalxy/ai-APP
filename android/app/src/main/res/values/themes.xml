@@ -107,7 +107,7 @@
 
     <!-- ===== AppChip 标签样式 ===== -->
     <style name="AppChip">
-        <item name="android:textSize">11sp</item>
+        <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/onPrimary</item>
         
         <item name="android:paddingHorizontal">8dp</item>

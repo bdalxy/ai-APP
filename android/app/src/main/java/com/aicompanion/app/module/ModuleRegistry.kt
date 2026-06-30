@@ -1,7 +1,9 @@
 package com.aicompanion.app.module
 
+import java.util.concurrent.ConcurrentHashMap
+
 object ModuleRegistry {
-    @PublishedApi internal val modules = mutableMapOf<Class<*>, Any>()
+    @PublishedApi internal val modules = ConcurrentHashMap<Class<*>, Any>()
 
     inline fun <reified T : Any> register(instance: T) {
         modules[T::class.java] = instance
@@ -16,10 +18,8 @@ object ModuleRegistry {
         return modules[T::class.java] as? T
     }
 
-    @Synchronized
     fun isRegistered(clazz: Class<*>): Boolean = modules.containsKey(clazz)
 
-    @Synchronized
     internal fun clear() {
         modules.clear()
     }

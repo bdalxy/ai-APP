@@ -114,10 +114,19 @@ class WorldBookActivity : AppCompatActivity() {
         val arr = JSONArray(jsonStr)
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
+            val keysArray = obj.optJSONArray("keys")
+            val tags = mutableListOf<String>()
+            if (keysArray != null) {
+                for (j in 0 until keysArray.length()) {
+                    tags.add(keysArray.getString(j))
+                }
+            }
             entries.add(WorldBookEntry(
                 id = obj.optString("id", ""),
                 category = obj.optString("comment", ""),
                 content = obj.optString("content", ""),
+                tags = tags,
+                priority = obj.optInt("priority", 0),
                 createdAt = obj.optString("created_at", currentTimeIso()),
                 updatedAt = obj.optString("updated_at", currentTimeIso())
             ))
@@ -273,7 +282,7 @@ class WorldBookActivity : AppCompatActivity() {
                         val json = JSONObject(result)
                         if (json.optString("status") == "ok") {
                             val now = currentTimeIso()
-                            adapter.addItem(WorldBookEntry(UUID.randomUUID().toString().take(8), category, content, now, now))
+                            adapter.addItem(WorldBookEntry(UUID.randomUUID().toString().take(8), category, content, emptyList(), 0, now, now))
                             updateEntryCount(); showEmpty(false)
                             Toast.makeText(this@WorldBookActivity, R.string.toast_entry_saved, Toast.LENGTH_SHORT).show()
                         }

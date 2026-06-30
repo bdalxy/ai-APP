@@ -27,12 +27,34 @@ class VoicePlayer(private val context: Context) {
     @Volatile var state: State = State.IDLE
         private set
     private var currentFilePath: String? = null
+    /** 解密后的临时文件（播放完成后需要删除） */
+    private var decryptedTempFile: File? = null
 
+    /**
+     * 播放音频文件。
+     * 如果文件是加密的（.enc 后缀），会先解密到临时文件再播放，播放完成后自动清理临时文件。
+     */
     fun play(filePath: String) {
         if (destroyed) return
-        val file = File(filePath)
-        if (!file.exists()) { callback?.onError("音频文件不存在: $filePath"); return }
-        if (!file.canRead()) { callback?.onError("无法读取音频文件: $filePath"); return }
+
+        // 处理加密文件：先解密到临时文件
+        val actualPlayPath = if (filePath.endsWith(".enc")) {
+            val tempFile = VoiceRecorder.decryptToTempFile(context, filePath)
+            if (tempFile == null) {
+                callback?.onError("音频文件解密失败: $filePath")
+                return
+            }
+            // 清理旧的临时文件
+            decryptedTempFile?.let { if (it.exists()) it.delete() }
+            decryptedTempFile = tempFile
+            tempFile.absolutePath
+        } else {
+            filePath
+        }
+
+        val file = File(actualPlayPath)
+        if (!file.exists()) { callback?.onError("音频文件不存在: $actualPlayPath"); return }
+        if (!file.canRead()) { callback?.onError("无法读取音频文件: $actualPlayPath"); return }
         if (state == State.PLAYING || state == State.PAUSED) { Log.d(TAG, "释放旧播放资源"); releasePlayer() }
         try {
             currentFilePath = filePath
@@ -44,15 +66,19 @@ class VoicePlayer(private val context: Context) {
                 }
                 setOnCompletionListener {
                     if (destroyed) return@setOnCompletionListener
-                    state = State.COMPLETED; callback?.onComplete()
+                    state = State.COMPLETED
+                    cleanupDecryptedTemp()
+                    callback?.onComplete()
                 }
                 setOnErrorListener { _, what, extra ->
-                    state = State.IDLE; callback?.onError("音频播放错误 (what=$what, extra=$extra)"); true
+                    state = State.IDLE
+                    cleanupDecryptedTemp()
+                    callback?.onError("音频播放错误 (what=$what, extra=$extra)"); true
                 }
                 prepareAsync()
             }
-        } catch (e: IOException) { releasePlayer(); callback?.onError("播放音频文件失败: ${e.message}") }
-        catch (e: Exception) { releasePlayer(); callback?.onError("播放音频异常: ${e.message}") }
+        } catch (e: IOException) { releasePlayer(); cleanupDecryptedTemp(); callback?.onError("播放音频文件失败: ${e.message}") }
+        catch (e: Exception) { releasePlayer(); cleanupDecryptedTemp(); callback?.onError("播放音频异常: ${e.message}") }
     }
 
     fun pause() {
@@ -85,5 +111,26 @@ class VoicePlayer(private val context: Context) {
         catch (e: Exception) { mediaPlayer = null; currentFilePath = null }
     }
 
-    fun destroy() { Log.d(TAG, "释放播放器资源"); destroyed = true; releasePlayer(); state = State.IDLE; callback = null }
+    /** 清理解密后的临时文件 */
+    private fun cleanupDecryptedTemp() {
+        decryptedTempFile?.let {
+            if (it.exists()) {
+                if (it.delete()) {
+                    Log.d(TAG, "已删除解密临时文件: ${it.name}")
+                } else {
+                    Log.w(TAG, "无法删除解密临时文件: ${it.name}")
+                }
+            }
+            decryptedTempFile = null
+        }
+    }
+
+    fun destroy() {
+        Log.d(TAG, "释放播放器资源")
+        destroyed = true
+        releasePlayer()
+        cleanupDecryptedTemp()
+        state = State.IDLE
+        callback = null
+    }
 }

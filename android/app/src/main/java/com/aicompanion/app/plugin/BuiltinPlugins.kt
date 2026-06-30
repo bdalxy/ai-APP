@@ -4,10 +4,30 @@ import android.content.Context
 import android.util.Log
 import com.aicompanion.app.R
 
+/**
+ * Kotlin 端内置插件集合。
+ *
+ * @deprecated Kotlin 端内置插件均为空壳桩实现，实际功能已在 Python 端 src/plugins/ 中实现。
+ * 对应关系：
+ * - MemoryStatsPlugin → Python 端 memory_stats_plugin.py
+ * - DailyGreetingPlugin → 无对应（功能已内置于对话引擎）
+ * - ConversationSummaryPlugin → 无对应（功能已内置于对话引擎）
+ *
+ * PluginManageActivity 已正确加载 Python 端插件，Kotlin 端插件仅作为向后兼容保留。
+ */
+@Deprecated(
+    message = "请使用 Python 端插件体系（src/plugins/）",
+    replaceWith = ReplaceWith(
+        "com.aicompanion.app.PluginItem",
+        "com.aicompanion.app.PluginItem"
+    ),
+    level = DeprecationLevel.WARNING
+)
 object BuiltinPlugins {
 
     private const val TAG = "BuiltinPlugins"
 
+    @Deprecated("请使用 Python 端 PluginManager.load_all()")
     fun registerAll(context: Context) {
         Log.d(TAG, "开始注册内置插件...")
         PluginRegistry.registerPlugin(context, MemoryStatsPlugin())
@@ -17,6 +37,7 @@ object BuiltinPlugins {
     }
 }
 
+@Deprecated("请使用 Python 端 memory_stats_plugin.py")
 class MemoryStatsPlugin : IPlugin {
 
     private val info = PluginInfo(
@@ -39,6 +60,7 @@ class MemoryStatsPlugin : IPlugin {
     override fun onDisable(context: Context) { Log.d("MemoryStatsPlugin", "记忆统计插件已禁用") }
 }
 
+@Deprecated("此功能已内置于对话引擎，无需独立插件")
 class DailyGreetingPlugin : IPlugin {
 
     private val info = PluginInfo(
@@ -61,6 +83,7 @@ class DailyGreetingPlugin : IPlugin {
     override fun onDisable(context: Context) { Log.d("DailyGreetingPlugin", "每日一句插件已禁用") }
 }
 
+@Deprecated("此功能已内置于对话引擎，无需独立插件")
 class ConversationSummaryPlugin : IPlugin {
 
     private val info = PluginInfo(

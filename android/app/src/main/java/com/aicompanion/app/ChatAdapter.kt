@@ -15,8 +15,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.aicompanion.app.speech.VoicePlayer
 import java.text.SimpleDateFormat
@@ -31,8 +29,7 @@ import java.util.Locale
  * 支持连续消息合并：同组消息只显示首条头像/昵称，末条时间戳。
  *
  * 注意：由于流式输出需要频繁更新单条消息，Adapter 内部维护一份 localMessages
- * 作为本地缓存，确保 submitList() 异步期间数据一致性。所有读操作（getItemViewType、
- * onBindViewHolder、getItemCount 等）都基于 localMessages。
+ * 作为本地缓存，使用 notifyItem* 同步更新，避免异步竞态导致崩溃。
  */
 class ChatAdapter(
     private val onMessageLongClick: ((Message, Int) -> Unit)? = null,
@@ -42,24 +39,14 @@ class ChatAdapter(
     private val onMessagesTrimmed: (() -> Unit)? = null,
     /** 数据变更回调：添加/删除/替换/清空消息时触发 */
     private val onDataChanged: (() -> Unit)? = null
-) : ListAdapter<Message, ChatAdapter.BaseViewHolder>(MessageDiffCallback) {
+) : RecyclerView.Adapter<ChatAdapter.BaseViewHolder>() {
 
-    init {
-        setHasStableIds(true)
-    }
+    // ======================== 本地消息缓存 ========================
 
-    // ======================== DiffUtil.ItemCallback ========================
-
-    /**
-     * Message 的 DiffUtil 比较回调。
-     * 基于消息 id 判断是否为同一项，基于内容哈希判断内容是否变化。
-     * 作为 companion object 提供，供 ListAdapter 构造函数使用。
-     */
     companion object {
         private const val VIEW_TYPE_TYPING = 0
         private const val VIEW_TYPE_AI = 1
         private const val VIEW_TYPE_USER = 2
-        /** 语音消息 viewType */
         private const val VIEW_TYPE_AI_VOICE = 3
         private const val VIEW_TYPE_USER_VOICE = 4
         private val MAX_MESSAGES = AppConfig.MAX_MESSAGES
@@ -72,7 +59,6 @@ class ChatAdapter(
             SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
         }
 
-        /** 格式化语音时长（毫秒 -> MM:SS） */
         fun formatVoiceDuration(durationMs: Long): String {
             if (durationMs <= 0) return "0:00"
             val totalSeconds = durationMs / 1000
@@ -83,40 +69,8 @@ class ChatAdapter(
     }
 
     /**
-     * DiffUtil.ItemCallback 实现：基于 Message.id 判断是否为同一项，
-     * 基于内容相关字段的哈希判断内容是否变化。
-     */
-    object MessageDiffCallback : DiffUtil.ItemCallback<Message>() {
-        override fun areItemsTheSame(oldItem: Message, newItem: Message): Boolean {
-            return oldItem.id == newItem.id
-        }
-
-        override fun areContentsTheSame(oldItem: Message, newItem: Message): Boolean {
-            return oldItem.content == newItem.content &&
-                oldItem.status == newItem.status &&
-                oldItem.isGroupStart == newItem.isGroupStart &&
-                oldItem.isGroupEnd == newItem.isGroupEnd &&
-                oldItem.msgType == newItem.msgType &&
-                oldItem.voiceFilePath == newItem.voiceFilePath &&
-                oldItem.voiceDurationMs == newItem.voiceDurationMs &&
-                oldItem.voicePlayed == newItem.voicePlayed &&
-                oldItem.isEdited == newItem.isEdited
-        }
-
-        override fun getChangePayload(oldItem: Message, newItem: Message): Any? {
-            // 返回变更内容用于局部刷新，当前返回 null 触发完整 onBindViewHolder
-            return null
-        }
-    }
-
-    // ======================== 本地消息缓存 ========================
-
-    /**
-     * 本地消息列表缓存。
-     * ListAdapter 的 submitList() 是异步的（DiffUtil 在后台线程计算），
-     * 流式输出场景需要频繁读写最新数据，因此维护本地缓存作为数据源。
-     * 所有公开的读方法（getItemViewType、onBindViewHolder、getItemCount 等）
-     * 都基于此列表，确保数据一致性。
+     * 本地消息列表缓存。所有读方法（getItemViewType、onBindViewHolder、
+     * getItemCount 等）都基于此列表，使用 notifyItem* 同步更新。
      */
     private val localMessages = mutableListOf<Message>()
 
@@ -334,7 +288,7 @@ class ChatAdapter(
 
         // 时间戳可见性：组尾显示
         holder.tvTimestamp.visibility = if (message.isGroupEnd) {
-            holder.tvTimestamp.text = formatTime(message.timestamp)
+            holder.tvTimestamp.text = formatTime(message.timestamp, context)
             View.VISIBLE
         } else {
             View.GONE
@@ -367,7 +321,7 @@ class ChatAdapter(
         // 时间戳和状态：组尾显示
         if (message.isGroupEnd) {
             holder.layoutStatus.visibility = View.VISIBLE
-            holder.tvTimestamp.text = formatTime(message.timestamp)
+            holder.tvTimestamp.text = formatTime(message.timestamp, context)
 
             // 状态图标
             holder.ivStatus.visibility = View.VISIBLE
@@ -485,7 +439,7 @@ class ChatAdapter(
         }
     }
 
-    /** 返回本地缓存列表大小，确保 submitList() 异步期间数据一致性 */
+    /** 返回本地缓存列表大小 */
     override fun getItemCount(): Int = localMessages.size
 
     override fun getItemId(position: Int): Long = localMessages[position].id.hashCode().toLong()
@@ -496,9 +450,8 @@ class ChatAdapter(
      * 添加消息，自动处理连续消息合并逻辑。
      * 如果上一条消息的发送者相同，则合并为一组。
      *
-     * 使用 ListAdapter 的 submitList() 提交数据，DiffUtil 自动计算增量更新。
-     * 由于 submitList() 是异步的（DiffUtil 在后台线程计算），本方法维护 localMessages
-     * 作为本地缓存，确保调用者可以立即获取正确的消息数量。
+     * 使用 notifyItemInserted() 同步更新，避免 submitList() 异步竞态导致
+     * RecyclerView IndexOutOfBoundsException 崩溃。
      *
      * @param message 要添加的消息
      * @return 新消息在列表中的索引位置
@@ -507,6 +460,7 @@ class ChatAdapter(
         if (localMessages.size >= MAX_MESSAGES) {
             Log.w(TAG, "消息数量达到上限($MAX_MESSAGES)，移除最早消息")
             localMessages.removeAt(0)
+            notifyItemRemoved(0)
             onMessagesTrimmed?.invoke()
         }
 
@@ -518,6 +472,7 @@ class ChatAdapter(
                 val groupId = lastMsg.groupId
                 // 更新上一条消息为非组尾
                 localMessages[localMessages.size - 1] = lastMsg.copy(isGroupEnd = false)
+                notifyItemChanged(localMessages.size - 1)
 
                 message.copy(
                     groupId = groupId,
@@ -533,7 +488,7 @@ class ChatAdapter(
 
         localMessages.add(mergedMessage)
         val newPosition = localMessages.size - 1
-        submitList(localMessages.toList())
+        notifyItemInserted(newPosition)
         onDataChanged?.invoke()
         return newPosition
     }
@@ -555,51 +510,50 @@ class ChatAdapter(
         val msg = localMessages[position]
         if (!msg.isTyping) return null
         localMessages.removeAt(position)
-        submitList(localMessages.toList())
+        notifyItemRemoved(position)
         onDataChanged?.invoke()
         return msg
     }
 
     /**
-     * 更新指定位置的消息。
-     * 使用 submitList() 提交更新后的列表，DiffUtil 自动计算增量更新。
+     * 更新指定位置的消息（同步，使用 notifyItemChanged）。
      */
     fun updateMessage(position: Int, message: Message) {
         if (position < 0 || position >= localMessages.size) return
         localMessages[position] = message
-        submitList(localMessages.toList())
+        notifyItemChanged(position)
     }
 
     /** 清空所有消息 */
     fun clear() {
+        val count = localMessages.size
         localMessages.clear()
-        submitList(emptyList())
+        notifyItemRangeRemoved(0, count)
         onDataChanged?.invoke()
     }
 
     /**
-     * 替换全部消息。
-     * 使用 submitList() 提交，ListAdapter 内部通过 DiffUtil 自动计算增量更新。
+     * 替换全部消息（同步，使用 notifyDataSetChanged）。
      */
     fun replaceMessages(newMessages: List<Message>) {
         localMessages.clear()
         localMessages.addAll(newMessages)
-        submitList(localMessages.toList())
+        notifyDataSetChanged()
         onDataChanged?.invoke()
     }
 
     // ======================== 工具方法 ========================
 
-    private fun formatTime(timestamp: Long): String {
+    private fun formatTime(timestamp: Long, context: Context): String {
         val now = System.currentTimeMillis()
         val diff = now - timestamp
         return when {
-            diff < 60_000 -> "刚刚"
-            diff < 3600_000 -> "${diff / 60_000}分钟前"
-            diff < 86400_000 -> timeFormat.get()!!.format(Date(timestamp))
+            diff < 60_000 -> context.getString(R.string.chat_just_now)
+            diff < 3600_000 -> context.getString(R.string.chat_minutes_ago_fmt, diff / 60_000)
+            diff < 86400_00 -> timeFormat.get()?.format(Date(timestamp)) ?: context.getString(R.string.chat_just_now)
             diff < 604800_000 -> {
                 val days = diff / 86400_000
-                "${days}天前 ${timeFormat.get()!!.format(Date(timestamp))}"
+                context.getString(R.string.chat_days_ago_fmt, days, timeFormat.get()?.format(Date(timestamp)) ?: "")
             }
             else -> dateFormat.get()!!.format(Date(timestamp))
         }

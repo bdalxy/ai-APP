@@ -79,6 +79,9 @@ def retry(
                         f"[重试 {attempt + 1}/{max_retries}] {func.__name__} 失败: {exc}，"
                         f"{delay:.2f}秒后重试..."
                     )
+                    # 注意：time.sleep() 在 Chaquopy 环境中会阻塞当前线程。
+                    # 当前重试装饰器主要用于 API 调用（已在后台线程执行），
+                    # 若需要在主线程使用，请改用 threading.Event().wait(timeout) 以支持中断。
                     time.sleep(delay)
 
             if last_exception is not None:

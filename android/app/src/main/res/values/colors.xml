@@ -28,8 +28,8 @@
 
     <!-- 文字颜色 -->
     <color name="text_primary">#4A3B3A</color>
-    <color name="text_secondary">#8A7B7A</color>
-    <color name="text_tertiary">#9A8E8D</color>
+    <color name="text_secondary">#6B5B5A</color>
+    <color name="text_tertiary">#7B6B6A</color>
     <color name="text_on_pink">#4A3B3A</color>
     <color name="darker_gray">#444444</color>
 
@@ -156,6 +156,16 @@
     <color name="play_button_bg">#33F0B0C0</color>
     <!-- 打字光点 -->
     <color name="typing_dot">#FFB7C5</color>
+    <!-- 粒子效果颜色 -->
+    <color name="particle_pink_translucent">#80FFB7C5</color>      <!-- 粉色半透（alpha 128） -->
+    <color name="particle_sky_translucent">#80B0C4DE</color>      <!-- 淡天蓝半透（alpha 128） -->
+    <color name="particle_white_faint">#60FFFFFF</color>          <!-- 白色微透（alpha 96） -->
+    <color name="particle_sky_light">#64B0C4DE</color>            <!-- 淡天蓝浅透（alpha 100） -->
+    <color name="particle_pink_light">#64FFB7C5</color>           <!-- 粉色浅透（alpha 100） -->
+    <color name="particle_pink_mist">#3CFDF0F0</color>            <!-- 淡樱粉微透（alpha 60） -->
+    <color name="particle_sky_mist">#28B0C4DE</color>             <!-- 淡天蓝微透（alpha 40） -->
+    <!-- 录音覆盖层遮罩 -->
+    <color name="recording_scrim">#50000000</color>
     <!-- 启动页渐变 -->
     <color name="launcher_gradient_start">#FFDCE3</color>
     <color name="launcher_gradient_center">#D4E8F0</color>

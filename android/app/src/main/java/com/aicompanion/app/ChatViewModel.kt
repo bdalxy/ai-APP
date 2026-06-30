@@ -1,32 +1,18 @@
 package com.aicompanion.app
 
+import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
-import android.view.View
-import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
-// TODO(v2.0): 移除未使用的 import — AlertDialog 未使用，MaterialAlertDialogBuilder 替代
-// import androidx.appcompat.app.AlertDialog
-// TODO(v2.0): 移除未使用的 import — FileProvider 未在此文件中使用
-// import androidx.core.content.FileProvider
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
-import androidx.lifecycle.LifecycleCoroutineScope
-// TODO(v2.0): 移除未使用的 import — LinearLayoutManager/RecyclerView 未在此文件中直接使用
-// import androidx.recyclerview.widget.LinearLayoutManager
-// import androidx.recyclerview.widget.RecyclerView
-import com.aicompanion.app.databinding.ActivityMainBinding
-import com.aicompanion.app.module.ModuleRegistry
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import com.aicompanion.app.utils.UiThread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -38,21 +24,58 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
-// TODO(v2.0): 移除未使用的 import — java.io.File 未在此文件中使用
-// import java.io.File
 
 /**
- * 消息状态管理器。
+ * 一次性事件包装器，防止配置变更时重复消费。
+ */
+class Event<out T>(private val content: T) {
+    private var hasBeenHandled = false
+
+    fun getContentIfNotHandled(): T? {
+        return if (hasBeenHandled) null
+        else { hasBeenHandled = true; content }
+    }
+
+    fun peekContent(): T = content
+}
+
+/** 发送按钮 UI 状态 */
+data class SendButtonState(
+    val enabled: Boolean = false,
+    val text: String = "",
+    val bgRes: Int = R.drawable.bg_send_inactive,
+    val triggerAnimation: Boolean = false
+)
+
+/** 滚动事件 */
+data class ScrollEvent(
+    val position: Int,
+    val smooth: Boolean = false
+)
+
+/** Snackbar 数据 */
+data class SnackbarData(
+    val message: String,
+    val showRetry: Boolean = false
+)
+
+/** 输入框文本操作 */
+sealed class InputTextAction {
+    data class Set(val text: String, val selection: Int = 0) : InputTextAction()
+}
+
+/**
+ * 消息状态管理器（继承 AndroidViewModel）。
  *
  * 负责消息列表管理、流式对话控制、Python 桥接调用、搜索和导出。
  * 通过 [ChatCallback] 通知 MainActivity 执行 UI 无关的操作（保存会话、TTS 等）。
+ * UI 状态通过 LiveData 暴露给 MainActivity。
  */
 class ChatViewModel(
-    private val context: Context,
-    private val binding: ActivityMainBinding,
-    private val adapter: ChatAdapter,
-    private val lifecycleScope: LifecycleCoroutineScope
-) {
+    application: Application,
+    val adapter: ChatAdapter
+) : AndroidViewModel(application) {
+
     companion object {
         private const val TAG = "ChatViewModel"
         private const val MAX_MESSAGE_LENGTH = 2000
@@ -97,6 +120,10 @@ class ChatViewModel(
         fun onStreamSentence(sentence: String)
         /** 用户发送新消息时，通知停止当前 TTS 播放 */
         fun onNewMessageSent()
+        /** 请求显示导出格式选择对话框 */
+        fun onShowExportFormatDialog()
+        /** 请求分享导出文件 */
+        fun onShareFile(uri: android.net.Uri, format: String)
     }
 
     var callback: ChatCallback? = null
@@ -155,33 +182,70 @@ class ChatViewModel(
     @Volatile
     private var pendingRetryOnReconnect = false
 
-    // ======================== 初始化 ========================
+    // ======================== UI 状态 LiveData ========================
+
+    private val _inputEnabled = MutableLiveData(true)
+    val inputEnabled: LiveData<Boolean> = _inputEnabled
+
+    private val _sendButtonState = MutableLiveData(SendButtonState())
+    val sendButtonState: LiveData<SendButtonState> = _sendButtonState
+
+    private val _searchBarVisible = MutableLiveData(false)
+    val searchBarVisible: LiveData<Boolean> = _searchBarVisible
+
+    private val _searchResultCountText = MutableLiveData("")
+    val searchResultCountText: LiveData<String> = _searchResultCountText
+
+    private val _searchResultCountVisible = MutableLiveData(false)
+    val searchResultCountVisible: LiveData<Boolean> = _searchResultCountVisible
+
+    private val _archiveHintVisible = MutableLiveData(false)
+    val archiveHintVisible: LiveData<Boolean> = _archiveHintVisible
+
+    private val _scrollToPosition = MutableLiveData<ScrollEvent>()
+    val scrollToPosition: LiveData<ScrollEvent> = _scrollToPosition
+
+    private val _toastEvent = MutableLiveData<Event<String>>()
+    val toastEvent: LiveData<Event<String>> = _toastEvent
+
+    private val _snackbarEvent = MutableLiveData<Event<SnackbarData>>()
+    val snackbarEvent: LiveData<Event<SnackbarData>> = _snackbarEvent
+
+    private val _inputTextAction = MutableLiveData<Event<InputTextAction>>()
+    val inputTextAction: LiveData<Event<InputTextAction>> = _inputTextAction
+
+    private val _clearInput = MutableLiveData<Event<Boolean>>()
+    val clearInput: LiveData<Event<Boolean>> = _clearInput
+
+    private val _requestInputFocus = MutableLiveData<Event<Boolean>>()
+    val requestInputFocus: LiveData<Event<Boolean>> = _requestInputFocus
+
+    private val _requestSearchFocus = MutableLiveData<Event<Boolean>>()
+    val requestSearchFocus: LiveData<Event<Boolean>> = _requestSearchFocus
+
+    private val _hideKeyboard = MutableLiveData<Event<Boolean>>()
+    val hideKeyboard: LiveData<Event<Boolean>> = _hideKeyboard
+
+    private val _clearSearchText = MutableLiveData<Event<Boolean>>()
+    val clearSearchText: LiveData<Event<Boolean>> = _clearSearchText
+
+    /** 消息上下文菜单事件（message, position） */
+    private val _contextMenuEvent = MutableLiveData<Event<Pair<Message, Int>>>()
+    val contextMenuEvent: LiveData<Event<Pair<Message, Int>>> = _contextMenuEvent
+
+    /** RecyclerView 是否在底部（由 Activity 更新，流式输出时用于判断是否自动滚动） */
+    @Volatile
+    var isAtBottom: Boolean = true
+
+    // ======================== 发送按钮状态追踪 ========================
+
+    /** 发送按钮上一次是否处于激活态（用于缩放动画判断） */
+    private var wasSendActive = false
+
+    // ======================== 搜索辅助 ========================
 
     /** 搜索辅助类（内部类，访问外部成员） */
     inner class SearchHelper {
-        fun setupSearchListeners() {
-            var searchRunnable: Runnable? = null
-            binding.etSearch?.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                    searchRunnable = Runnable {
-                        performSearch(s?.toString() ?: "")
-                    }
-                    searchRunnable?.let { searchHandler.postDelayed(it, SEARCH_DEBOUNCE_MS) }
-                }
-            })
-
-            binding.btnCancel?.setOnClickListener {
-                if (binding.etSearch?.text?.isNotEmpty() == true) {
-                    binding.etSearch?.setText("")
-                } else {
-                    toggleSearchMode()
-                }
-            }
-        }
-
         fun toggleSearchMode() {
             if (isSearchMode) {
                 exitSearchMode()
@@ -193,21 +257,20 @@ class ChatViewModel(
         fun enterSearchMode() {
             isSearchMode = true
             originalMessages = adapter.getMessages().toList()
-            binding.layoutSearch?.visibility = View.VISIBLE
-            binding.etSearch?.requestFocus()
-            binding.etSearch?.let { showKeyboard(it) }
+            _searchBarVisible.value = true
+            _requestSearchFocus.value = Event(true)
         }
 
         fun exitSearchMode() {
             isSearchMode = false
-            binding.layoutSearch?.visibility = View.GONE
-            binding.tvSearchResultCount?.visibility = View.GONE
-            binding.etSearch?.setText("")
+            _searchBarVisible.value = false
+            _searchResultCountVisible.value = false
+            _clearSearchText.value = Event(true)
             // 恢复原始消息列表（搜索期间 adapter 中存的是过滤后的结果，必须用 originalMessages 恢复）
             adapter.replaceAll(originalMessages.toList())
-            hideKeyboard()
+            _hideKeyboard.value = Event(true)
             if (adapter.itemCount > 0) {
-                binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
+                _scrollToPosition.value = ScrollEvent(adapter.itemCount - 1)
             }
         }
 
@@ -216,11 +279,11 @@ class ChatViewModel(
 
             if (keyword.isBlank()) {
                 adapter.replaceAll(originalMessages.toList())
-                binding.tvSearchResultCount?.visibility = View.GONE
+                _searchResultCountVisible.value = false
                 return
             }
 
-            lifecycleScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(Dispatchers.IO) {
                 try {
                     val jsonArray = JSONArray()
                     for (msg in originalMessages) {
@@ -255,41 +318,34 @@ class ChatViewModel(
 
                         withContext(Dispatchers.Main) {
                             adapter.replaceAll(matchedMessages)
-                            binding.tvSearchResultCount?.text =
-                                context.getString(R.string.search_result_count, total)
-                            binding.tvSearchResultCount?.visibility =
-                                if (total > 0) View.VISIBLE else View.GONE
+                            _searchResultCountText.value =
+                                getApplication<Application>().getString(R.string.search_result_count, total)
+                            _searchResultCountVisible.value = total > 0
                             if (matchedMessages.isNotEmpty()) {
-                                binding.rvMessages.scrollToPosition(0)
+                                _scrollToPosition.value = ScrollEvent(0)
                             }
                         }
                     } else {
-                        val errorMsg = resultJson.optString("message", context.getString(R.string.error_unknown))
+                        val errorMsg = resultJson.optString("message", getApplication<Application>().getString(R.string.error_unknown))
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.toast_search_failed, errorMsg),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            _toastEvent.value = Event(
+                                getApplication<Application>().getString(R.string.toast_search_failed, errorMsg)
+                            )
                         }
                     }
                 } catch (e: TimeoutCancellationException) {
-                    Log.e(TAG, "搜索对话超时", e)
+                    Log.w(TAG, "搜索对话超时")
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.toast_timeout),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        _toastEvent.value = Event(
+                            getApplication<Application>().getString(R.string.toast_timeout)
+                        )
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "搜索对话失败", e)
+                    Log.w(TAG, "搜索对话失败")
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.toast_search_failed, e.message),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        _toastEvent.value = Event(
+                            getApplication<Application>().getString(R.string.toast_search_failed, e.message)
+                        )
                     }
                 }
             }
@@ -298,30 +354,27 @@ class ChatViewModel(
 
     val searchHelper = SearchHelper()
 
-    init {
-        searchHelper.setupSearchListeners()
-    }
-
     // ======================== 发送消息 ========================
 
     /** 发送文本消息入口 */
-    fun sendMessage() {
+    fun sendMessage(text: String) {
         try {
-            val text = binding.etInput.text.toString().trim()
-            if (text.isEmpty()) return
+            val trimmed = text.trim()
+            if (trimmed.isEmpty()) return
 
             if (pythonModule == null) {
-                Toast.makeText(context, R.string.toast_python_not_ready, Toast.LENGTH_SHORT).show()
+                // 引擎未就绪时仍显示用户消息，避免聊天框空白
+                addUserBubble(trimmed)
+                _clearInput.value = Event(true)
+                _toastEvent.value = Event(getApplication<Application>().getString(R.string.toast_python_not_ready))
                 return
             }
 
             if (isStreaming) return
 
             // 消息长度限制（2000字符）
-            if (text.length > MAX_MESSAGE_LENGTH) {
-                Toast.makeText(
-                    context, R.string.toast_message_too_long, Toast.LENGTH_SHORT
-                ).show()
+            if (trimmed.length > MAX_MESSAGE_LENGTH) {
+                _toastEvent.value = Event(getApplication<Application>().getString(R.string.toast_message_too_long))
                 return
             }
 
@@ -333,13 +386,13 @@ class ChatViewModel(
                 val messages = adapter.getMessages().toMutableList()
                 if (editingPosition < messages.size && messages[editingPosition].isUser) {
                     val editedMsg = messages[editingPosition].copy(
-                        content = text,
+                        content = trimmed,
                         isEdited = true,
                         timestamp = System.currentTimeMillis()
                     )
                     messages[editingPosition] = editedMsg
                     adapter.replaceAll(messages)
-                    binding.etInput.text.clear()
+                    _clearInput.value = Event(true)
                     updateSendButton(false)
                     // 保存编辑位置（在重置前）
                     val editPos = editingPosition
@@ -350,7 +403,7 @@ class ChatViewModel(
                     if (editPos + 1 < messages.size && !messages[editPos + 1].isUser) {
                         val remaining = messages.subList(0, editPos + 1)
                         adapter.replaceAll(remaining)
-                        streamingHelper.sendMessageStream(text)
+                        streamingHelper.sendMessageStream(trimmed)
                     } else {
                         callback?.onConversationNeedSave()
                     }
@@ -358,16 +411,17 @@ class ChatViewModel(
                 return
             }
 
-            binding.etInput.text.clear()
+            _clearInput.value = Event(true)
             updateSendButton(false)
-            streamingHelper.sendMessageStream(text)
+            streamingHelper.sendMessageStream(trimmed)
         } catch (e: Exception) {
-            Log.e(TAG, "发送消息失败", e)
-            Toast.makeText(
-                context,
-                context.getString(R.string.toast_conversation_failed, e.message ?: context.getString(R.string.error_unknown)),
-                Toast.LENGTH_SHORT
-            ).show()
+            Log.w(TAG, "发送消息失败")
+            _toastEvent.value = Event(
+                getApplication<Application>().getString(
+                    R.string.toast_conversation_failed,
+                    e.message ?: getApplication<Application>().getString(R.string.error_unknown)
+                )
+            )
             // 恢复输入状态
             if (isStreaming) {
                 isStreaming = false
@@ -402,7 +456,7 @@ class ChatViewModel(
             val module = pythonModule
             if (module == null) {
                 UiThread.run {
-                    Toast.makeText(context, R.string.toast_python_not_ready, Toast.LENGTH_SHORT).show()
+                    _toastEvent.postValue(Event(getApplication<Application>().getString(R.string.toast_python_not_ready)))
                 }
                 return
             }
@@ -418,13 +472,13 @@ class ChatViewModel(
             // 添加打字指示器（addMessage 返回新消息的索引）
             val typingMsg = Message(content = "", isUser = false, isTyping = true)
             streamingTypingIndex = adapter.addMessage(typingMsg)
-            binding.rvMessages.smoothScrollToPosition(streamingTypingIndex)
+            _scrollToPosition.postValue(ScrollEvent(streamingTypingIndex, smooth = true))
 
             // 占位 AI 消息（打字结束后填充）
             val aiMsg = Message(content = "", isUser = false)
             streamingAiMsgIndex = adapter.addMessage(aiMsg)
 
-            streamJob = lifecycleScope.launch(Dispatchers.IO) {
+            streamJob = viewModelScope.launch(Dispatchers.IO) {
                 try {
                     // 重置句子边界
                     lastSentenceEnd = 0
@@ -437,15 +491,17 @@ class ChatViewModel(
                     }
                     activeStreamId = streamId
 
+                    val app = getApplication<Application>()
+
                     // 检查是否返回了错误
                     if (streamId.startsWith("{")) {
                         val errorJson = JSONObject(streamId)
-                        Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
+                        Log.w(TAG, "流式对话降级为非流式: ${errorJson.optString("message", app.getString(R.string.error_unknown))}")
                         UiThread.run {
                             removeTypingIndicator()
                             adapter.updateMessage(
                                 streamingAiMsgIndex,
-                                aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${errorJson.optString("message", context.getString(R.string.error_unknown))}")
+                                aiMsg.copy(content = "${app.getString(R.string.label_error_prefix)} ${errorJson.optString("message", app.getString(R.string.error_unknown))}")
                             )
                         }
                         return@launch
@@ -492,11 +548,9 @@ class ChatViewModel(
                                     }
                                     lastMessageUpdateTime = now
                                 }
-                                if (now - lastScrollTime > SCROLL_THROTTLE_MS) {
+                                if (now - lastScrollTime > SCROLL_THROTTLE_MS && isAtBottom) {
                                     UiThread.run {
-                                        if (!binding.rvMessages.canScrollVertically(1)) {
-                                            binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
-                                        }
+                                        _scrollToPosition.postValue(ScrollEvent(adapter.itemCount - 1, smooth = true))
                                     }
                                     lastScrollTime = now
                                 }
@@ -541,7 +595,7 @@ class ChatViewModel(
                                         parts.drop(1).forEachIndexed { idx, part ->
                                             handler.postDelayed({
                                                 adapter.addMessage(Message(content = part, isUser = false))
-                                                binding.rvMessages.smoothScrollToPosition(adapter.itemCount - 1)
+                                                _scrollToPosition.postValue(ScrollEvent(adapter.itemCount - 1, smooth = true))
                                             }, ((idx + 1) * MULTI_PART_DELAY_MS).toLong())
                                         }
                                         handler.postDelayed({
@@ -560,17 +614,15 @@ class ChatViewModel(
                             "error" -> {
                                 // 解析错误类型（S2.2.4 增强：区分连接超时、读取超时、DNS、429 等）
                                 val errorType = pollJson.optString("error_type", "unknown")
-                                val errorMsg = pollJson.optString("message", context.getString(R.string.error_unknown))
+                                val errorMsg = pollJson.optString("message", app.getString(R.string.error_unknown))
 
                                 // 429 限流：指数退避重试（1s → 2s → 4s，最多3次）
                                 if (errorType == "rate_limit" && rateLimitRetryCount < MAX_RATE_LIMIT_RETRIES) {
                                     rateLimitRetryCount++
                                     UiThread.run {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.error_rate_limit_retrying, rateLimitRetryCount, MAX_RATE_LIMIT_RETRIES),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        _toastEvent.postValue(Event(
+                                            app.getString(R.string.error_rate_limit_retrying, rateLimitRetryCount, MAX_RATE_LIMIT_RETRIES)
+                                        ))
                                     }
                                     throw RateLimitRetryException()
                                 }
@@ -580,24 +632,22 @@ class ChatViewModel(
                                 UiThread.run {
                                     adapter.updateMessage(
                                         streamingAiMsgIndex,
-                                        aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} $errorDisplayText")
+                                        aiMsg.copy(content = "${app.getString(R.string.label_error_prefix)} $errorDisplayText")
                                     )
                                     // 网络类错误：显示带重试的 Snackbar + 注册网络恢复自动重连
                                     if (isNetworkErrorType(errorType)) {
                                         showRetrySnackbar(errorDisplayText)
                                         registerNetworkCallback()
                                     } else {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.toast_conversation_failed, errorDisplayText),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        _toastEvent.postValue(Event(
+                                            app.getString(R.string.toast_conversation_failed, errorDisplayText)
+                                        ))
                                     }
                                 }
                             }
                             else -> {
                                 if (status != "waiting") {
-                                    Log.w(TAG, "流式轮询返回未知状态: $status, 原始数据: $pollJson")
+                                    Log.w(TAG, "流式轮询返回未知状态: $status, 原始数据: ${pollJson.toString().take(200)}")
                                 }
                                 // waiting 是正常状态，继续轮询；未知状态也继续等待有效状态
                             }
@@ -610,7 +660,7 @@ class ChatViewModel(
                             UiThread.run {
                                 adapter.updateMessage(
                                     streamingAiMsgIndex,
-                                    aiMsg.copy(content = context.getString(R.string.error_ai_empty_response))
+                                    aiMsg.copy(content = app.getString(R.string.error_ai_empty_response))
                                 )
                             }
                         }
@@ -619,22 +669,24 @@ class ChatViewModel(
                     // 429 限流：不显示错误 UI，由 finally 块处理指数退避重试
                     Log.d(TAG, "429 限流，准备指数退避重试 (${rateLimitRetryCount}/$MAX_RATE_LIMIT_RETRIES)")
                 } catch (e: TimeoutCancellationException) {
-                    Log.e(TAG, "Python调用超时", e)
+                    Log.w(TAG, "Python调用超时")
+                    val app = getApplication<Application>()
                     UiThread.run {
                         adapter.updateMessage(
                             streamingAiMsgIndex,
-                            aiMsg.copy(content = "${context.getString(R.string.label_error_timeout_prefix)} ${context.getString(R.string.error_timeout_message)}")
+                            aiMsg.copy(content = "${app.getString(R.string.label_error_timeout_prefix)} ${app.getString(R.string.error_timeout_message)}")
                         )
-                        showRetrySnackbar(context.getString(R.string.error_timeout_short))
+                        showRetrySnackbar(app.getString(R.string.error_timeout_short))
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "流式对话失败", e)
+                    Log.w(TAG, "流式对话失败")
+                    val app = getApplication<Application>()
                     UiThread.run {
                         adapter.updateMessage(
                             streamingAiMsgIndex,
-                            aiMsg.copy(content = "${context.getString(R.string.label_error_prefix)} ${e.message}")
+                            aiMsg.copy(content = "${app.getString(R.string.label_error_prefix)} ${e.message}")
                         )
-                        showRetrySnackbar(context.getString(R.string.error_send_failed))
+                        showRetrySnackbar(app.getString(R.string.error_send_failed))
                     }
                 } finally {
                     // 检查是否需要 429 限流退避重试
@@ -657,13 +709,13 @@ class ChatViewModel(
                                 adapter.replaceAll(messages)
                             }
                             // 启动延迟重试协程：指数退避后重新发送
-                            lifecycleScope.launch(Dispatchers.IO) {
+                            viewModelScope.launch(Dispatchers.IO) {
                                 delay(retryDelayMs)
                                 sendMessageStream(lastUserInput)
                             }
                         } else {
                             enableInput()
-                            updateSendButton(binding.etInput.text?.isNotBlank() == true)
+                            updateSendButton(false)  // 输入框已清空，发送按钮应为失活
                         }
                     }
                 }
@@ -688,17 +740,18 @@ class ChatViewModel(
          * @return 用户友好的错误提示文本
          */
         private fun getErrorDisplayText(errorType: String, fallback: String): String {
+            val app = getApplication<Application>()
             return when (errorType) {
-                "connect_timeout" -> context.getString(R.string.error_connection_timeout)
-                "read_timeout" -> context.getString(R.string.error_read_timeout)
-                "timeout" -> context.getString(R.string.error_timeout_short)
-                "dns" -> context.getString(R.string.error_dns_failure)
-                "connection" -> context.getString(R.string.error_connection_refused)
-                "rate_limit" -> context.getString(R.string.error_rate_limit_exhausted)
-                "server_error" -> context.getString(R.string.error_server_error)
-                "auth" -> context.getString(R.string.error_auth_failed)
-                "quota" -> context.getString(R.string.error_quota_exceeded)
-                "content_filter" -> context.getString(R.string.error_content_filtered)
+                "connect_timeout" -> app.getString(R.string.error_connection_timeout)
+                "read_timeout" -> app.getString(R.string.error_read_timeout)
+                "timeout" -> app.getString(R.string.error_timeout_short)
+                "dns" -> app.getString(R.string.error_dns_failure)
+                "connection" -> app.getString(R.string.error_connection_refused)
+                "rate_limit" -> app.getString(R.string.error_rate_limit_exhausted)
+                "server_error" -> app.getString(R.string.error_server_error)
+                "auth" -> app.getString(R.string.error_auth_failed)
+                "quota" -> app.getString(R.string.error_quota_exceeded)
+                "content_filter" -> app.getString(R.string.error_content_filtered)
                 else -> fallback  // 未知类型显示原始消息
             }
         }
@@ -741,7 +794,7 @@ class ChatViewModel(
             // v2.0: 取消流直接调用 Python 模块（待 ChatModule 接口定义后迁移到 ModuleRegistry.get<ChatModule>()）
             val sid = activeStreamId
             if (sid != null) {
-                lifecycleScope.launch(Dispatchers.IO) {
+                viewModelScope.launch(Dispatchers.IO) {
                     try {
                         com.chaquo.python.Python.getInstance()
                             .getModule("chat_bridge")
@@ -774,135 +827,81 @@ class ChatViewModel(
     private fun addUserBubble(text: String) {
         val msg = Message(content = text, isUser = true)
         val position = adapter.addMessage(msg)
-        binding.rvMessages.smoothScrollToPosition(position)
+        _scrollToPosition.value = ScrollEvent(position, smooth = true)
     }
 
     // ======================== 输入状态控制 ========================
 
     /** 流式输出期间禁用输入框和发送按钮 */
     private fun disableInput() {
-        binding.etInput.isEnabled = false
+        _inputEnabled.value = false
         updateSendButton(false)
     }
 
     /** 流式输出完成后恢复输入框和发送按钮 */
     private fun enableInput() {
-        binding.etInput.isEnabled = true
-        updateSendButton(binding.etInput.text?.isNotBlank() == true)
+        _inputEnabled.value = true
         if (!isSearchMode) {
-            try {
-                binding.etInput.requestFocus()
-            } catch (_: Exception) {
-                // Activity 可能已销毁，忽略
-            }
+            _requestInputFocus.value = Event(true)
         }
     }
 
-    /** 发送按钮上一次是否处于激活态（用于缩放动画判断） */
-    private var wasSendActive = false
-
-    /** 更新发送按钮状态，附带缩放动画 */
+    /** 更新发送按钮状态 */
     fun updateSendButton(hasText: Boolean) {
         if (isStreaming) {
-            binding.btnSend.isEnabled = false
-            binding.btnSend.setBackgroundResource(R.drawable.bg_send_inactive)
-            binding.btnSend.text = context.getString(R.string.icon_loading)
+            _sendButtonState.value = SendButtonState(
+                enabled = false,
+                text = getApplication<Application>().getString(R.string.icon_loading),
+                bgRes = R.drawable.bg_send_inactive,
+                triggerAnimation = wasSendActive  // 从激活变为失活，触发动画
+            )
             wasSendActive = false
             return
         }
-        binding.btnSend.isEnabled = hasText
-        binding.btnSend.setBackgroundResource(
-            if (hasText) R.drawable.bg_send_active else R.drawable.bg_send_inactive
+        val bgRes = if (hasText) R.drawable.bg_send_active else R.drawable.bg_send_inactive
+        val triggerAnim = hasText != wasSendActive
+        wasSendActive = hasText
+        _sendButtonState.value = SendButtonState(
+            enabled = hasText,
+            text = "",
+            bgRes = bgRes,
+            triggerAnimation = triggerAnim
         )
-        // 发送按钮缩放动画：状态变化时从小变大/从大变小
-        if (hasText != wasSendActive) {
-            wasSendActive = hasText
-            binding.btnSend.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-            if (hasText) {
-                // 激活：从 0.8 缩放到 1.0（200ms）
-                binding.btnSend.scaleX = 0.8f
-                binding.btnSend.scaleY = 0.8f
-                binding.btnSend.animate()
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(200)
-                    .withEndAction {
-                        binding.btnSend.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
-                    }
-                    .start()
-            } else {
-                // 失活：从 1.0 缩放到 0.8（200ms），立即恢复不带动画
-                binding.btnSend.animate()
-                    .scaleX(0.8f)
-                    .scaleY(0.8f)
-                    .setDuration(150)
-                    .withEndAction {
-                        binding.btnSend.scaleX = 1f
-                        binding.btnSend.scaleY = 1f
-                        binding.btnSend.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
-                    }
-                    .start()
-            }
-        }
     }
 
     // ======================== 消息长按上下文菜单 ========================
 
-    /** 显示消息长按上下文菜单 */
+    /** 触发消息上下文菜单事件（由 Adapter 长按回调调用） */
     fun showMessageContextMenu(message: Message, position: Int) {
         if (message.isTyping) return
-        val items = mutableListOf(context.getString(R.string.action_copy))
-        if (message.isUser) {
-            items.add(context.getString(R.string.action_edit))
-            items.add(context.getString(R.string.btn_delete))
-        }
+        _contextMenuEvent.value = Event(Pair(message, position))
+    }
 
-        MaterialAlertDialogBuilder(context)
-            .setItems(items.toTypedArray()) { _, which ->
-                when (which) {
-                    0 -> {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("message", message.content))
-                        Toast.makeText(context, context.getString(R.string.toast_copied), Toast.LENGTH_SHORT).show()
-                    }
-                    1 -> {
-                        if (message.isUser) {
-                            // 编辑
-                            startEditingMessage(message, position)
-                        } else {
-                            // 删除
-                            val messages = adapter.getMessages().toMutableList()
-                            if (position in messages.indices) {
-                                Log.d(TAG, "删除消息: position=$position, content=${messages[position].content.take(30)}")
-                                messages.removeAt(position)
-                                adapter.replaceAll(messages)
-                            }
-                        }
-                    }
-                    2 -> {
-                        // 删除（用户消息的第3项）
-                        val messages = adapter.getMessages().toMutableList()
-                        if (position in messages.indices) {
-                            Log.d(TAG, "删除消息: position=$position, content=${messages[position].content.take(30)}")
-                            messages.removeAt(position)
-                            adapter.replaceAll(messages)
-                        }
-                    }
-                }
-            }
-            .show()
+    /** 复制消息到剪贴板 */
+    fun copyMessage(text: String) {
+        val clipboard = getApplication<Application>().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
+        _toastEvent.value = Event(getApplication<Application>().getString(R.string.toast_copied))
     }
 
     /** 进入消息编辑模式 */
     fun startEditingMessage(message: Message, position: Int) {
         editingPosition = position
         editingMessageId = message.id
-        binding.etInput.setText(message.content)
-        binding.etInput.setSelection(message.content.length)
-        binding.etInput.requestFocus()
-        showKeyboard(binding.etInput)
+        _inputTextAction.value = Event(InputTextAction.Set(message.content, message.content.length))
+        _requestInputFocus.value = Event(true)
         updateSendButton(true)
-        Toast.makeText(context, R.string.label_editing_message, Toast.LENGTH_SHORT).show()
+        _toastEvent.value = Event(getApplication<Application>().getString(R.string.label_editing_message))
+    }
+
+    /** 删除指定位置的消息 */
+    fun deleteMessage(position: Int) {
+        val messages = adapter.getMessages().toMutableList()
+        if (position in messages.indices) {
+            Log.d(TAG, "删除消息: position=$position, id=${messages[position].id}, len=${messages[position].content.length}")
+            messages.removeAt(position)
+            adapter.replaceAll(messages)
+        }
     }
 
     // ======================== 对话搜索 ========================
@@ -913,117 +912,124 @@ class ChatViewModel(
     /** 退出搜索模式，委托给 SearchHelper */
     fun exitSearchMode() = searchHelper.exitSearchMode()
 
-    // ======================== 键盘管理 ========================
-
-    fun hideKeyboard() {
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        val focusedView = (context as? android.app.Activity)?.currentFocus
-        if (focusedView != null) {
-            imm?.hideSoftInputFromWindow(focusedView.windowToken, 0)
-        } else {
-            imm?.hideSoftInputFromWindow(binding.etInput.windowToken, 0)
-        }
+    /** 搜索文本变化回调（由 MainActivity 的 TextWatcher 调用） */
+    fun onSearchTextChanged(keyword: String) {
+        searchHandler.removeCallbacksAndMessages(null)
+        searchHandler.postDelayed({
+            searchHelper.performSearch(keyword)
+        }, SEARCH_DEBOUNCE_MS)
     }
 
-    private fun showKeyboard(view: View) {
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+    /** 搜索取消按钮点击回调 */
+    fun onSearchCancelClicked() {
+        searchHelper.toggleSearchMode()
+    }
+
+    // ======================== 键盘管理 ========================
+
+    fun requestHideKeyboard() {
+        _hideKeyboard.value = Event(true)
     }
 
     // ======================== 对话导出 ========================
 
-    /** 显示导出格式选择对话框 */
+    /** 触发导出格式选择对话框（通过回调通知 MainActivity） */
     fun showExportDialog() {
-        val formats = arrayOf(
-            context.getString(R.string.export_format_json),
-            context.getString(R.string.export_format_txt)
-        )
-        MaterialAlertDialogBuilder(context)
-            .setTitle(context.getString(R.string.label_choose_export_format))
-            .setItems(formats) { _, which ->
-                val format = if (which == 0) "json" else "txt"
-                exportConversation(format)
-            }
-            .setNegativeButton(context.getString(R.string.btn_cancel), null)
-            .show()
+        val messages = adapter.getMessages()
+        if (messages.isEmpty()) {
+            _toastEvent.value = Event(getApplication<Application>().getString(R.string.toast_export_no_messages))
+            return
+        }
+        callback?.onShowExportFormatDialog()
     }
 
     /** 导出对话历史到文件并分享 */
-    private fun exportConversation(format: String) {
+    fun exportConversation(format: String) {
         val messages = adapter.getMessages()
         if (messages.isEmpty()) {
-            Toast.makeText(context, context.getString(R.string.toast_export_no_messages), Toast.LENGTH_SHORT).show()
+            _toastEvent.value = Event(getApplication<Application>().getString(R.string.toast_export_no_messages))
             return
         }
 
-        val character = CharacterStorage.getCurrent(context)
+        val app = getApplication<Application>()
+        val character = CharacterStorage.getCurrent(app)
         val characterName = character.name
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val content = when (format) {
-                    "json" -> ChatExporter.exportToJson(messages, characterName)
-                    else -> ChatExporter.exportToTxt(messages, characterName)
+                    "json" -> ChatExporter.exportToJson(messages, characterName, app)
+                    else -> ChatExporter.exportToTxt(messages, characterName, app)
                 }
                 val fileName = ChatExporter.generateFileName(format, characterName)
-                val uri = ChatExporter.saveToFile(content, fileName, context)
+                val uri = ChatExporter.saveToFile(content, fileName, app)
                 if (uri == null) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.toast_export_file_failed),
-                            Toast.LENGTH_LONG
-                        ).show()
+                        _toastEvent.value = Event(app.getString(R.string.toast_export_file_failed))
                     }
                     return@launch
                 }
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.toast_export_success), Toast.LENGTH_SHORT).show()
-                    shareExportedFile(uri, format)
+                    _toastEvent.value = Event(app.getString(R.string.toast_export_success))
+                    callback?.onShareFile(uri, format)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "导出失败", e)
+                Log.w(TAG, "导出失败")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.toast_export_failed, e.message),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    _toastEvent.value = Event(app.getString(R.string.toast_export_failed, e.message))
                 }
             }
-        }
-    }
-
-    /** 分享导出文件 */
-    private fun shareExportedFile(uri: android.net.Uri, format: String) {
-        try {
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = if (format == "json") "application/json" else "text/plain"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(
-                Intent.createChooser(shareIntent, context.getString(R.string.chooser_share_conversation))
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "分享失败: ${e.message}")
         }
     }
 
     // ======================== 生命周期清理 ========================
 
-    /** 释放资源（在 Activity onDestroy 中调用），确保协程和 Python 流被清理 */
-    fun destroy() {
-        Log.d(TAG, "destroy: 开始清理资源")
+    /**
+     * AndroidViewModel 生命周期回调：当 ViewModel 不再使用且即将被销毁时自动调用。
+     *
+     * 自动清理以下资源：
+     * - 协程 job（viewModelScope 自动取消）
+     * - Handler 回调（searchHandler、multiPartHandler）
+     * - 网络监听器（ConnectivityManager.NetworkCallback）
+     * - Python 流资源（chat_stream_cancel）
+     * - 回调引用（防止泄漏）
+     *
+     * 注意：此时 viewModelScope 已关闭，Python 流取消使用独立 Thread 执行。
+     */
+    override fun onCleared() {
+        super.onCleared()
+        Log.d(TAG, "onCleared: 开始清理资源")
         isStreaming = false
         searchHandler.removeCallbacksAndMessages(null)
         multiPartHandler?.removeCallbacksAndMessages(null)
         multiPartHandler = null
-        unregisterNetworkCallback()  // 取消网络恢复监听
-        streamingHelper.cancelActiveStream()
+        unregisterNetworkCallback()
         callback = null
-        Log.d(TAG, "destroy: 资源清理完成")
+
+        // 取消 Python 流（使用 Thread 代替 viewModelScope，因为此时 viewModelScope 已关闭）
+        val sid = activeStreamId
+        if (sid != null) {
+            activeStreamId = null
+            Thread {
+                try {
+                    com.chaquo.python.Python.getInstance()
+                        .getModule("chat_bridge")
+                        ?.callAttr("chat_stream_cancel", sid)
+                    Log.d(TAG, "onCleared: 已取消 Python 流 $sid")
+                } catch (e: Exception) {
+                    Log.w(TAG, "onCleared: 取消 Python 流失败 ${e.message}")
+                }
+            }.start()
+        }
+
+        Log.d(TAG, "onCleared: 资源清理完成")
+    }
+
+    /** 释放资源（保留用于向后兼容，实际清理由 onCleared() 自动完成） */
+    @Deprecated("清理由 onCleared() 自动完成，无需手动调用")
+    fun destroy() {
+        Log.d(TAG, "destroy: 已由 onCleared() 自动处理，无需手动调用")
     }
 
     /** 取消当前活跃的流式对话（用于 onStop 等场景），委托给 StreamingHelper */
@@ -1049,15 +1055,14 @@ class ChatViewModel(
         }
     }
 
-    /** 显示带重试按钮的 Snackbar */
+    /** 显示带重试按钮的 Snackbar（通过 LiveData 事件通知 MainActivity） */
     private fun showRetrySnackbar(message: String) {
-        try {
-            Snackbar.make(binding.root, context.getString(R.string.snackbar_retry_format, message), Snackbar.LENGTH_LONG)
-                .setAction(context.getString(R.string.action_retry)) { retryLastMessage() }
-                .show()
-        } catch (_: Exception) {
-            // Activity 可能已销毁，忽略
-        }
+        _snackbarEvent.value = Event(
+            SnackbarData(
+                message = getApplication<Application>().getString(R.string.snackbar_retry_format, message),
+                showRetry = true
+            )
+        )
     }
 
     // ======================== 网络恢复自动重连 ========================
@@ -1071,7 +1076,8 @@ class ChatViewModel(
         pendingRetryOnReconnect = true
 
         try {
-            connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val app = getApplication<Application>()
+            connectivityManager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
                 ?: return
 
             val callback = object : ConnectivityManager.NetworkCallback() {
@@ -1081,11 +1087,7 @@ class ChatViewModel(
                         pendingRetryOnReconnect = false
                         unregisterNetworkCallback()
                         UiThread.run {
-                            Toast.makeText(
-                                context,
-                                R.string.toast_network_restored_retrying,
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            _toastEvent.postValue(Event(app.getString(R.string.toast_network_restored_retrying)))
                         }
                         retryLastMessage()
                     }
@@ -1119,19 +1121,25 @@ class ChatViewModel(
 
     // ======================== 便捷方法 ========================
 
+    /** 当消息列表被裁剪时（由 Adapter 回调触发），更新归档提示并调整流式索引 */
+    fun onMessagesTrimmed() {
+        _archiveHintVisible.value = true
+        streamingHelper.onMessagesTrimmed()
+    }
+
     /** 获取当前消息列表（供 ConversationCoordinator 保存） */
     fun getMessages(): List<Message> = adapter.getMessages()
 
     /** 替换全部消息（供 ConversationCoordinator 加载） */
     fun replaceMessages(messages: List<Message>) {
         adapter.replaceMessages(messages)
-        binding.tvArchiveHint.visibility = View.GONE
+        _archiveHintVisible.value = false
     }
 
     /** 清空消息列表 */
     fun clearMessages() {
         adapter.clear()
-        binding.tvArchiveHint.visibility = View.GONE
+        _archiveHintVisible.value = false
     }
 
     /**
@@ -1145,7 +1153,7 @@ class ChatViewModel(
         }
         // 清空消息列表
         adapter.clear()
-        binding.tvArchiveHint.visibility = View.GONE
+        _archiveHintVisible.value = false
         // 重置编辑模式
         editingPosition = -1
         editingMessageId = null
@@ -1158,7 +1166,7 @@ class ChatViewModel(
         }
         // 刷新 UI
         if (adapter.itemCount > 0) {
-            binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
+            _scrollToPosition.value = ScrollEvent(adapter.itemCount - 1)
         }
     }
 }

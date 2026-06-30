@@ -16,10 +16,12 @@ class ReminderPlugin(BasePlugin):
 
     def __init__(self):
         self._pending: list = []
+        self._lock = threading.Lock()
 
     def pre_process(self, user_input: str) -> Optional[str]:
-        pending = self._pending.copy()
-        self._pending.clear()
+        with self._lock:
+            pending = self._pending.copy()
+            self._pending.clear()
         if pending:
             return "\n".join(pending)
 
@@ -34,7 +36,13 @@ class ReminderPlugin(BasePlugin):
 
         num, unit, msg = int(tm.group(1)), tm.group(2), tm.group(3).strip()
         delay = num if unit in ("秒",) else num * 60 if unit in ("分钟", "分") else num * 3600
-        t = threading.Timer(delay, lambda m=msg: self._pending.append(f"[提醒插件] ⏰ 提醒时间到：「{m}」"))
+
+        def _on_reminder(msg=msg):
+            """提醒回调：线程安全地将提醒消息添加到待处理列表。"""
+            with self._lock:
+                self._pending.append(f"[提醒插件] ⏰ 提醒时间到：「{msg}」")
+
+        t = threading.Timer(delay, _on_reminder)
         t.daemon = True
         t.start()
         return f"[提醒插件] ⏰ 已设置提醒：{delay}秒后「{msg}」"

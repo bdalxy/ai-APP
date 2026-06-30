@@ -1,7 +1,6 @@
 package com.aicompanion.app.views
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.ViewGroup
@@ -29,7 +28,7 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
             ViewGroup.LayoutParams.MATCH_PARENT
         )
         // 半透明黑色遮罩层（标准 Android scrim，非主题色）
-        setBackgroundColor(Color.argb(80, 0, 0, 0))
+        setBackgroundColor(ContextCompat.getColor(context, R.color.recording_scrim))
         isClickable = true
 
         card = LinearLayout(context).apply {

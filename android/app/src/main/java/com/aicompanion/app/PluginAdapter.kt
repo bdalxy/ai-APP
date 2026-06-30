@@ -50,7 +50,11 @@ class PluginAdapter(
         fun bind(plugin: PluginItem) {
             nameTv.text = plugin.name
             descTv.text = plugin.description
-            categoryLabel.text = plugin.categoryLabel
+            categoryLabel.text = if (plugin.categoryLabelResId != 0) {
+                context.getString(plugin.categoryLabelResId)
+            } else {
+                plugin.category
+            }
 
             if (plugin.isBuiltIn) {
                 builtInLabel.visibility = View.VISIBLE
@@ -58,12 +62,12 @@ class PluginAdapter(
                 builtInLabel.visibility = View.GONE
             }
 
-            statusLabel.text = plugin.statusLabel
+            statusLabel.text = context.getString(plugin.statusLabelResId)
 
             val statusColor = if (plugin.enabled) R.color.primary else R.color.text_tertiary
             statusLabel.setTextColor(ContextCompat.getColor(context, statusColor))
 
-            callCountTv.text = "调用 ${plugin.callCount} 次"
+            callCountTv.text = context.getString(R.string.plugin_call_count, plugin.callCount)
 
             switchView.isChecked = plugin.enabled
             switchView.setOnClickListener {

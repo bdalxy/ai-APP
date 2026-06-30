@@ -5,6 +5,26 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * Kotlin 端插件注册中心。
+ *
+ * @deprecated 此注册中心已被 Python 端 PluginManager 取代。
+ * Python 端 PluginManager 提供完整的插件发现、加载、生命周期管理和状态持久化。
+ * PluginManageActivity 已正确合并两套体系，Kotlin 端插件仅作为向后兼容保留。
+ *
+ * 迁移指南：
+ * - 使用 Python 端 PluginManager 管理插件
+ * - 通过 chat_bridge 桥接模块调用 Python 端插件 API
+ * - 使用 PluginItem 作为统一数据模型
+ */
+@Deprecated(
+    message = "请使用 Python 端 PluginManager 管理插件",
+    replaceWith = ReplaceWith(
+        "com.aicompanion.app.PluginItem",
+        "com.aicompanion.app.PluginItem"
+    ),
+    level = DeprecationLevel.WARNING
+)
 object PluginRegistry {
 
     private const val TAG = "PluginRegistry"
@@ -15,6 +35,7 @@ object PluginRegistry {
     private val enabledStates = LinkedHashMap<String, Boolean>()
     private var initialized = false
 
+    @Deprecated("请使用 Python 端 PluginManager 初始化")
     fun init(context: Context) {
         if (initialized) { Log.d(TAG, "插件注册中心已初始化，跳过重复初始化"); return }
         loadEnabledStates(context)
@@ -22,6 +43,7 @@ object PluginRegistry {
         Log.d(TAG, "插件注册中心初始化完成，已加载 ${enabledStates.size} 条状态记录")
     }
 
+    @Deprecated("请使用 Python 端 PluginManager.load_plugin()")
     fun registerPlugin(context: Context, plugin: IPlugin): Boolean {
         val info = plugin.getPluginInfo()
         val pluginId = info.id
@@ -48,6 +70,7 @@ object PluginRegistry {
         return true
     }
 
+    @Deprecated("请使用 Python 端 PluginManager.unload_plugin()")
     fun unregisterPlugin(context: Context, pluginId: String): Boolean {
         val plugin = plugins[pluginId] ?: run { Log.w(TAG, "插件不存在，无法注销: $pluginId"); return false }
         val info = plugin.getPluginInfo()
@@ -62,8 +85,10 @@ object PluginRegistry {
         return true
     }
 
+    @Deprecated("请使用 Python 端 PluginManager.get_plugin()")
     fun getPlugin(pluginId: String): IPlugin? = plugins[pluginId]
 
+    @Deprecated("请使用 Python 端 PluginManager.plugins")
     fun getAllPlugins(): List<PluginInfo> {
         return plugins.values.map { plugin ->
             val info = plugin.getPluginInfo()
@@ -72,8 +97,10 @@ object PluginRegistry {
         }
     }
 
+    @Deprecated("请使用 Python 端 PluginManager.get_enabled_plugins()")
     fun getEnabledPlugins(): List<PluginInfo> = getAllPlugins().filter { it.isEnabled }
 
+    @Deprecated("请使用 Python 端 PluginManager.set_enabled()")
     fun enablePlugin(context: Context, pluginId: String): Boolean {
         val plugin = plugins[pluginId] ?: run { Log.w(TAG, "插件不存在，无法启用: $pluginId"); return false }
         if (enabledStates[pluginId] == true) { Log.d(TAG, "插件已处于启用状态: $pluginId"); return true }
@@ -89,6 +116,7 @@ object PluginRegistry {
         }
     }
 
+    @Deprecated("请使用 Python 端 PluginManager.set_enabled()")
     fun disablePlugin(context: Context, pluginId: String): Boolean {
         val plugin = plugins[pluginId] ?: run { Log.w(TAG, "插件不存在，无法禁用: $pluginId"); return false }
         if (enabledStates[pluginId] == false) { Log.d(TAG, "插件已处于禁用状态: $pluginId"); return true }
@@ -104,7 +132,10 @@ object PluginRegistry {
         }
     }
 
+    @Deprecated("请使用 Python 端 PluginManager")
     fun getPluginCount(): Int = plugins.size
+
+    @Deprecated("请使用 Python 端 PluginManager")
     fun getEnabledPluginCount(): Int = enabledStates.count { it.value }
 
     private fun loadEnabledStates(context: Context) {

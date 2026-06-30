@@ -1,5 +1,7 @@
 package com.aicompanion.app
 
+import android.content.Context
+
 /**
  * 记忆档案馆卡片数据类。
  *
@@ -39,10 +41,10 @@ data class MemoryCardData(
          * - 摘要：取 content 前 60 个字符，按句子分割为最多 3 行
          * - 情感标签：根据记忆类型和内容关键词生成
          */
-        fun fromMemoryItem(item: MemoryItem): MemoryCardData {
+        fun fromMemoryItem(item: MemoryItem, context: Context): MemoryCardData {
             val dateLabel = formatDateLabel(item.createdAt)
             val summary = extractSummary(item.content)
-            val emotionTags = inferEmotionTags(item.type, item.content)
+            val emotionTags = inferEmotionTags(item.type, item.content, context)
 
             return MemoryCardData(
                 rowid = item.rowid,
@@ -141,45 +143,62 @@ data class MemoryCardData(
 
         /**
          * 根据记忆类型和内容推断情感标签。
+         * 使用 R.array.memory_emotion_tags 资源数组，避免硬编码中文。
          */
-        private fun inferEmotionTags(type: String, content: String): List<String> {
+        private fun inferEmotionTags(type: String, content: String, context: Context): List<String> {
+            val tagArray = context.resources.getStringArray(R.array.memory_emotion_tags)
             val tags = mutableListOf<String>()
 
-            // 根据类型添加基础标签
+            // 根据类型添加基础标签（使用资源数组中的索引）
             when (type) {
-                "episodic" -> {
-                    tags.add("回忆")
-                    // 内容情感分析
+                "episodic", "episodic_event", "episodic_experience", "episodic_activity" -> {
+                    tags.add(tagArray[0])  // "回忆"
                     if (containsAny(content, listOf("开心", "快乐", "高兴", "笑", "幸福", "美好"))) {
-                        tags.add("快乐")
+                        tags.add(tagArray[1])  // "快乐"
                     } else if (containsAny(content, listOf("难过", "悲伤", "伤心", "哭", "遗憾"))) {
-                        tags.add("感伤")
+                        tags.add(tagArray[2])  // "感伤"
                     } else if (containsAny(content, listOf("感动", "温暖", "温柔"))) {
-                        tags.add("温暖")
+                        tags.add(tagArray[3])  // "温暖"
                     } else {
-                        tags.add("经历")
+                        tags.add(tagArray[4])  // "经历"
                     }
                 }
-                "semantic" -> {
-                    tags.add("认知")
+                "semantic", "semantic_knowledge", "semantic_opinion", "semantic_concept" -> {
+                    tags.add(tagArray[5])  // "认知"
                     if (containsAny(content, listOf("喜欢", "爱", "爱好"))) {
-                        tags.add("偏好")
+                        tags.add(tagArray[6])  // "偏好"
                     } else {
-                        tags.add("理解")
+                        tags.add(tagArray[7])  // "理解"
                     }
                 }
-                "user_fact" -> {
-                    tags.add("关于你")
+                "user_fact", "user_identity", "user_preference", "user_attribute", "user_relationship", "user_status" -> {
+                    tags.add(tagArray[8])  // "关于你"
                     if (containsAny(content, listOf("喜欢", "爱", "爱好"))) {
-                        tags.add("喜好")
+                        tags.add(tagArray[9])  // "喜好"
                     } else if (containsAny(content, listOf("工作", "职业", "学习"))) {
-                        tags.add("身份")
+                        tags.add(tagArray[10])  // "身份"
                     } else {
-                        tags.add("事实")
+                        tags.add(tagArray[11])  // "事实"
+                    }
+                }
+                "emotional", "emotional_mood", "emotional_sentiment" -> {
+                    tags.add(tagArray[3])  // "温暖"
+                    if (containsAny(content, listOf("开心", "快乐", "高兴", "幸福"))) {
+                        tags.add(tagArray[1])  // "快乐"
+                    } else if (containsAny(content, listOf("难过", "悲伤", "伤心", "生气", "愤怒"))) {
+                        tags.add(tagArray[2])  // "感伤"
+                    } else {
+                        tags.add(tagArray[12])  // "记忆"
+                    }
+                }
+                "summary" -> {
+                    tags.add(tagArray[12])  // "记忆"
+                    if (containsAny(content, listOf("重要", "关键", "核心"))) {
+                        tags.add(tagArray[7])  // "理解"
                     }
                 }
                 else -> {
-                    tags.add("记忆")
+                    tags.add(tagArray[12])  // "记忆"
                 }
             }
 

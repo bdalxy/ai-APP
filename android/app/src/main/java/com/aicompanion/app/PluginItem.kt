@@ -32,14 +32,16 @@ data class PluginItem(
             else              -> 1
         }
 
-    val categoryLabel: String
+    val categoryLabelResId: Int
+        @androidx.annotation.StringRes
         get() = when (category) {
-            "chat"       -> "对话增强"
-            "appearance" -> "外观美化"
-            "script"     -> "脚本工具"
-            else         -> category
+            "chat"       -> R.string.plugin_category_chat
+            "appearance" -> R.string.plugin_category_appearance
+            "script"     -> R.string.plugin_category_script
+            else         -> 0
         }
 
-    val statusLabel: String
-        get() = if (enabled) "已启用" else "已禁用"
+    val statusLabelResId: Int
+        @androidx.annotation.StringRes
+        get() = if (enabled) R.string.plugin_status_enabled else R.string.plugin_status_disabled
 }

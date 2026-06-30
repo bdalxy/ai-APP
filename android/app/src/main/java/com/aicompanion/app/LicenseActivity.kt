@@ -28,7 +28,7 @@ class LicenseActivity : AppCompatActivity() {
             setBackgroundResource(R.drawable.bg_sakura_header)
         }
         val btnBack = TextView(this).apply {
-            text = "← 返回"
+            text = getString(R.string.license_back_label)
             textSize = 16f
             setTextColor(ContextCompat.getColor(context, R.color.wb_text_warm))
             setPadding(0, 0, dip(16), 0)
@@ -36,7 +36,7 @@ class LicenseActivity : AppCompatActivity() {
         }
         titleBar.addView(btnBack)
         titleBar.addView(TextView(this).apply {
-            text = "开源许可"
+            text = getString(R.string.license_title)
             textSize = 20f
             setTextColor(ContextCompat.getColor(context, R.color.wb_text_warm))
             paint.isFakeBoldText = true
@@ -67,43 +67,43 @@ class LicenseActivity : AppCompatActivity() {
             LicenseInfo(
                 "Chaquopy",
                 "MIT",
-                "在 Android 平台上运行 Python 代码的桥接框架，使本应用能够在设备端运行 Python 聊天引擎。",
+                getString(R.string.license_chaquopy_desc),
                 "https://chaquo.com/chaquopy/"
             ),
             LicenseInfo(
                 "sherpa-onnx",
                 "Apache 2.0",
-                "下一代 Kaldi 的 ONNX 推理引擎，为本应用提供离线语音识别（ASR）和语音合成（TTS）能力。",
+                getString(R.string.license_sherpa_onnx_desc),
                 "https://github.com/k2-fsa/sherpa-onnx"
             ),
             LicenseInfo(
                 "AndroidX",
                 "Apache 2.0",
-                "Android Jetpack 组件库，提供 Activity、Fragment、RecyclerView 等核心 UI 组件。",
+                getString(R.string.license_androidx_desc),
                 "https://developer.android.com/jetpack/androidx"
             ),
             LicenseInfo(
                 "Material Components",
                 "Apache 2.0",
-                "Google Material Design 3 组件库，提供美观的 UI 控件和主题系统。",
+                getString(R.string.license_material_desc),
                 "https://github.com/material-components/material-components-android"
             ),
             LicenseInfo(
                 "Kotlin",
                 "Apache 2.0",
-                "现代 Android 开发语言，本应用主要使用 Kotlin 编写。",
+                getString(R.string.license_kotlin_desc),
                 "https://kotlinlang.org/"
             ),
             LicenseInfo(
                 "DeepSeek API",
                 "商用许可",
-                "提供大语言模型对话能力，本应用使用 DeepSeek API 作为 AI 对话引擎。",
+                getString(R.string.license_deepseek_desc),
                 "https://platform.deepseek.com/"
             ),
             LicenseInfo(
                 "wttr.in",
                 "免费服务",
-                "命令行天气查询服务，为本应用提供天气信息查询功能。",
+                getString(R.string.license_wttr_in_desc),
                 "https://wttr.in/"
             )
         )

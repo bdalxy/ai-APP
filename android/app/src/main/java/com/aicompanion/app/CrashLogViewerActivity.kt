@@ -33,9 +33,9 @@ class CrashLogViewerActivity : AppCompatActivity() {
         binding.layoutEmpty.visibility = View.GONE
         val logs = crashFiles.map { file ->
             try {
-                file.readText()
+                sanitizeLog(file.readText())
             } catch (e: Exception) {
-                "[读取失败] ${file.name}: ${e.message}"
+                getString(R.string.crash_read_failed_fmt, file.name, e.message ?: "")
             }
         }
         binding.rvCrashLogs.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
@@ -43,17 +43,40 @@ class CrashLogViewerActivity : AppCompatActivity() {
         CrashHandler.clearMarker(this)
     }
 
+    /**
+     * 脱敏崩溃日志中的敏感信息：
+     * - API Key（sk- 开头）
+     * - JSON 中 content 字段的长文本截断
+     * - URL 中的 token 参数
+     * - 手机号码
+     */
+    private fun sanitizeLog(log: String): String {
+        var result = log
+        // API Key: sk-xxxxxx → sk-***
+        result = result.replace(Regex("sk-[a-zA-Z0-9]{20,}")) { _ -> "sk-***" }
+        // URL token 参数: token=xxx → token=***
+        result = result.replace(Regex("token=[^&\\s]+")) { "token=***" }
+        // 手机号码（11位大陆手机号）
+        result = result.replace(Regex("\\b1[3-9]\\d{9}\\b")) { "1**********" }
+        // JSON content 字段长文本截断到50字符
+        result = result.replace(Regex("\"content\"\\s*:\\s*\"([^\"]{50,})\"")) { match ->
+            val content = match.groupValues[1]
+            "\"content\": \"${content.take(50)}...[${getString(R.string.crash_log_truncated)}]\""
+        }
+        return result
+    }
+
     private fun showDeleteAllDialog() {
         MaterialAlertDialogBuilder(this)
-            .setTitle("删除全部崩溃日志")
-            .setMessage("确定要删除全部 ${crashFiles.size} 条崩溃日志吗？")
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(getString(R.string.crash_delete_all_title))
+            .setMessage(getString(R.string.crash_delete_all_msg_fmt, crashFiles.size))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
                 crashFiles.forEach { it.delete() }
                 CrashHandler.clearMarker(this)
                 loadCrashLogs()
-                Toast.makeText(this, "已删除全部崩溃日志", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.crash_toast_deleted_all), Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 

@@ -29,7 +29,7 @@
     <!-- 文字颜色 -->
     <color name="text_primary">#E8DCD8</color>
     <color name="text_secondary">#B0A0C0</color>
-    <color name="text_tertiary">#7A6A8A</color>
+    <color name="text_tertiary">#8A7A9A</color>
     <color name="text_on_pink">#2D1B3A</color>
     <color name="darker_gray">#888888</color>
 

@@ -3,6 +3,8 @@ package com.aicompanion.app
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,29 +22,23 @@ class PluginViewModel(application: Application) : AndroidViewModel(application) 
         private const val TAG = "PluginViewModel"
     }
 
-    /** 插件列表更新事件 */
+    /** 插件列表状态 */
     data class PluginListState(
         val plugins: List<PluginItem> = emptyList(),
         val isLoading: Boolean = true,
         val errorMessage: String? = null
     )
 
-    @Volatile
-    private var _state = PluginListState()
-    val state get() = _state
-
-    /** 状态变化回调 */
-    @Volatile
-    var onStateChanged: ((PluginListState) -> Unit)? = null
+    private val _state = MutableLiveData(PluginListState())
+    val state: LiveData<PluginListState> get() = _state
 
     private fun updateState(newState: PluginListState) {
-        _state = newState
-        onStateChanged?.invoke(_state)
+        _state.postValue(newState)
     }
 
     /** 加载所有插件 */
     fun loadPlugins() {
-        updateState(_state.copy(isLoading = true, errorMessage = null))
+        updateState(requireNotNull(_state.value).copy(isLoading = true, errorMessage = null))
         viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
@@ -80,11 +76,11 @@ class PluginViewModel(application: Application) : AndroidViewModel(application) 
                     // 刷新列表
                     loadPlugins()
                 } else {
-                    updateState(_state.copy(errorMessage = json.optString("message", "操作失败")))
+                    updateState(requireNotNull(_state.value).copy(errorMessage = json.optString("message", "操作失败")))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "togglePlugin 失败", e)
-                updateState(_state.copy(errorMessage = "操作失败: ${e.message}"))
+                updateState(requireNotNull(_state.value).copy(errorMessage = "操作失败: ${e.message}"))
             }
         }
     }

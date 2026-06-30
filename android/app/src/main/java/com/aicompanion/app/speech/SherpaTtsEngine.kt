@@ -341,7 +341,7 @@ class SherpaTtsEngine(
 
         playScope.launch {
             try {
-                Log.d(TAG, "开始合成: ${text.take(50)}...")
+                Log.d(TAG, "开始合成: len=${text.length}")
                 withContext(Dispatchers.Main) { callback?.onSynthesisStart() }
 
                 // 读取用户配置的说话人 ID（VITS 多说话人模型支持）

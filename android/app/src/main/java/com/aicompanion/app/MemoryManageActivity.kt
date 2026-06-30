@@ -366,9 +366,7 @@ class MemoryManageActivity : AppCompatActivity() {
         }
         for (item in typeFiltered) {
             val pt = item.parentType
-            if (grouped.containsKey(pt)) {
-                grouped[pt]!!.add(item)
-            }
+            grouped[pt]?.add(item)
         }
 
         // 4. 构建 MemoryListEntry 列表

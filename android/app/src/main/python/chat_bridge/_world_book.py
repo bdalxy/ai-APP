@@ -17,6 +17,7 @@ from ._state import _PYTHON_ROOT  # 复用 _state.py 的路径设置（避免重
 
 from src.world_book.world_book import WorldBookEngine
 from src.utils.logger import get_logger
+from src.utils import crypto_utils
 
 # 世界书名称安全校验正则：仅允许中文、字母、数字、中划线、下划线、空格，1-64字符
 _WB_NAME_PATTERN = re.compile(r'^[\w\u4e00-\u9fff\- ]{1,64}$')
@@ -221,12 +222,14 @@ def create_world_book(name: str, description: str = "", entries_json: str = "[]"
             "entries": entries,
         }
 
-        # 写入文件
+        # 写入文件（ISS-064: 加密存储）
         file_path = _PYTHON_ROOT + "/data/world_books/" + name + ".json"
         # 确保目录存在
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        json_str = json.dumps(data, ensure_ascii=False, indent=2)
+        encrypted = crypto_utils.encrypt(json_str, crypto_utils.get_device_password())
+        with open(file_path, "wb") as f:
+            f.write(encrypted)
 
         # 重新加载
         engine.load_book_file(file_path)
@@ -338,11 +341,13 @@ def update_world_book(name: str, description: str = "", entries_json: str = "[]"
             "entries": entries,
         }
 
-        # 写入文件
+        # 写入文件（ISS-064: 加密存储）
         file_path = _PYTHON_ROOT + "/data/world_books/" + name + ".json"
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        json_str = json.dumps(data, ensure_ascii=False, indent=2)
+        encrypted = crypto_utils.encrypt(json_str, crypto_utils.get_device_password())
+        with open(file_path, "wb") as f:
+            f.write(encrypted)
 
         # 重新加载：先移除旧的，再加载新的
         engine.remove_book(name)

@@ -62,7 +62,7 @@ class CharacterManageActivity : AppCompatActivity() {
                 },
                 onDelete = { char ->
                     if (char.isDefault) {
-                        Toast.makeText(this, "默认角色不可删除", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.char_default_cannot_delete), Toast.LENGTH_SHORT).show()
                         return@CharacterListAdapter
                     }
                     CharacterStorage.delete(this, char.id)

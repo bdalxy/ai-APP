@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    网络安全配置
+    - 基础配置：禁止明文流量（HTTPS only），仅信任系统 CA 证书
+    - DeepSeek API 域名：专属证书信任配置
+    - Debug 覆盖：允许 user 证书（用于本地调试抓包）
+-->
+<network-security-config>
+    <!-- 基础配置：禁止明文流量，仅信任系统证书（防御中间人攻击） -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- DeepSeek API 域名：证书固定（仅信任系统 CA） -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.deepseek.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- 本地开发调试覆盖：允许用户安装的 CA 证书（仅 debug 构建生效） -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

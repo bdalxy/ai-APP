@@ -163,7 +163,7 @@ class CrashHandler private constructor(
      * 将崩溃信息写入日志文件，同时更新分类统计。
      * 统计更新在文件写入之前完成，确保即使文件写入失败，统计也已记录。
      */
-    private fun writeCrashLog(thread: ThrowableThread, throwable: Throwable) {
+    private fun writeCrashLog(thread: Thread, throwable: Throwable) {
         // 确保目录存在
         val logDir = getCrashLogDir(context)
         if (!logDir.exists()) {
@@ -205,7 +205,7 @@ class CrashHandler private constructor(
      * 4. 崩溃统计（按异常类型分组的累计次数）
      * 5. 堆栈信息（脱敏截断）
      */
-    private fun buildCrashReport(thread: ThrowableThread, throwable: Throwable): String {
+    private fun buildCrashReport(thread: Thread, throwable: Throwable): String {
         val sb = StringBuilder()
 
         // ── 标题 ──
@@ -432,8 +432,3 @@ class CrashHandler private constructor(
     }
 }
 
-/**
- * 类型别名，增强代码可读性。
- * 表示发生未捕获异常时所在的线程。
- */
-private typealias ThrowableThread = Thread

@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.api_client.deepseek import DeepSeekClient
 from src.memory.bm25 import BM25Scorer
@@ -131,7 +131,7 @@ class MemoryRetriever:
 
         # 4. 时间衰减加权 + 时间感知权重 + 精排
         if apply_decay:
-            now = datetime.now()
+            now = datetime.now(tz=timezone.utc)
             temporal_weight = TemporalWeight(now)
             combined: list[tuple[MemoryEntry, float]] = []
             for entry, sim in scored_candidates:

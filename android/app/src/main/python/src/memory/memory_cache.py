@@ -237,6 +237,9 @@ class TTLCache:
     def cleanup(self) -> int:
         """主动清理过期条目。
 
+        注意：此方法使用线性扫描 O(n)，对于大型缓存（>10000 条）建议改用
+        堆（heapq）或时间轮（timing wheel）优化过期检查。
+
         Returns:
             清理的条目数。
         """

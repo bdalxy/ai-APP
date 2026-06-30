@@ -153,7 +153,7 @@
     <string name="world_book_no_books">暂无世界书数据</string>
     <string name="label_world_book_entries">%d条</string>
     <string name="label_version">版本号</string>
-    <string name="app_version">v1.0.0</string>
+    <string name="app_version">v0.9</string>
 
     <!-- 角色预设名称 -->
     <string name="preset_xiaomei">默认角色</string>
@@ -304,6 +304,11 @@
     <string name="splash_loading_worldbook">正在加载世界书...</string>
     <string name="error_init_api_key">初始化失败：API Key 未配置</string>
     <string name="error_init_failed">初始化失败：%s</string>
+    <string name="error_init_python_module">Python 模块加载失败，请重启应用</string>
+    <string name="dialog_api_key_missing_title">API Key 未配置</string>
+    <string name="dialog_api_key_missing_message">检测到您尚未配置 API Key，AI 对话功能暂不可用。\n\n请前往设置页面配置您的 DeepSeek API Key。</string>
+    <string name="dialog_api_key_missing_goto_settings">前往设置</string>
+    <string name="dialog_api_key_missing_later">稍后</string>
     <string name="toast_message_too_long">消息过长，请限制在2000字以内</string>
     <string name="toast_conversation_failed">对话失败: %s</string>
     <string name="toast_timeout">请求超时，请检查网络后重试</string>
@@ -378,6 +383,12 @@
     <string name="section_plugin_manage">插件管理</string>
     <string name="subtitle_plugin_manage">管理已安装的功能插件</string>
     <string name="label_builtin">内置</string>
+    <string name="plugin_call_count">调用 %d 次</string>
+    <string name="plugin_category_chat">对话增强</string>
+    <string name="plugin_category_appearance">外观美化</string>
+    <string name="plugin_category_script">脚本工具</string>
+    <string name="plugin_status_enabled">已启用</string>
+    <string name="plugin_status_disabled">已禁用</string>
 
     <!-- ===== 插件面板 (bottom_sheet_plugins) ===== -->
     <string name="plugin_panel_title">插件面板</string>
@@ -402,6 +413,15 @@
     <string name="voice_not_available">设备不支持语音识别</string>
     <string name="voice_tts_not_available">TTS语音引擎不可用</string>
     <string name="voice_tts_initializing">语音引擎初始化中…</string>
+    <string name="voice_speech_error">语音识别失败: %s</string>
+    <string name="voice_record_error">录制失败: %s</string>
+    <string name="voice_play_error">播放失败: %s</string>
+    <string name="voice_ai_replying">AI 正在回复中，请稍候</string>
+    <string name="voice_speech_start_error">启动语音识别失败: %s</string>
+    <string name="voice_engine_not_ready">语音引擎未就绪，请稍后再试</string>
+    <string name="voice_record_start_error">启动语音录制失败: %s</string>
+    <string name="voice_record_cancelled">已取消录音</string>
+    <string name="voice_engine_not_ready_short">语音引擎未就绪</string>
 
     <!-- ===== 记忆档案馆页面 (activity_memory_archive) ===== -->
     <string name="title_memory_archive">记忆档案馆</string>
@@ -476,7 +496,7 @@
     <string name="label_crash_logs">查看崩溃日志</string>
     <string name="desc_crash_logs">查看应用崩溃记录和错误详情</string>
     <string name="crash_log_dialog_title">检测到崩溃日志</string>
-    <string name="crash_log_dialog_message">上次运行应用时发生了崩溃</string>
+    <string name="crash_log_dialog_message">上次运行应用时发生了崩溃。\n\n%1$d 条崩溃记录\n\n%2$s</string>
     <string name="crash_log_view_detail">查看详情</string>
     <string name="crash_log_ignore">忽略</string>
     <string name="crash_log_copy">复制到剪贴板</string>
@@ -590,7 +610,7 @@
     <string name="summary_plugins_format">已安装 %1$d 个 · 已启用 %2$d 个</string>
     <string name="toast_plugin_operation_failed">操作失败，请重试</string>
     <string name="toast_plugin_toggle_failed">操作失败</string>
-    <string name="toast_python_not_ready">Python 引擎未就绪，无法操作插件</string>
+    <string name="toast_python_not_ready">AI 引擎未就绪，请先前往设置配置 API Key</string>
     <string name="toast_plugin_operation_error">操作失败: %s</string>
     <string name="label_plugin_version">版本：</string>
     <string name="label_plugin_author">作者：</string>
@@ -632,5 +652,295 @@
     <string name="drawer_new_chat">+ 新对话</string>
     <string name="drawer_export_records">导出记录</string>
     <string name="drawer_search">搜索</string>
+    <string name="drawer_settings">设置</string>
+
+    <!-- ===== 会话管理 (ConversationCoordinator) ===== -->
+    <string name="dialog_create_session">创建</string>
+    <string name="dialog_rename">重命名</string>
+    <string name="dialog_title_session_list">会话列表</string>
+    <string name="dialog_title_select_session_delete">选择要删除的会话</string>
+    <string name="dialog_title_delete_session">删除会话</string>
+    <string name="dialog_title_rename_session">重命名会话</string>
+    <string name="msg_delete_session_confirm">确定要删除「%1$s」吗？\n该会话的 %2$d 条消息将被永久删除，无法恢复。</string>
+    <string name="toast_session_renamed">已重命名为「%1$s」</string>
+    <string name="toast_keep_one_session">至少保留一个会话</string>
+    <string name="time_just_now">刚刚</string>
+    <string name="time_minutes_ago">%d分钟前</string>
+    <string name="time_hours_ago">%d小时前</string>
+    <string name="time_yesterday">昨天</string>
+    <string name="error_create_session_failed">创建会话失败: %1$s</string>
+    <string name="error_delete_session_failed">删除会话失败: %1$s</string>
+    <string name="error_switch_session_failed">切换会话失败: %1$s</string>
+
+    <!-- ===== 崩溃日志对话框 (AICompanionApp) ===== -->
+    <string name="crash_detected_title">检测到崩溃</string>
+    <string name="crash_detected_message">上次运行时应用发生了崩溃，是否查看详情？</string>
+    <string name="crash_btn_view">查看</string>
+    <string name="crash_btn_dismiss">忽略</string>
+
+    <!-- ===== 备份/恢复 ===== -->
+    <string name="toast_backup_complete">备份完成</string>
+    <string name="toast_backup_failed">备份失败，请检查存储空间</string>
+    <string name="label_backup_file">备份文件</string>
+    <string name="dialog_restore_title">恢复数据</string>
+    <string name="msg_restore_confirm">将从「%1$s」恢复数据，当前数据将被覆盖。\n恢复完成后建议重启应用。确定继续吗？</string>
+    <string name="btn_confirm_restore">确认恢复</string>
+    <string name="toast_restore_success">数据已恢复，请重启应用</string>
+    <string name="toast_restore_failed">恢复失败，请检查备份文件</string>
+
+    <!-- ===== 记忆参数（SettingsDetailActivity） ===== -->
+    <string name="memory_capacity_title">记忆容量上限</string>
+    <string name="memory_capacity_desc">超出上限时，旧记忆将自动归档或清理</string>
+    <string name="memory_capacity_desc_full">超出上限时，旧记忆将自动归档或清理（单位：条）</string>
+    <string name="memory_capacity_value_fmt">%d条</string>
+    <string name="memory_capacity_dialog_fmt">%d 条</string>
+    <string name="memory_dedup_title">去重相似度阈值</string>
+    <string name="memory_dedup_desc">新记忆与已有记忆相似度超过此值则不重复保存</string>
+    <string name="memory_dedup_desc_full">相似度超过此阈值的记忆将被去重（值越低越严格）</string>
+    <string name="memory_decay_title">衰减半衰期</string>
+    <string name="memory_decay_desc">记忆权重每过半衰期衰减一半，更久远的记忆权重更低</string>
+    <string name="memory_decay_desc_full">记忆权重衰减到一半所需的天数（值越大衰减越慢）</string>
+    <string name="memory_decay_value_fmt">%d天</string>
+    <string name="memory_decay_dialog_fmt">%d 天</string>
+    <string name="memory_decay_label_1">1天</string>
+    <string name="memory_decay_label_183">183天</string>
+    <string name="memory_decay_label_365">365天</string>
+    <string name="toast_memory_sync_failed">同步记忆配置失败: %s</string>
+
+    <!-- ===== 显示设置（SettingsDetailActivity） ===== -->
+    <string name="display_font_size">字体大小</string>
+    <string name="display_bubble_radius">气泡圆角</string>
+    <string name="display_timestamp">消息时间戳</string>
+    <string name="font_small">小</string>
+    <string name="font_medium">中</string>
+    <string name="font_large">大</string>
+    <string name="label_show">显示</string>
+    <string name="label_hide">隐藏</string>
+    <string name="theme_follow_system">跟随系统</string>
+    <string name="toast_theme_changed">主题已切换，部分页面需重启生效</string>
+    <string name="dialog_font_size">字体大小</string>
+    <string name="dialog_bubble_radius">气泡圆角</string>
+    <string name="dialog_timestamp">消息时间戳</string>
+
+    <!-- ===== TTS 设置（SettingsDetailActivity） ===== -->
+    <string name="tts_model_label">TTS 模型</string>
+    <string name="tts_model_auto">自动检测（VITS 优先）</string>
+    <string name="tts_model_vits">VITS (aishell3)</string>
+    <string name="tts_model_matcha">Matcha (baker)</string>
+    <string name="tts_model_desc">切换后需重启应用生效。\n自动检测：优先使用 VITS，不存在时回退 Matcha。</string>
+    <string name="dialog_tts_model">TTS 模型选择</string>
+    <string name="tts_speaker_label">TTS 说话人</string>
+    <string name="speaker_default">默认女声</string>
+    <string name="speaker_number_fmt">说话人 #%d</string>
+    <string name="speaker_default_0">默认女声 (0)</string>
+    <string name="dialog_speaker_title">TTS 说话人选择</string>
+    <string name="dialog_speaker_desc">VITS aishell3 模型支持 174 个说话人（0-173）。\n切换后立即生效，无需重启。</string>
+
+    <!-- ===== 数据管理（SettingsDetailActivity） ===== -->
+    <string name="data_backup_label">备份数据</string>
+    <string name="data_backup_desc">将所有数据打包为 ZIP 备份文件</string>
+    <string name="data_restore_label">恢复数据</string>
+    <string name="data_restore_desc">从 ZIP 备份文件恢复数据（需重启）</string>
+    <string name="data_export_label">导出对话记录</string>
+    <string name="data_export_desc">将当前对话导出为文件</string>
+
+    <!-- ===== 关于/反馈（SettingsDetailActivity） ===== -->
+    <string name="license_view_label">查看开源组件许可</string>
+    <string name="feedback_label">向我们反馈问题或建议</string>
+
+    <!-- ===== 模型选项（SettingsDetailActivity） ===== -->
+    <string name="model_option_fast">deepseek-v4-flash（快速）</string>
+    <string name="model_option_pro">deepseek-v4-pro（高质量）</string>
+
+    <string name="label_example_dialogues_value_fmt">%d条</string>
+
+    <!-- ===== 通知页自定义间隔（SettingsDetailActivity） ===== -->
+    <string name="notification_interval_hours_fmt">每%d小时</string>
+    <string name="notification_interval_hours_decimal_fmt">每%.1f小时</string>
+
+    <!-- ===== WorldBookSection 专用字符串 ===== -->
+    <string name="world_book_load_failed">世界书加载失败</string>
+    <string name="world_book_load_failed_with_msg">世界书加载失败: %1$s</string>
+    <string name="world_book_empty_hint">暂无世界书，点击下方按钮创建</string>
+    <string name="world_book_usage_hint">点击条目编辑，右滑开关启用/禁用</string>
+    <string name="world_book_create_btn">＋ 创建世界书</string>
+    <string name="world_book_toast_enabled">已启用「%1$s」</string>
+    <string name="world_book_toast_disabled">已禁用「%1$s」</string>
+    <string name="world_book_toast_enable_failed">启用失败: %1$s</string>
+    <string name="world_book_toast_operation_failed">操作失败: %1$s</string>
+    <string name="world_book_hint_name">世界书名称（如：二次元幻想世界）</string>
+    <string name="world_book_label_name">名称</string>
+    <string name="world_book_hint_description">简短描述（如：一个剑与魔法的异世界）</string>
+    <string name="world_book_label_description">描述</string>
+    <string name="world_book_dialog_create_title">创建世界书</string>
+    <string name="world_book_btn_create">创建</string>
+    <string name="world_book_error_name_empty">名称不能为空</string>
+    <string name="world_book_toast_created">世界书「%1$s」已创建</string>
+    <string name="world_book_toast_create_failed">创建失败: %1$s</string>
+    <string name="world_book_label_desc_with_value">描述：%1$s</string>
+    <string name="world_book_label_entry_count">条目数：%1$d 条</string>
+    <string name="world_book_entry_summary">%1$d条 · %2$s</string>
+    <string name="world_book_action_edit_description">编辑描述</string>
+    <string name="world_book_action_manage_entries">管理条目（%1$d条）</string>
+    <string name="world_book_action_audit">交叉审核</string>
+    <string name="world_book_action_delete">删除世界书</string>
+    <string name="world_book_dialog_edit_title">编辑世界书 — %1$s</string>
+    <string name="world_book_toast_load_failed">加载失败: %1$s</string>
+    <string name="world_book_toast_desc_updated">描述已更新</string>
+    <string name="world_book_toast_update_failed">更新失败: %1$s</string>
+    <string name="world_book_msg_delete_confirm">确定要删除世界书「%1$s」吗？\n\n此操作不可撤销！</string>
+    <string name="world_book_btn_confirm_delete">确认删除</string>
+    <string name="world_book_toast_deleted">世界书「%1$s」已删除</string>
+    <string name="world_book_toast_delete_failed">删除失败: %1$s</string>
+    <string name="world_book_toast_save_state_failed">保存世界书状态失败</string>
+    <string name="world_book_empty_entries">暂无条目，点击下方按钮添加</string>
+    <string name="world_book_label_no_keywords">无关键词</string>
+    <string name="world_book_suffix_constant"> [常量]</string>
+    <string name="world_book_btn_add_entry">＋ 添加条目</string>
+    <string name="world_book_dialog_manage_entries">管理条目 — %1$s</string>
+    <string name="world_book_label_entry_id">条目ID *</string>
+    <string name="world_book_hint_entry_id">如 entry_001</string>
+    <string name="world_book_label_entry_content">触发内容 *</string>
+    <string name="world_book_hint_entry_content">触发时注入的上下文文本（至少20字）</string>
+    <string name="world_book_label_entry_keys">关键词（逗号分隔）</string>
+    <string name="world_book_hint_entry_keys">如: 猫, 宠物, 喵</string>
+    <string name="world_book_label_entry_comment">备注</string>
+    <string name="world_book_hint_entry_comment">开发者的备注说明</string>
+    <string name="world_book_label_always_inject">始终注入（constant）</string>
+    <string name="world_book_label_probability">触发概率: </string>
+    <string name="world_book_label_priority">优先级: </string>
+    <string name="world_book_dialog_add_entry">添加条目</string>
+    <string name="world_book_dialog_edit_entry">编辑条目 — %1$s</string>
+    <string name="world_book_error_entry_id_empty">条目ID不能为空</string>
+    <string name="world_book_error_entry_content_empty">触发内容不能为空</string>
+    <string name="world_book_toast_entry_added">条目已添加</string>
+    <string name="world_book_toast_entry_updated">条目已更新</string>
+    <string name="world_book_toast_entry_save_failed">保存失败: %1$s</string>
+    <string name="world_book_dialog_delete_entry">删除条目</string>
+    <string name="world_book_msg_delete_entry_confirm">确认删除条目「%1$s」吗？此操作不可撤销。</string>
+    <string name="world_book_toast_entry_deleted">条目已删除</string>
+    <string name="world_book_toast_audit_failed">审核失败: %1$s</string>
+    <string name="world_book_audit_passed">通过</string>
+    <string name="world_book_audit_failed_label">未通过</string>
+    <string name="world_book_label_audit_score">综合评分: %1$d 分 [%2$s]</string>
+    <string name="world_book_label_audit_summary">条目: %1$d · 常量: %2$d · 关键词: %3$d · 平均长度: %4$d字</string>
+    <string name="world_book_audit_dim_score">%1$s: %2$d分</string>
+    <string name="world_book_label_no_issues">无问题</string>
+    <string name="world_book_prefix_error">✗ </string>
+    <string name="world_book_prefix_warning">⚠ </string>
+    <string name="world_book_prefix_info">ℹ </string>
+    <string name="world_book_prefix_suggestion">→ %1$s</string>
+    <string name="world_book_dialog_audit_title">交叉审核报告 — %1$s</string>
+
+    <!-- ===== P2 硬编码字符串迁移 ===== -->
+
+    <!-- 会话标签 -->
+    <string name="label_current_session">[当前]</string>
+    <string name="conversation_default_session_name">默认会话</string>
+
+    <!-- 唤醒词数组 -->
+    <string-array name="voice_wake_words">
+        <item>星遥</item>
+        <item>星遥星遥</item>
+        <item>hey星遥</item>
+        <item>你好星遥</item>
+    </string-array>
+
+    <!-- 语音识别错误消息 -->
+    <string name="speech_error_audio">音频录制错误</string>
+    <string name="speech_error_client">客户端错误</string>
+    <string name="speech_error_insufficient_permissions">缺少录音权限</string>
+    <string name="speech_error_network">网络错误</string>
+    <string name="speech_error_network_timeout">网络超时</string>
+    <string name="speech_error_no_match">未识别到语音内容</string>
+    <string name="speech_error_recognizer_busy">识别服务繁忙</string>
+    <string name="speech_error_server">服务器错误</string>
+    <string name="speech_error_speech_timeout">语音输入超时</string>
+    <string name="speech_error_unknown_fmt">未知错误 (code=%d)</string>
+    <string name="speech_error_start_failed_fmt">启动语音识别失败: %s</string>
+    <string name="speech_error_not_available">语音识别服务不可用</string>
+
+    <!-- 记忆情感标签 -->
+    <string-array name="memory_emotion_tags">
+        <item>回忆</item>
+        <item>快乐</item>
+        <item>感伤</item>
+        <item>温暖</item>
+        <item>经历</item>
+        <item>认知</item>
+        <item>偏好</item>
+        <item>理解</item>
+        <item>关于你</item>
+        <item>喜好</item>
+        <item>身份</item>
+        <item>事实</item>
+        <item>记忆</item>
+    </string-array>
+
+    <!-- 联网搜索 Toast -->
+    <string name="toast_online_search_on">联网搜索已开启</string>
+    <string name="toast_online_search_off">联网搜索已关闭</string>
+
+    <!-- 导出发送者标签 -->
+    <string name="label_sender_me">我</string>
+
+    <!-- 角色编辑 -->
+    <string name="char_edit_title">编辑角色</string>
+    <string name="char_create_title">创建角色</string>
+    <string name="char_toast_enter_name">请输入角色名称</string>
+    <string name="char_toast_saved">已保存</string>
+    <string name="char_toast_avatar_load_failed">无法加载图片</string>
+    <string name="char_toast_avatar_load_error_fmt">加载头像失败: %s</string>
+
+    <!-- 角色管理 -->
+    <string name="char_default_cannot_delete">默认角色不可删除</string>
+
+    <!-- 角色预览 -->
+    <string name="char_unnamed">未命名角色</string>
+    <string name="char_no_personality">暂无性格描述</string>
+    <string name="char_default_greeting">你好呀~今天过得怎么样？</string>
+    <string name="char_detail_personality_fmt">性格特征：%s</string>
+    <string name="char_detail_backstory_fmt">背景故事：%s</string>
+
+    <!-- 会话抽屉 -->
+    <string name="session_unnamed">未命名会话</string>
+    <string name="session_no_messages">暂无消息</string>
+
+    <!-- 聊天时间戳 -->
+    <string name="chat_just_now">刚刚</string>
+    <string name="chat_minutes_ago_fmt">%d分钟前</string>
+    <string name="chat_days_ago_fmt">%1$d天前 %2$s</string>
+
+    <!-- 通知间隔选项 -->
+    <string-array name="notification_interval_options">
+        <item>每1小时</item>
+        <item>每2小时</item>
+        <item>每3小时</item>
+        <item>每6小时</item>
+        <item>每12小时</item>
+        <item>每天</item>
+    </string-array>
+
+    <!-- 语言标签 (ASR) -->
+    <string name="lang_en_us">English (US)</string>
+    <string name="lang_ja_jp">日本語</string>
+
+    <!-- 崩溃日志查看器 -->
+    <string name="crash_delete_all_title">删除全部崩溃日志</string>
+    <string name="crash_delete_all_msg_fmt">确定要删除全部 %d 条崩溃日志吗？</string>
+    <string name="crash_toast_deleted_all">已删除全部崩溃日志</string>
+    <string name="crash_log_truncated">已截断</string>
+    <string name="crash_read_failed_fmt">[读取失败] %1$s: %2$s</string>
+
+    <!-- 开源许可 -->
+    <string name="license_title">开源许可</string>
+    <string name="license_back_label">← 返回</string>
+    <string name="license_chaquopy_desc">在 Android 平台上运行 Python 代码的桥接框架，使本应用能够在设备端运行 Python 聊天引擎。</string>
+    <string name="license_sherpa_onnx_desc">下一代 Kaldi 的 ONNX 推理引擎，为本应用提供离线语音识别（ASR）和语音合成（TTS）能力。</string>
+    <string name="license_androidx_desc">Android Jetpack 组件库，提供 Activity、Fragment、RecyclerView 等核心 UI 组件。</string>
+    <string name="license_material_desc">Google Material Design 3 组件库，提供美观的 UI 控件和主题系统。</string>
+    <string name="license_kotlin_desc">现代 Android 开发语言，本应用主要使用 Kotlin 编写。</string>
+    <string name="license_deepseek_desc">提供大语言模型对话能力，本应用使用 DeepSeek API 作为 AI 对话引擎。</string>
+    <string name="license_wttr_in_desc">命令行天气查询服务，为本应用提供天气信息查询功能。</string>
 
     </resources>

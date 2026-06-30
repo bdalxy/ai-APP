@@ -8,6 +8,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import com.aicompanion.app.AppConfig
+import com.aicompanion.app.R
 import kotlinx.coroutines.CoroutineScope
 import java.util.Locale
 
@@ -42,7 +43,7 @@ class SpeechManager(
     fun startRecording() {
         if (isRecording) { Log.w(TAG, "已在录音中，忽略重复调用"); return }
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            val errorMsg = "语音识别服务不可用"
+            val errorMsg = context.getString(R.string.speech_error_not_available)
             Log.e(TAG, errorMsg)
             callback?.onSpeechError(errorMsg)
             return
@@ -63,7 +64,7 @@ class SpeechManager(
             Log.d(TAG, "语音识别已启动")
         } catch (e: Exception) {
             Log.e(TAG, "启动语音识别失败", e)
-            callback?.onSpeechError("启动语音识别失败: ${e.message}")
+            callback?.onSpeechError(context.getString(R.string.speech_error_start_failed_fmt, e.message))
         }
     }
 
@@ -89,16 +90,16 @@ class SpeechManager(
             override fun onError(error: Int) {
                 isRecording = false
                 val errorMsg = when (error) {
-                    SpeechRecognizer.ERROR_AUDIO -> "音频录制错误"
-                    SpeechRecognizer.ERROR_CLIENT -> "客户端错误"
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "缺少录音权限"
-                    SpeechRecognizer.ERROR_NETWORK -> "网络错误"
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "网络超时"
-                    SpeechRecognizer.ERROR_NO_MATCH -> "未识别到语音内容"
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "识别服务繁忙"
-                    SpeechRecognizer.ERROR_SERVER -> "服务器错误"
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "语音输入超时"
-                    else -> "未知错误 (code=$error)"
+                    SpeechRecognizer.ERROR_AUDIO -> context.getString(R.string.speech_error_audio)
+                    SpeechRecognizer.ERROR_CLIENT -> context.getString(R.string.speech_error_client)
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> context.getString(R.string.speech_error_insufficient_permissions)
+                    SpeechRecognizer.ERROR_NETWORK -> context.getString(R.string.speech_error_network)
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> context.getString(R.string.speech_error_network_timeout)
+                    SpeechRecognizer.ERROR_NO_MATCH -> context.getString(R.string.speech_error_no_match)
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> context.getString(R.string.speech_error_recognizer_busy)
+                    SpeechRecognizer.ERROR_SERVER -> context.getString(R.string.speech_error_server)
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> context.getString(R.string.speech_error_speech_timeout)
+                    else -> context.getString(R.string.speech_error_unknown_fmt, error)
                 }
                 Log.e(TAG, "语音识别错误: $errorMsg")
                 callback?.onSpeechError(errorMsg)
@@ -109,7 +110,7 @@ class SpeechManager(
                 val text = matches?.firstOrNull() ?: ""
                 Log.d(TAG, "语音识别结果: $text")
                 if (text.isNotBlank()) callback?.onSpeechResult(text)
-                else callback?.onSpeechError("未识别到语音内容")
+                else callback?.onSpeechError(context.getString(R.string.speech_error_no_match))
             }
             override fun onPartialResults(partialResults: Bundle?) {
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)

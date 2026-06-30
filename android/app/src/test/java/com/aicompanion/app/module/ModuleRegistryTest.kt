@@ -149,9 +149,9 @@ class ModuleRegistryTest {
         @Test
         @DisplayName("注册 null 后 get 抛出异常")
         fun testRegisterNullInstance() {
-            // 注册 null 实例，验证 get 时抛出异常
+            // 通过 Java HashMap interop 绕过 Kotlin 非空检查，注册 null 实例
             @Suppress("UNCHECKED_CAST")
-            ModuleRegistry.modules[TestModule::class.java] = null as Any
+            (ModuleRegistry.modules as java.util.HashMap<Class<*>, Any?>).put(TestModule::class.java, null)
 
             assertThrows(IllegalStateException::class.java) {
                 ModuleRegistry.get<TestModule>()

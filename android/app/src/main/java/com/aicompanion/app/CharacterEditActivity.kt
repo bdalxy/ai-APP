@@ -71,7 +71,7 @@ class CharacterEditActivity : AppCompatActivity() {
     }
 
     private fun setupEditMode() {
-        binding.tvPageTitle.text = "编辑角色"
+        binding.tvPageTitle.text = getString(R.string.char_edit_title)
         binding.cardModeSelection.visibility = View.GONE
         binding.bottomActions.visibility = View.GONE
         binding.btnSave.visibility = View.VISIBLE
@@ -97,7 +97,7 @@ class CharacterEditActivity : AppCompatActivity() {
     }
 
     private fun setupCreateMode() {
-        binding.tvPageTitle.text = "创建角色"
+        binding.tvPageTitle.text = getString(R.string.char_create_title)
         binding.cardModeSelection.visibility = View.VISIBLE
         binding.bottomActions.visibility = View.VISIBLE
         binding.btnSave.visibility = View.GONE
@@ -125,7 +125,7 @@ class CharacterEditActivity : AppCompatActivity() {
     private fun previewCharacter() {
         val name = binding.etName.text.toString().trim()
         if (name.isBlank()) {
-            Toast.makeText(this, "请输入角色名称", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.char_toast_enter_name), Toast.LENGTH_SHORT).show()
             return
         }
         val char = buildCharacterData()
@@ -144,13 +144,13 @@ class CharacterEditActivity : AppCompatActivity() {
     private fun saveCharacter() {
         val name = binding.etName.text.toString().trim()
         if (name.isBlank()) {
-            Toast.makeText(this, "请输入角色名称", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.char_toast_enter_name), Toast.LENGTH_SHORT).show()
             return
         }
         val char = buildCharacterData()
         CharacterStorage.save(this, char)
         CharacterStorage.setCurrent(this, char.id)
-        Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.char_toast_saved), Toast.LENGTH_SHORT).show()
         finish()
     }
 
@@ -186,7 +186,7 @@ class CharacterEditActivity : AppCompatActivity() {
             val bitmap = BitmapFactory.decodeStream(inputStream)
             inputStream?.close()
             if (bitmap == null) {
-                Toast.makeText(this, "无法加载图片", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.char_toast_avatar_load_failed), Toast.LENGTH_SHORT).show()
                 return
             }
             // 圆形裁剪预览
@@ -198,10 +198,7 @@ class CharacterEditActivity : AppCompatActivity() {
             val avatarDir = File(filesDir, "avatars")
             avatarDir.mkdirs()
             // 如果 editingId 为空（新建模式），生成一个固定 ID 并回写，防止与 saveCharacter() 中生成的 UUID 不一致
-            if (editingId == null) {
-                editingId = java.util.UUID.randomUUID().toString()
-            }
-            val charId = editingId!!
+            val charId = editingId ?: java.util.UUID.randomUUID().toString().also { editingId = it }
             val avatarFile = File(avatarDir, "${charId}.jpg")
             FileOutputStream(avatarFile).use { out ->
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
@@ -209,7 +206,7 @@ class CharacterEditActivity : AppCompatActivity() {
             pendingAvatarPath = avatarFile.absolutePath
             Toast.makeText(this, R.string.toast_avatar_saved, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "加载头像失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.char_toast_avatar_load_error_fmt, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 

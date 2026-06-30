@@ -34,6 +34,7 @@ def list_plugins() -> str:
         plugins_data = []
         for p in pm.plugins:
             plugins_data.append({
+                "id": p.name,  # 插件名称作为唯一标识
                 "name": p.name,
                 "version": p.version,
                 "description": p.description,
@@ -97,6 +98,7 @@ def get_plugin_detail(name: str) -> str:
         return json.dumps({
             "status": "ok",
             "plugin": {
+                "id": p.name,  # 插件名称作为唯一标识
                 "name": p.name,
                 "version": p.version,
                 "description": p.description,

@@ -26,7 +26,7 @@ import shutil
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -671,7 +671,7 @@ class MemoryBackup:
 
     def _generate_backup_id(self) -> str:
         """生成备份标识符。"""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         return now.strftime("%Y%m%d_%H%M%S")
 
     def _find_backup_files(self, backup_id: str) -> dict[str, Path]:

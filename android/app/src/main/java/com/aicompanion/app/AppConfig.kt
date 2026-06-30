@@ -87,19 +87,23 @@ object AppConfig {
     private const val KEY_WEB_SEARCH_ENABLED = "web_search_enabled"
 
     // ── 主动消息间隔选项（公共常量，避免多处重复定义）──
-    val INTERVAL_OPTIONS = arrayOf("每1小时", "每2小时", "每3小时", "每6小时", "每12小时", "每天")
     val INTERVAL_MS = longArrayOf(3600000L, 7200000L, 10800000L, 21600000L, 43200000L, 86400000L)
     val DEFAULT_INTERVAL_MS = 10800000L  // 默认 3 小时
     val MIN_INTERVAL_MS = 1800000L  // 最低间隔 30 分钟
+
+    /** 获取主动消息间隔选项（从资源文件加载，支持多语言） */
+    fun getIntervalOptions(context: Context): Array<String> {
+        return context.resources.getStringArray(R.array.notification_interval_options)
+    }
 
     /** 缓存的加密 SharedPreferences 实例（避免重复创建 MasterKey） */
     @Volatile
     private var cachedSecurePrefs: SharedPreferences? = null
     private val securePrefsLock = Any()
 
-    /** 普通配置（非敏感） */
+    /** 普通配置（ISS-062: 已升级为加密存储） */
     private fun getPrefs(context: Context): SharedPreferences {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return SecureStorage.getEncryptedPrefs(context, PREFS_NAME)
     }
 
     /** 加密配置（API Key 等敏感数据，带缓存）

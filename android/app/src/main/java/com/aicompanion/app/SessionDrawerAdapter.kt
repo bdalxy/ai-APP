@@ -37,8 +37,8 @@ class SessionDrawerAdapter(
         val ctx = holder.itemView.context
         val isCurrent = session.id == currentSessionId
 
-        holder.tvName.text = session.name.ifEmpty { "未命名会话" }
-        holder.tvPreview.text = session.lastMessage.ifEmpty { "暂无消息" }
+        holder.tvName.text = session.name.ifEmpty { ctx.getString(R.string.session_unnamed) }
+        holder.tvPreview.text = session.lastMessage.ifEmpty { ctx.getString(R.string.session_no_messages) }
         holder.tvTime.text = formatTime(session.updatedAt)
         holder.tvCount.text = "${session.messageCount}"
 

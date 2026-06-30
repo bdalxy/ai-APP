@@ -136,7 +136,7 @@ class JailbreakPlugin(BasePlugin):
 
     def __init__(self):
         super().__init__()
-        self._enabled = False
+        self.enabled = False  # 使用基类 enabled 属性，确保 PluginManager 能正确读取状态
         self._level = 3
         self._preset_name = "roleplay"
         self._custom_prompt = ""
@@ -159,7 +159,7 @@ class JailbreakPlugin(BasePlugin):
             return "__CMD__:" + self._handle_command(stripped)
 
         # ── 破限已启用时，注入 System Prompt 到 _current_params ──
-        if self._enabled:
+        if self.enabled:
             self._inject_jailbreak_prompt()
 
         return None
@@ -181,12 +181,12 @@ class JailbreakPlugin(BasePlugin):
 
         # /jb on
         if re.match(r"^/(jb|jailbreak)\s+on$", text, re.IGNORECASE):
-            self._enabled = True
+            self.enabled = True
             return "[破限插件] ✅ 破限模式已启用\n" + self._build_status()
 
         # /jb off
         if re.match(r"^/(jb|jailbreak)\s+off$", text, re.IGNORECASE):
-            self._enabled = False
+            self.enabled = False
             self._clear_jailbreak_prompt()
             return "[破限插件] ⛔ 破限模式已禁用"
 
@@ -226,7 +226,7 @@ class JailbreakPlugin(BasePlugin):
 
     def _build_status(self) -> str:
         """构建状态信息文本。"""
-        status_icon = "✅" if self._enabled else "⛔"
+        status_icon = "✅" if self.enabled else "⛔"
         level_desc = {
             1: "轻度 — 温和提示自由表达",
             2: "中度 — 朋友模式，忘记 AI 身份",
@@ -238,7 +238,7 @@ class JailbreakPlugin(BasePlugin):
         preset_name = preset_info.get("name", self._preset_name)
 
         lines = [
-            f"[破限插件] {status_icon} 状态: {'启用' if self._enabled else '禁用'}",
+            f"[破限插件] {status_icon} 状态: {'启用' if self.enabled else '禁用'}",
             f"   等级: {self._level} ({level_desc.get(self._level, '未知')})",
             f"   预设: {self._preset_name} ({preset_name})",
         ]
@@ -253,7 +253,7 @@ class JailbreakPlugin(BasePlugin):
         Returns:
             破限提示词文本，如果未启用返回空字符串
         """
-        if not self._enabled:
+        if not self.enabled:
             return ""
 
         if self._preset_name == "custom":
@@ -284,7 +284,7 @@ class JailbreakPlugin(BasePlugin):
     @property
     def is_jailbreak_enabled(self) -> bool:
         """破限是否已启用。"""
-        return self._enabled
+        return self.enabled
 
     @property
     def jailbreak_level(self) -> int:

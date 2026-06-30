@@ -25,7 +25,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from src.memory.decay import get_weight
@@ -370,7 +370,7 @@ class ContextBuilder:
         if not entries:
             return []
 
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         scored: list[tuple[MemoryEntry, float]] = []
 
         for entry in entries:

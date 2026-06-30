@@ -94,7 +94,7 @@ class ProactiveWorker(
                     val title = json.optString("title", "AI伴侣")
                     val message = json.optString("message", "")
                     NotificationHelper.show(applicationContext, title, message)
-                    Log.i(TAG, "主动消息推送成功: ${message.take(50)}...")
+                    Log.i(TAG, "主动消息推送成功: len=${message.length}")
                     Result.success()
                 }
                 "skip" -> {

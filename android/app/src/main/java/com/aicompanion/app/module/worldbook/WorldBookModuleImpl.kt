@@ -9,7 +9,7 @@ import org.json.JSONObject
  * 世界书模块实现。
  *
  * 桥接 Python chat_bridge._world_book 模块，提供世界书条目的增删改查。
- * 接口中的 [WorldBookEntry.key] 映射到 Python 端的条目 ID。
+ * 使用统一的 [com.aicompanion.app.WorldBookEntry]（通过 typealias 引用）。
  *
  * 注意：世界书数据存储在 Python 端（data/world_books/ 目录），
  * Kotlin 端此模块作为薄封装层，所有操作委托给 Python 引擎。
@@ -44,11 +44,10 @@ class WorldBookModuleImpl : WorldBookModule {
     // ======================== WorldBookEntry 转换 ========================
 
     /**
-     * 将 Python 端返回的条目 JSON 转换为接口 [WorldBookEntry]。
+     * 将 Python 端返回的条目 JSON 转换为统一的 [WorldBookEntry]。
      * Python 端字段: id, keys, content, comment, priority, probability, constant
      */
     private fun jsonToEntry(json: JSONObject): WorldBookEntry {
-        // keys 数组取第一个作为 tags，comment 作为辅助标签
         val keysArray = json.optJSONArray("keys")
         val tags = mutableListOf<String>()
         if (keysArray != null) {
@@ -56,26 +55,24 @@ class WorldBookModuleImpl : WorldBookModule {
                 tags.add(keysArray.getString(i))
             }
         }
-        val comment = json.optString("comment", "")
-        if (comment.isNotBlank()) {
-            tags.add(comment)
-        }
 
         return WorldBookEntry(
-            key = json.optString("id", ""),
+            id = json.optString("id", ""),
+            category = json.optString("comment", ""),
             content = json.optString("content", ""),
             tags = tags,
-            priority = json.optInt("priority", 0)
+            priority = json.optInt("priority", 0),
+            createdAt = json.optString("created_at", ""),
+            updatedAt = json.optString("created_at", "")  // Python 端无 updatedAt，用 created_at 代替
         )
     }
 
     /**
-     * 将接口 [WorldBookEntry] 转换为 Python 端条目 JSON。
-     * key 映射到 Python 的 id，tags 的第一个元素映射到 comment。
+     * 将统一的 [WorldBookEntry] 转换为 Python 端条目 JSON。
+     * id 映射到 Python 的 id，category 映射到 comment，tags 映射到 keys。
      */
     private fun entryToJson(entry: WorldBookEntry): JSONObject {
         val keysArray = JSONArray()
-        // tags 中非空元素放入 keys
         for (tag in entry.tags) {
             if (tag.isNotBlank()) {
                 keysArray.put(tag)
@@ -83,10 +80,10 @@ class WorldBookModuleImpl : WorldBookModule {
         }
 
         return JSONObject().apply {
-            put("id", entry.key)
+            put("id", entry.id)
             put("content", entry.content)
             put("keys", keysArray)
-            put("comment", if (entry.tags.isNotEmpty()) entry.tags.first() else "")
+            put("comment", entry.category)
             put("constant", false)
             put("probability", 100)
             put("priority", entry.priority)
@@ -123,19 +120,19 @@ class WorldBookModuleImpl : WorldBookModule {
             val entryJson = entryToJson(entry).toString()
 
             // 检查条目是否已存在，存在则更新，不存在则新增
-            val existing = getEntry(entry.key)
+            val existing = getEntry(entry.id)
             if (existing != null) {
-                module.callAttr("update_world_book_entry", DEFAULT_BOOK_NAME, entry.key, entryJson)
-                Log.d(TAG, "条目已更新: key=${entry.key}")
+                module.callAttr("update_world_book_entry", DEFAULT_BOOK_NAME, entry.id, entryJson)
+                Log.d(TAG, "条目已更新: id=${entry.id}")
             } else {
                 module.callAttr("add_world_book_entry", DEFAULT_BOOK_NAME, entryJson)
-                Log.d(TAG, "条目已新增: key=${entry.key}")
+                Log.d(TAG, "条目已新增: id=${entry.id}")
             }
 
             // 发布世界书变更事件
-            ModuleEventBus.emit(ModuleEventBus.EventType.WORLD_BOOK_CHANGED, entry.key)
+            ModuleEventBus.emit(ModuleEventBus.EventType.WORLD_BOOK_CHANGED, entry.id)
         } catch (e: Exception) {
-            Log.e(TAG, "设置条目失败: key=${entry.key}", e)
+            Log.e(TAG, "设置条目失败: id=${entry.id}", e)
         }
     }
 
@@ -163,18 +160,18 @@ class WorldBookModuleImpl : WorldBookModule {
         return try {
             val module = getPythonModule() ?: return false
             module.callAttr("delete_world_book_entry", DEFAULT_BOOK_NAME, key)
-            Log.d(TAG, "条目已删除: key=$key")
+            Log.d(TAG, "条目已删除: id=$key")
             // 发布世界书变更事件
             ModuleEventBus.emit(ModuleEventBus.EventType.WORLD_BOOK_CHANGED, key)
             true
         } catch (e: Exception) {
-            Log.e(TAG, "删除条目失败: key=$key", e)
+            Log.e(TAG, "删除条目失败: id=$key", e)
             false
         }
     }
 
     override fun searchEntries(keyword: String): List<WorldBookEntry> {
-        // 在已加载的条目中按内容搜索
+        // 在已加载的条目中按内容和标签搜索
         return try {
             listEntries().filter { entry ->
                 entry.content.contains(keyword, ignoreCase = true) ||

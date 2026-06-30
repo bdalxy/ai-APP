@@ -27,14 +27,14 @@ android {
         applicationId = "com.aicompanion.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "2.0.0"
+        versionCode = 1
+        versionName = "0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             // arm64-v8a: 真机（移除 x86_64 避免 Chaquopy move_to_common 冲突）
-            abiFilters += listOf("arm64-v8a")
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
         // 移除未使用的语言资源，仅保留中文和英文
@@ -134,9 +134,13 @@ dependencies {
     // 单元测试
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
     testImplementation("io.mockk:mockk:1.13.10")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     testImplementation("org.robolectric:robolectric:4.12.1")
+    testImplementation("org.json:json:20240303")
+    testImplementation("androidx.test:core:1.5.0")
+    testImplementation("androidx.test.ext:junit:1.2.1")
 
     // 仪器测试
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

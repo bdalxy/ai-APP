@@ -9,6 +9,7 @@ import time
 from typing import List, Optional
 
 from .plugin_base import BasePlugin
+from src.utils import crypto_utils
 
 _log = logging.getLogger(__name__)
 
@@ -21,9 +22,22 @@ class PluginManager:
     - 加载/卸载插件
     - 管理插件生命周期
     - 在管道钩子中调用插件
+
+    使用单例模式，确保全局只有一个实例。
     """
 
+    _instance: "PluginManager | None" = None
+    _initialized: bool = False
+
+    def __new__(cls) -> "PluginManager":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        if PluginManager._initialized:
+            return
+        PluginManager._initialized = True
         self._plugins: List[BasePlugin] = []
         self._lock = threading.Lock()
         self._plugin_dir = os.path.dirname(os.path.abspath(__file__))
@@ -160,7 +174,7 @@ class PluginManager:
     # ===== 状态持久化 =====
 
     def _save_state(self) -> None:
-        """将所有插件状态保存到 data/plugin_state.json。
+        """将所有插件状态保存到 data/plugin_state.json（ISS-063: 加密存储）。
 
         线程安全：使用 _lock 保护 _plugins 的遍历。
         """
@@ -176,34 +190,41 @@ class PluginManager:
                     "last_error": p._last_error,
                 }
         try:
-            with open(self._state_file, "w", encoding="utf-8") as f:
-                json.dump(state, f, ensure_ascii=False, indent=2)
+            json_str = json.dumps(state, ensure_ascii=False, indent=2)
+            encrypted = crypto_utils.encrypt(json_str, crypto_utils.get_device_password())
+            with open(self._state_file, "wb") as f:
+                f.write(encrypted)
             self._dirty = False
             _log.debug("插件状态已保存到 %s", self._state_file)
         except Exception as e:
             _log.error("保存插件状态失败: %s", e)
 
     def _load_state(self) -> dict:
-        """从 data/plugin_state.json 读取插件状态。
+        """从 data/plugin_state.json 读取插件状态（ISS-063: 解密读取）。
 
         Returns:
             {"plugin_name": {"enabled": ..., ...}, ...}
-            文件不存在或解析失败时返回空字典。
+            文件不存在或解密失败时返回空字典。
         """
         if not os.path.exists(self._state_file):
             _log.debug("插件状态文件不存在，使用默认状态")
             return {}
         try:
-            with open(self._state_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            with open(self._state_file, "rb") as f:
+                encrypted = f.read()
+            json_str = crypto_utils.decrypt(encrypted, crypto_utils.get_device_password())
+            if json_str is None:
+                _log.warning("插件状态解密失败（密码错误或数据损坏），使用默认状态")
+                return {}
+            data = json.loads(json_str)
             plugins_state = data.get("plugins", {})
             _log.info("已加载 %d 个插件的持久化状态", len(plugins_state))
             return plugins_state
         except json.JSONDecodeError as e:
             _log.warning("插件状态 JSON 解析失败: %s，使用默认状态", e)
             return {}
-        except IOError as e:
-            _log.warning("读取插件状态文件失败: %s，使用默认状态", e)
+        except Exception as e:
+            _log.warning("读取插件状态失败: %s，使用默认状态", e)
             return {}
 
     def _restore_plugin_state(self, plugin: BasePlugin) -> None:

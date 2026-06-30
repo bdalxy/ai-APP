@@ -27,7 +27,7 @@
     <dimen name="spacing_5xl">32dp</dimen>
 
     <!-- ===== 图标尺寸 ===== -->
-    <dimen name="icon_size_small">24dp</dimen>
+    <dimen name="icon_size_small">48dp</dimen>
 
     <!-- ===== 头像尺寸 ===== -->
     <dimen name="avatar_size_small">36dp</dimen>
@@ -37,8 +37,8 @@
     <dimen name="avatar_inner_large">120dp</dimen>
 
     <!-- ===== 按钮/可点击区域尺寸 ===== -->
-    <dimen name="button_small">40dp</dimen>
-    <dimen name="button_medium">44dp</dimen>
+    <dimen name="button_small">48dp</dimen>
+    <dimen name="button_medium">48dp</dimen>
     <dimen name="button_default">48dp</dimen>
     <dimen name="button_wide">52dp</dimen>
     <dimen name="tag_height">34dp</dimen>

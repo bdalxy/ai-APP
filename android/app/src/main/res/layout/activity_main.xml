@@ -82,18 +82,32 @@
                     android:contentDescription="@string/btn_new_chat"
                     android:tint="@color/text_primary"
                     android:scaleType="centerInside"
-                    android:padding="6dp" />
+                    android:padding="12dp" />
 
+                <!-- 搜索按钮（点击触发搜索） -->
                 <ImageButton
-                    android:id="@+id/btnSettings"
+                    android:id="@+id/btnSearch"
                     android:layout_width="@dimen/icon_size_small"
                     android:layout_height="@dimen/icon_size_small"
                     android:src="@drawable/ic_search"
                     android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/cd_search"
+                    android:tint="@color/text_primary"
+                    android:scaleType="centerInside"
+                    android:padding="12dp"
+                    android:layout_marginStart="4dp" />
+
+                <!-- 设置按钮（齿轮图标，点击进设置） -->
+                <ImageButton
+                    android:id="@+id/btnSettings"
+                    android:layout_width="@dimen/icon_size_small"
+                    android:layout_height="@dimen/icon_size_small"
+                    android:src="@android:drawable/ic_menu_preferences"
+                    android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/cd_settings"
                     android:tint="@color/text_primary"
                     android:scaleType="centerInside"
-                    android:padding="6dp"
+                    android:padding="12dp"
                     android:layout_marginStart="4dp" />
             </LinearLayout>
 
@@ -222,7 +236,7 @@
                     android:contentDescription="@string/cd_voice_input"
                     android:tint="@color/sakura_border"
                     android:scaleType="centerInside"
-                    android:padding="6dp" />
+                    android:padding="12dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSend"
@@ -389,6 +403,20 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/drawer_search"
+                android:textSize="@dimen/text_body"
+                android:textColor="@color/text_secondary"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:padding="8dp"
+                android:background="?attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/btnDrawerSettings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/drawer_settings"
                 android:textSize="@dimen/text_body"
                 android:textColor="@color/text_secondary"
                 android:clickable="true"

@@ -28,9 +28,8 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "SettingsDetail"
-        private val MODEL_OPTIONS = arrayOf("deepseek-v4-flash（快速）", "deepseek-v4-pro（高质量）")
+        // MODEL_OPTIONS 改为在 showModelSelectDialog 中动态获取资源
         private val MODEL_VALUES = arrayOf("deepseek-v4-flash", "deepseek-v4-pro")
-        private val INTERVAL_OPTIONS = AppConfig.INTERVAL_OPTIONS
         private val INTERVAL_MS = AppConfig.INTERVAL_MS
     }
 
@@ -46,9 +45,9 @@ class SettingsDetailActivity : AppCompatActivity() {
                 val success = DataBackupHelper.backup(this@SettingsDetailActivity, uri)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        Toast.makeText(this@SettingsDetailActivity, "备份完成", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_backup_complete), Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(this@SettingsDetailActivity, "备份失败，请检查存储空间", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_backup_failed), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -111,7 +110,7 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun buildAccountPage() {
         val apiKey = AppConfig.getApiKey(this)
-        val apiKeyLabel = if (apiKey.isNotEmpty()) "${getString(R.string.status_configured)} (${apiKey.take(4)}...)" else getString(R.string.status_not_configured)
+        val apiKeyLabel = if (apiKey.isNotEmpty()) getString(R.string.status_configured) else getString(R.string.status_not_configured)
         val model = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
 
         addSectionTitle(getString(R.string.section_api_config))
@@ -131,10 +130,16 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun showApiKeyEditDialog() {
         val currentKey = AppConfig.getApiKey(this)
+        // 脱敏显示：只显示前4后4位，中间用***替代
+        val maskedKey = if (currentKey.length > 8) {
+            "${currentKey.take(4)}***${currentKey.takeLast(4)}"
+        } else {
+            currentKey
+        }
         val edit = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             hint = getString(R.string.hint_api_key_input)
-            setText(currentKey)
+            setText(maskedKey)
             setPadding(32, 16, 32, 16)
         }
         MaterialAlertDialogBuilder(this)
@@ -164,9 +169,10 @@ class SettingsDetailActivity : AppCompatActivity() {
     private fun showModelSelectDialog() {
         val currentModel = AppConfig.getModel(this).let { if (it.isBlank()) "deepseek-v4-flash" else it }
         val idx = MODEL_VALUES.indexOf(currentModel).coerceAtLeast(0)
+        val modelOptions = arrayOf(getString(R.string.model_option_fast), getString(R.string.model_option_pro))
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.dialog_title_select_model))
-            .setSingleChoiceItems(MODEL_OPTIONS, idx) { dialog, which ->
+            .setSingleChoiceItems(modelOptions, idx) { dialog, which ->
                 val model = MODEL_VALUES[which]
                 AppConfig.setModel(this, model)
                 applyAllParams()
@@ -200,7 +206,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         addDivider()
         addClickRow(getString(R.string.label_max_tokens), "${maxTk} token", iconRes = R.drawable.ic_detail) { showMaxTokensDialog() }
         addDivider()
-        addClickRow(getString(R.string.label_example_dialogues), "${dialogues}条", iconRes = R.drawable.ic_example) { showExampleDialoguesDialog() }
+        addClickRow(getString(R.string.label_example_dialogues), getString(R.string.label_example_dialogues_value_fmt, dialogues), iconRes = R.drawable.ic_example) { showExampleDialoguesDialog() }
     }
 
     private fun showContextSizeDialog() {
@@ -328,31 +334,11 @@ class SettingsDetailActivity : AppCompatActivity() {
         val steps = (max - min) / step
         val currentStep = ((current - min).coerceIn(0, max - min)) / step
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
-        layout.addView(TextView(this).apply {
-            text = getString(R.string.desc_max_tokens_slider); textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
-        })
-        val tvValue = TextView(this).apply {
-            text = "${current} token"; textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
-            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
-        }
-        layout.addView(tvValue)
-        val seekBar = SeekBar(this).apply {
-            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    val value = min + progress * step
-                    tvValue.text = "${value} token"
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        layout.addView(seekBar)
+        val (layout, _, seekBar) = createSeekBarLayout(
+            getString(R.string.desc_max_tokens_slider),
+            "${current} token",
+            steps, currentStep
+        ) { progress -> "${min + progress * step} token" }
 
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.label_max_tokens))
@@ -404,20 +390,20 @@ class SettingsDetailActivity : AppCompatActivity() {
         val decayHalfLife = AppConfig.getMemoryDecayHalfLife(this)
 
         addSectionTitle(getString(R.string.section_memory_params))
-        addClickRow("记忆容量上限", "${memoryCapacity}条", iconRes = R.drawable.ic_settings_memory) {
+        addClickRow(getString(R.string.memory_capacity_title), getString(R.string.memory_capacity_value_fmt, memoryCapacity), iconRes = R.drawable.ic_settings_memory) {
             showMemoryCapacityDialog()
         }
-        addDetailLabel("超出上限时，旧记忆将自动归档或清理")
+        addDetailLabel(getString(R.string.memory_capacity_desc))
         addDivider()
-        addClickRow("去重相似度阈值", String.format("%.2f", dedupThreshold), iconRes = R.drawable.ic_settings_memory) {
+        addClickRow(getString(R.string.memory_dedup_title), String.format("%.2f", dedupThreshold), iconRes = R.drawable.ic_settings_memory) {
             showDedupThresholdDialog()
         }
-        addDetailLabel("新记忆与已有记忆相似度超过此值则不重复保存")
+        addDetailLabel(getString(R.string.memory_dedup_desc))
         addDivider()
-        addClickRow("衰减半衰期", "${decayHalfLife}天", iconRes = R.drawable.ic_settings_memory) {
+        addClickRow(getString(R.string.memory_decay_title), getString(R.string.memory_decay_value_fmt, decayHalfLife), iconRes = R.drawable.ic_settings_memory) {
             showDecayHalfLifeDialog()
         }
-        addDetailLabel("记忆权重每过半衰期衰减一半，更久远的记忆权重更低")
+        addDetailLabel(getString(R.string.memory_decay_desc))
     }
 
     private fun showClearMemoryDialog() {
@@ -451,45 +437,14 @@ class SettingsDetailActivity : AppCompatActivity() {
         val steps = (max - min) / step
         val currentStep = ((current - min).coerceIn(0, max - min)) / step
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
-        layout.addView(TextView(this).apply {
-            text = "超出上限时，旧记忆将自动归档或清理（单位：条）"; textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
-        })
-        val tvValue = TextView(this).apply {
-            text = "${current} 条"; textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
-            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
-        }
-        layout.addView(tvValue)
-        val seekBar = SeekBar(this).apply {
-            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    val value = min + progress * step
-                    tvValue.text = "${value} 条"
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        layout.addView(seekBar)
-        val labelRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; setPadding(8, 2, 8, 12)
-        }
-        for ((i, label) in listOf("100", "2500", "5000").withIndex()) {
-            labelRow.addView(TextView(this).apply {
-                text = label; textSize = 11f
-                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
-            })
-        }
-        layout.addView(labelRow)
+        val (layout, _, seekBar) = createSeekBarLayout(
+            getString(R.string.memory_capacity_desc_full),
+            getString(R.string.memory_capacity_dialog_fmt, current),
+            steps, currentStep
+        ) { progress -> getString(R.string.memory_capacity_dialog_fmt, min + progress * step) }
+        addSeekBarLabels(layout, "100", "2500", "5000")
 
-        MaterialAlertDialogBuilder(this).setTitle("记忆容量上限").setView(layout)
+        MaterialAlertDialogBuilder(this).setTitle(getString(R.string.memory_capacity_title)).setView(layout)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 val value = min + seekBar.progress * step
                 AppConfig.setMemoryMaxCount(this, value)
@@ -505,45 +460,14 @@ class SettingsDetailActivity : AppCompatActivity() {
         val steps = ((max - min) / step).toInt()
         val currentStep = ((current - min) / step).toInt().coerceIn(0, steps)
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
-        layout.addView(TextView(this).apply {
-            text = "相似度超过此阈值的记忆将被去重（值越低越严格）"; textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
-        })
-        val tvValue = TextView(this).apply {
-            text = String.format("%.2f", current); textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
-            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
-        }
-        layout.addView(tvValue)
-        val seekBar = SeekBar(this).apply {
-            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    val value = min + progress * step
-                    tvValue.text = String.format("%.2f", value)
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        layout.addView(seekBar)
-        val labelRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; setPadding(8, 2, 8, 12)
-        }
-        for ((i, label) in listOf("0.30", "0.65", "1.00").withIndex()) {
-            labelRow.addView(TextView(this).apply {
-                text = label; textSize = 11f
-                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
-            })
-        }
-        layout.addView(labelRow)
+        val (layout, _, seekBar) = createSeekBarLayout(
+            getString(R.string.memory_dedup_desc_full),
+            String.format("%.2f", current),
+            steps, currentStep
+        ) { progress -> String.format("%.2f", min + progress * step) }
+        addSeekBarLabels(layout, "0.30", "0.65", "1.00")
 
-        MaterialAlertDialogBuilder(this).setTitle("去重相似度阈值").setView(layout)
+        MaterialAlertDialogBuilder(this).setTitle(getString(R.string.memory_dedup_title)).setView(layout)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 val value = (min + seekBar.progress * step).coerceIn(min, max)
                 AppConfig.setMemoryDedupThreshold(this, value)
@@ -559,45 +483,17 @@ class SettingsDetailActivity : AppCompatActivity() {
         val steps = max - min
         val currentStep = (current - min).coerceIn(0, steps)
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
-        layout.addView(TextView(this).apply {
-            text = "记忆权重衰减到一半所需的天数（值越大衰减越慢）"; textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.text_tertiary)); setPadding(0, 0, 0, 12)
-        })
-        val tvValue = TextView(this).apply {
-            text = "${current} 天"; textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
-            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
-        }
-        layout.addView(tvValue)
-        val seekBar = SeekBar(this).apply {
-            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    val value = min + progress
-                    tvValue.text = "${value} 天"
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        layout.addView(seekBar)
-        val labelRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; setPadding(8, 2, 8, 12)
-        }
-        for ((i, label) in listOf("1天", "183天", "365天").withIndex()) {
-            labelRow.addView(TextView(this).apply {
-                text = label; textSize = 11f
-                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
-            })
-        }
-        layout.addView(labelRow)
+        val (layout, _, seekBar) = createSeekBarLayout(
+            getString(R.string.memory_decay_desc_full),
+            getString(R.string.memory_decay_dialog_fmt, current),
+            steps, currentStep
+        ) { progress -> getString(R.string.memory_decay_dialog_fmt, min + progress) }
+        addSeekBarLabels(layout,
+            getString(R.string.memory_decay_label_1),
+            getString(R.string.memory_decay_label_183),
+            getString(R.string.memory_decay_label_365))
 
-        MaterialAlertDialogBuilder(this).setTitle("衰减半衰期").setView(layout)
+        MaterialAlertDialogBuilder(this).setTitle(getString(R.string.memory_decay_title)).setView(layout)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 val value = (min + seekBar.progress).coerceIn(min, max)
                 AppConfig.setMemoryDecayHalfLife(this, value)
@@ -617,7 +513,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                 module?.callAttr("set_memory_config", maxCount, dedupThreshold, decayHalfLife)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SettingsDetailActivity, "同步记忆配置失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_memory_sync_failed, e.message), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -627,7 +523,7 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun showRestoreConfirmDialog(uri: Uri) {
         // 读取文件名用于显示
-        var fileName = "备份文件"
+        var fileName = getString(R.string.label_backup_file)
         try {
             contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
@@ -642,16 +538,16 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("恢复数据")
-            .setMessage("将从「$fileName」恢复数据，当前数据将被覆盖。\n恢复完成后建议重启应用。确定继续吗？")
-            .setPositiveButton("确认恢复") { _, _ ->
+            .setTitle(getString(R.string.dialog_restore_title))
+            .setMessage(getString(R.string.msg_restore_confirm, fileName))
+            .setPositiveButton(getString(R.string.btn_confirm_restore)) { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     val success = DataBackupHelper.restore(this@SettingsDetailActivity, uri)
                     withContext(Dispatchers.Main) {
                         if (success) {
-                            Toast.makeText(this@SettingsDetailActivity, "数据已恢复，请重启应用", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_restore_success), Toast.LENGTH_LONG).show()
                         } else {
-                            Toast.makeText(this@SettingsDetailActivity, "恢复失败，请检查备份文件", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_restore_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -664,45 +560,24 @@ class SettingsDetailActivity : AppCompatActivity() {
         val intervalMs = AppConfig.getProactiveInterval(this)
         val intervalIdx = INTERVAL_MS.indexOf(intervalMs)
         val intervalLabel = if (intervalIdx >= 0) {
-            INTERVAL_OPTIONS[intervalIdx]
+            AppConfig.getIntervalOptions(this)[intervalIdx]
         } else {
             val hours = intervalMs / 3600000.0
-            if (hours == hours.toLong().toDouble()) "每${hours.toLong()}小时" else "每${"%.1f".format(hours)}小时"
+            if (hours == hours.toLong().toDouble()) getString(R.string.notification_interval_hours_fmt, hours.toLong()) else getString(R.string.notification_interval_hours_decimal_fmt, hours)
         }
         val start = AppConfig.getQuietStart(this)
         val end = AppConfig.getQuietEnd(this)
         val quietLabel = if (start.isNotEmpty() && end.isNotEmpty()) "$start - $end" else getString(R.string.value_not_set)
 
         addSectionTitle(getString(R.string.section_proactive_push))
-        // 玻璃态开关卡片
-        val toggleCard = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setBackgroundResource(R.drawable.bg_glass_card)
-            setPadding(dip(16), dip(14), dip(16), dip(14))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = dip(10) }
+        addToggleCard(getString(R.string.label_proactive_toggle), enabled) { isChecked ->
+            AppConfig.setProactiveEnabled(this@SettingsDetailActivity, isChecked)
+            if (isChecked) ProactiveService.schedule(this@SettingsDetailActivity) else ProactiveService.cancel(this@SettingsDetailActivity)
         }
-        toggleCard.addView(TextView(this).apply {
-            text = getString(R.string.label_proactive_toggle); textSize = 16f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        val sw = SwitchCompat(this).apply {
-            isChecked = enabled
-            setOnCheckedChangeListener { _, isChecked ->
-                AppConfig.setProactiveEnabled(this@SettingsDetailActivity, isChecked)
-                if (isChecked) ProactiveService.schedule(this@SettingsDetailActivity) else ProactiveService.cancel(this@SettingsDetailActivity)
-            }
-        }
-        toggleCard.addView(sw)
-        contentLayout.addView(toggleCard)
         addDivider()
 
         addClickRow(getString(R.string.label_send_frequency), intervalLabel, iconRes = R.drawable.ic_frequency) {
-            val optionsWithCustom = INTERVAL_OPTIONS.toMutableList().apply { add(getString(R.string.option_custom)) }
+            val optionsWithCustom = AppConfig.getIntervalOptions(this).toMutableList().apply { add(getString(R.string.option_custom)) }
             val idx = if (INTERVAL_MS.contains(intervalMs)) INTERVAL_MS.indexOf(intervalMs).coerceAtLeast(0) else optionsWithCustom.size - 1
             MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_title_send_frequency))
@@ -808,38 +683,38 @@ class SettingsDetailActivity : AppCompatActivity() {
         val showTimestamp = AppConfig.getShowTimestamp(this)
 
         addSectionTitle(getString(R.string.section_display_settings))
-        addClickRow("深色模式", if (AppConfig.isDarkMode(this)) "已开启" else "已关闭", iconRes = R.drawable.ic_settings_display) {
+        addClickRow(getString(R.string.theme_dark), if (AppConfig.isDarkMode(this)) getString(R.string.status_enabled) else getString(R.string.status_disabled), iconRes = R.drawable.ic_settings_display) {
             showDarkModeDialog()
         }
         addDivider()
-        addClickRow("字体大小", fontSizeLabel(fontSize), iconRes = R.drawable.ic_settings_memory) {
+        addClickRow(getString(R.string.display_font_size), fontSizeLabel(fontSize), iconRes = R.drawable.ic_settings_memory) {
             showFontSizeDialog()
         }
         addDivider()
-        addClickRow("气泡圆角", "${bubbleRadius}dp", iconRes = R.drawable.ic_detail) {
+        addClickRow(getString(R.string.display_bubble_radius), "${bubbleRadius}dp", iconRes = R.drawable.ic_detail) {
             showBubbleRadiusDialog()
         }
         addDivider()
-        addClickRow("消息时间戳", if (showTimestamp) "显示" else "隐藏", iconRes = R.drawable.ic_detail) {
+        addClickRow(getString(R.string.display_timestamp), if (showTimestamp) getString(R.string.label_show) else getString(R.string.label_hide), iconRes = R.drawable.ic_detail) {
             showTimestampDialog()
         }
     }
 
     private fun fontSizeLabel(size: String): String = when (size) {
-        "small" -> "小"
-        "large" -> "大"
-        else -> "中"
+        "small" -> getString(R.string.font_small)
+        "large" -> getString(R.string.font_large)
+        else -> getString(R.string.font_medium)
     }
 
     private fun showDarkModeDialog() {
-        val options = arrayOf("浅色模式", "深色模式", "跟随系统")
+        val options = arrayOf(getString(R.string.theme_light), getString(R.string.theme_dark), getString(R.string.theme_follow_system))
         val current = when {
             AppConfig.isDarkMode(this) -> 1
             AppConfig.isFollowSystem(this) -> 2
             else -> 0
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle("深色模式")
+            .setTitle(getString(R.string.theme_dark))
             .setSingleChoiceItems(options, current) { dialog, which ->
                 when (which) {
                     0 -> {
@@ -856,29 +731,29 @@ class SettingsDetailActivity : AppCompatActivity() {
                     }
                 }
                 dialog.dismiss()
-                Toast.makeText(this, "主题已切换，部分页面需重启生效", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_theme_changed), Toast.LENGTH_SHORT).show()
                 recreate()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     private fun showFontSizeDialog() {
-        val options = arrayOf("小", "中", "大")
+        val options = arrayOf(getString(R.string.font_small), getString(R.string.font_medium), getString(R.string.font_large))
         val current = when (AppConfig.getFontSize(this)) {
             "small" -> 0
             "large" -> 2
             else -> 1
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle("字体大小")
+            .setTitle(getString(R.string.dialog_font_size))
             .setSingleChoiceItems(options, current) { dialog, which ->
                 val size = when (which) { 0 -> "small"; 2 -> "large"; else -> "medium" }
                 AppConfig.setFontSize(this, size)
                 dialog.dismiss()
                 recreate()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -888,48 +763,31 @@ class SettingsDetailActivity : AppCompatActivity() {
         val steps = (max - min) / step
         val currentStep = ((current - min).coerceIn(0, max - min)) / step
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0)
-        }
-        val tvValue = TextView(this).apply {
-            text = "${current}dp"; textSize = 20f
-            setTextColor(ContextCompat.getColor(context, R.color.primary))
-            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
-        }
-        layout.addView(tvValue)
-        val seekBar = SeekBar(this).apply {
-            this.max = steps; progress = currentStep; setPadding(8, 0, 8, 0)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                    tvValue.text = "${min + progress * step}dp"
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) {}
-                override fun onStopTrackingTouch(sb: SeekBar) {}
-            })
-        }
-        layout.addView(seekBar)
+        val (layout, _, seekBar) = createSeekBarLayout(
+            null, "${current}dp", steps, currentStep
+        ) { progress -> "${min + progress * step}dp" }
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("气泡圆角")
+            .setTitle(getString(R.string.dialog_bubble_radius))
             .setView(layout)
-            .setPositiveButton("确定") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 AppConfig.setBubbleRadius(this, min + seekBar.progress * step)
                 recreate()
             }
-            .setNegativeButton("取消", null).show()
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     private fun showTimestampDialog() {
-        val options = arrayOf("显示", "隐藏")
+        val options = arrayOf(getString(R.string.label_show), getString(R.string.label_hide))
         val current = if (AppConfig.getShowTimestamp(this)) 0 else 1
         MaterialAlertDialogBuilder(this)
-            .setTitle("消息时间戳")
+            .setTitle(getString(R.string.dialog_timestamp))
             .setSingleChoiceItems(options, current) { dialog, which ->
                 AppConfig.setShowTimestamp(this, which == 0)
                 dialog.dismiss()
                 recreate()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -940,25 +798,27 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
 
     private fun buildVoicePage() {
+        buildTtsSection()
+        buildAsrSection()
+    }
+
+    /** 构建 TTS（文字转语音）设置区域 */
+    private fun buildTtsSection() {
         val speechRate = AppConfig.getTtsSpeechRate(this)
         val pitch = AppConfig.getTtsPitch(this)
         val autoRead = AppConfig.getAutoReadAloud(this)
-        val lang = AppConfig.getVoiceRecognitionLang(this)
-        val langLabel = when (lang) { "zh-CN" -> getString(R.string.lang_zh_cn_label); "en-US" -> "English (US)"; "ja-JP" -> "日本語"; else -> lang }
         val voiceTimbre = AppConfig.getTtsVoiceTimbre(this)
         val voiceTimbreLabel = getVoiceTimbreLabel(voiceTimbre)
 
         addSectionTitle(getString(R.string.section_tts))
-        // 显示 TTS 模型类型
         val modelTypeLabel = getTtsModelTypeLabel()
-        addClickRow("TTS 模型", modelTypeLabel, iconRes = R.drawable.ic_speed) {
+        addClickRow(getString(R.string.tts_model_label), modelTypeLabel, iconRes = R.drawable.ic_speed) {
             showTtsModelTypeDialog()
         }
         addDivider()
-        // VITS 说话人选择（仅 VITS 模型时显示）
         val speakerId = AppConfig.getTtsSpeakerId(this)
         val speakerLabel = getSpeakerLabel(speakerId)
-        addClickRow("TTS 说话人", speakerLabel, iconRes = R.drawable.ic_speed) {
+        addClickRow(getString(R.string.tts_speaker_label), speakerLabel, iconRes = R.drawable.ic_speed) {
             showSpeakerDialog()
         }
         addDivider()
@@ -969,29 +829,16 @@ class SettingsDetailActivity : AppCompatActivity() {
         addClickRow(getString(R.string.label_tts_voice_timbre), voiceTimbreLabel, iconRes = R.drawable.ic_speed) { showVoiceTimbreDialog() }
         addDivider()
 
-        val toggleCard = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setBackgroundResource(R.drawable.bg_glass_card)
-            setPadding(dip(16), dip(14), dip(16), dip(14))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = dip(10) }
+        addToggleCard(getString(R.string.label_auto_read_aloud), autoRead) { isChecked ->
+            AppConfig.setAutoReadAloud(this@SettingsDetailActivity, isChecked)
         }
-        toggleCard.addView(TextView(this).apply {
-            text = getString(R.string.label_auto_read_aloud); textSize = 16f
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        val sw = SwitchCompat(this).apply {
-            isChecked = autoRead
-            setOnCheckedChangeListener { _, isChecked -> AppConfig.setAutoReadAloud(this@SettingsDetailActivity, isChecked) }
-        }
-        toggleCard.addView(sw)
-        contentLayout.addView(toggleCard)
         addDivider()
+    }
 
+    /** 构建 ASR（语音识别）设置区域 */
+    private fun buildAsrSection() {
+        val lang = AppConfig.getVoiceRecognitionLang(this)
+        val langLabel = when (lang) { "zh-CN" -> getString(R.string.lang_zh_cn_label); "en-US" -> getString(R.string.lang_en_us); "ja-JP" -> getString(R.string.lang_ja_jp); else -> lang }
         addSectionTitle(getString(R.string.section_asr))
         addClickRow(getString(R.string.label_voice_recognition_lang), langLabel, iconRes = R.drawable.ic_language) { showVoiceLangDialog() }
     }
@@ -1018,7 +865,7 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun showVoiceLangDialog() {
         val current = AppConfig.getVoiceRecognitionLang(this)
-        val options = arrayOf(getString(R.string.lang_zh_cn_label), "English (US)", "日本語")
+        val options = arrayOf(getString(R.string.lang_zh_cn_label), getString(R.string.lang_en_us), getString(R.string.lang_ja_jp))
         val values = arrayOf("zh-CN", "en-US", "ja-JP")
         val idx = values.indexOf(current).coerceAtLeast(0)
         MaterialAlertDialogBuilder(this)
@@ -1069,26 +916,26 @@ class SettingsDetailActivity : AppCompatActivity() {
             startActivity(Intent(this, CrashLogViewerActivity::class.java))
         }
         addDivider()
-        addClickRow(getString(R.string.label_open_source_license), "查看开源组件许可", iconRes = R.drawable.ic_export) {
+        addClickRow(getString(R.string.label_open_source_license), getString(R.string.license_view_label), iconRes = R.drawable.ic_export) {
             startActivity(Intent(this, LicenseActivity::class.java))
         }
         addDivider()
-        addClickRow(getString(R.string.label_feedback), "向我们反馈问题或建议", iconRes = R.drawable.ic_export) {
+        addClickRow(getString(R.string.label_feedback), getString(R.string.feedback_label), iconRes = R.drawable.ic_export) {
             Toast.makeText(this, getString(R.string.toast_feedback_future), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun buildDataManagementPage() {
         addSectionTitle(getString(R.string.section_data_management))
-        addClickRow("备份数据", "将所有数据打包为 ZIP 备份文件", iconRes = R.drawable.ic_export) {
+        addClickRow(getString(R.string.data_backup_label), getString(R.string.data_backup_desc), iconRes = R.drawable.ic_export) {
             backupLauncher.launch(DataBackupHelper.generateFileName())
         }
         addDivider()
-        addClickRow("恢复数据", "从 ZIP 备份文件恢复数据（需重启）", iconRes = R.drawable.ic_export) {
+        addClickRow(getString(R.string.data_restore_label), getString(R.string.data_restore_desc), iconRes = R.drawable.ic_export) {
             restoreLauncher.launch(arrayOf("application/zip"))
         }
         addDivider()
-        addClickRow("导出对话记录", "将当前对话导出为文件", iconRes = R.drawable.ic_export) { showExportDialog() }
+        addClickRow(getString(R.string.data_export_label), getString(R.string.data_export_desc), iconRes = R.drawable.ic_export) { showExportDialog() }
     }
 
     private fun showExportDialog() {
@@ -1116,7 +963,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                     return@launch
                 }
                 val character = CharacterStorage.getCurrent(this@SettingsDetailActivity)
-                val content = when (format) { "json" -> ChatExporter.exportToJson(messages, character.name); else -> ChatExporter.exportToTxt(messages, character.name) }
+                val content = when (format) { "json" -> ChatExporter.exportToJson(messages, character.name, this@SettingsDetailActivity); else -> ChatExporter.exportToTxt(messages, character.name, this@SettingsDetailActivity) }
                 val fileName = ChatExporter.generateFileName(format, character.name)
                 val uri = ChatExporter.saveToFile(content, fileName, this@SettingsDetailActivity)
                 if (uri == null) {
@@ -1252,6 +1099,84 @@ class SettingsDetailActivity : AppCompatActivity() {
         setBackgroundColor(ContextCompat.getColor(context, R.color.glass_border))
     }
 
+    /** 添加玻璃态开关卡片（标签 + SwitchCompat） */
+    internal fun addToggleCard(label: String, isChecked: Boolean, onChanged: (Boolean) -> Unit) {
+        val toggleCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setBackgroundResource(R.drawable.bg_glass_card)
+            setPadding(dip(16), dip(14), dip(16), dip(14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dip(10) }
+        }
+        toggleCard.addView(TextView(this).apply {
+            text = label; textSize = 16f
+            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val sw = SwitchCompat(this).apply {
+            this.isChecked = isChecked
+            setOnCheckedChangeListener { _, checked -> onChanged(checked) }
+        }
+        toggleCard.addView(sw)
+        contentLayout.addView(toggleCard)
+    }
+
+    /**
+     * 创建 SeekBar 通用布局（含描述、数值显示、SeekBar）。
+     * @return Triple<布局容器, 数值 TextView, SeekBar>
+     */
+    private fun createSeekBarLayout(
+        desc: String?,
+        initialValueText: String,
+        max: Int,
+        progress: Int,
+        onProgress: (Int) -> String
+    ): Triple<LinearLayout, TextView, SeekBar> {
+        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0) }
+        if (desc != null) {
+            layout.addView(TextView(this).apply {
+                text = desc; textSize = 13f
+                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
+                setPadding(0, 0, 0, 12)
+            })
+        }
+        val tvValue = TextView(this).apply {
+            text = initialValueText; textSize = 20f
+            setTextColor(ContextCompat.getColor(context, R.color.primary))
+            textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, 8)
+        }
+        layout.addView(tvValue)
+        val seekBar = SeekBar(this).apply {
+            this.max = max; this.progress = progress; setPadding(8, 0, 8, 0)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) { tvValue.text = onProgress(p) }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        layout.addView(seekBar)
+        return Triple(layout, tvValue, seekBar)
+    }
+
+    /** 在 SeekBar 布局底部添加 3 个标签（左-中-右） */
+    private fun addSeekBarLabels(layout: LinearLayout, left: String, center: String, right: String) {
+        val labelRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; setPadding(8, 2, 8, 12)
+        }
+        for ((i, label) in listOf(left, center, right).withIndex()) {
+            labelRow.addView(TextView(this).apply {
+                text = label; textSize = 11f
+                setTextColor(ContextCompat.getColor(context, R.color.text_tertiary))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textAlignment = when (i) { 0 -> View.TEXT_ALIGNMENT_TEXT_START; 2 -> View.TEXT_ALIGNMENT_TEXT_END; else -> View.TEXT_ALIGNMENT_CENTER }
+            })
+        }
+        layout.addView(labelRow)
+    }
+
     private fun showSliderDialog(title: String, subtitle: String, labels: Array<String>, descs: Array<String>, currentIdx: Int, max: Int, onSelected: (Int) -> Unit) {
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 20, 48, 0) }
         layout.addView(TextView(this).apply {
@@ -1355,21 +1280,21 @@ class SettingsDetailActivity : AppCompatActivity() {
     /** 获取 TTS 模型类型标签文本 */
     private fun getTtsModelTypeLabel(): String {
         return when (AppConfig.getTtsModelType(this)) {
-            AppConfig.TTS_MODEL_VITS -> "VITS (aishell3)"
-            AppConfig.TTS_MODEL_MATCHA -> "Matcha (baker)"
-            else -> "自动检测（VITS 优先）"
+            AppConfig.TTS_MODEL_VITS -> getString(R.string.tts_model_vits)
+            AppConfig.TTS_MODEL_MATCHA -> getString(R.string.tts_model_matcha)
+            else -> getString(R.string.tts_model_auto)
         }
     }
 
     /** 显示 TTS 模型类型选择对话框 */
     private fun showTtsModelTypeDialog() {
         val current = AppConfig.getTtsModelType(this)
-        val options = arrayOf("自动检测（VITS 优先）", "VITS (aishell3)", "Matcha (baker)")
+        val options = arrayOf(getString(R.string.tts_model_auto), getString(R.string.tts_model_vits), getString(R.string.tts_model_matcha))
         val values = arrayOf(AppConfig.TTS_MODEL_AUTO, AppConfig.TTS_MODEL_VITS, AppConfig.TTS_MODEL_MATCHA)
         val idx = values.indexOf(current).coerceAtLeast(0)
         MaterialAlertDialogBuilder(this)
-            .setTitle("TTS 模型选择")
-            .setMessage("切换后需重启应用生效。\n自动检测：优先使用 VITS，不存在时回退 Matcha。")
+            .setTitle(getString(R.string.dialog_tts_model))
+            .setMessage(getString(R.string.tts_model_desc))
             .setSingleChoiceItems(options, idx) { dialog, which ->
                 AppConfig.setTtsModelType(this, values[which])
                 dialog.dismiss()
@@ -1383,9 +1308,9 @@ class SettingsDetailActivity : AppCompatActivity() {
     private fun getSpeakerLabel(speakerId: Int): String {
         // VITS aishell3 有 174 个说话人（0-173），全部为中文普通话
         return when (speakerId) {
-            0 -> "默认女声"
-            in 1..173 -> "说话人 #$speakerId"
-            else -> "说话人 #$speakerId"
+            0 -> getString(R.string.speaker_default)
+            in 1..173 -> getString(R.string.speaker_number_fmt, speakerId)
+            else -> getString(R.string.speaker_number_fmt, speakerId)
         }
     }
 
@@ -1394,24 +1319,24 @@ class SettingsDetailActivity : AppCompatActivity() {
         val currentId = AppConfig.getTtsSpeakerId(this)
         // 提供预设的说话人选项（0-9 为快速选择，其余可输入数字）
         val speakerOptions = arrayOf(
-            "默认女声 (0)",
-            "说话人 #1",
-            "说话人 #2", 
-            "说话人 #3",
-            "说话人 #5",
-            "说话人 #10",
-            "说话人 #20",
-            "说话人 #50",
-            "说话人 #100",
-            "说话人 #150",
-            "说话人 #173",
+            getString(R.string.speaker_default_0),
+            getString(R.string.speaker_number_fmt, 1),
+            getString(R.string.speaker_number_fmt, 2), 
+            getString(R.string.speaker_number_fmt, 3),
+            getString(R.string.speaker_number_fmt, 5),
+            getString(R.string.speaker_number_fmt, 10),
+            getString(R.string.speaker_number_fmt, 20),
+            getString(R.string.speaker_number_fmt, 50),
+            getString(R.string.speaker_number_fmt, 100),
+            getString(R.string.speaker_number_fmt, 150),
+            getString(R.string.speaker_number_fmt, 173),
         )
         val speakerIds = intArrayOf(0, 1, 2, 3, 5, 10, 20, 50, 100, 150, 173)
         val idx = speakerIds.indexOf(currentId).coerceAtLeast(0)
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("TTS 说话人选择")
-            .setMessage("VITS aishell3 模型支持 174 个说话人（0-173）。\n切换后立即生效，无需重启。")
+            .setTitle(getString(R.string.dialog_speaker_title))
+            .setMessage(getString(R.string.dialog_speaker_desc))
             .setSingleChoiceItems(speakerOptions, idx) { dialog, which ->
                 AppConfig.setTtsSpeakerId(this, speakerIds[which])
                 dialog.dismiss()
@@ -1424,9 +1349,9 @@ class SettingsDetailActivity : AppCompatActivity() {
     private fun getLanguageName(): String {
         val langCode = LocaleHelper.getCurrentLanguage(this)
         return when (langCode) {
-            "zh" -> "中文"
-            "en" -> "English"
-            "ja" -> "日本語"
+            "zh" -> getString(R.string.lang_zh)
+            "en" -> getString(R.string.lang_en)
+            "ja" -> getString(R.string.lang_ja)
             else -> langCode
         }
     }
