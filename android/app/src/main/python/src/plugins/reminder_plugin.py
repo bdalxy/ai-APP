@@ -41,10 +41,10 @@ class ReminderPlugin(BasePlugin):
         def _on_reminder(msg=msg):
             """提醒回调：线程安全地将提醒消息添加到待处理列表。"""
             with self._lock:
-                # TODO-i18n: 提醒消息需支持多语言
                 self._pending.append(f"[提醒插件] ⏰ 提醒时间到：「{msg}」")
 
         t = threading.Timer(delay, _on_reminder)
         t.daemon = True
         t.start()
+        # TODO-i18n: 提醒消息需支持多语言
         return f"[提醒插件] ⏰ 已设置提醒：{delay}秒后「{msg}」"
