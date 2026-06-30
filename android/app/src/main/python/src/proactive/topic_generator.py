@@ -29,6 +29,7 @@ class TopicGenerator:
     可独立使用，也可被 ProactiveEngine 调用。
     """
 
+    # TODO-i18n: 话题模板需支持多语言
     _TIME_PERIOD_CONFIG: dict[str, dict[str, str]] = {
         "早上": {
             "label": "早上",
@@ -92,6 +93,7 @@ class TopicGenerator:
         if user_preferences:
             pref_lines = "\n".join(f"- {p}" for p in user_preferences[:5])
             preference_text = f"\n\n用户的兴趣和偏好：\n{pref_lines}\n请优先围绕用户的兴趣偏好来发起话题。"
+        # TODO-i18n: 话题模板需支持多语言
         prompt = f"""你是一个名为 {card.name} 的角色，性格是{card.personality}，说话风格是{card.speaking_style}。
 
 当前是{time_of_day}，你需要主动发起话题。
@@ -115,6 +117,7 @@ class TopicGenerator:
 
     def _generate_with_template(self, card: "Card", time_of_day: str) -> str:
         name = card.nickname or card.name
+        # TODO-i18n: 话题模板需支持多语言
         templates = {
             "早上": [
                 f"早上好呀~今天天气不错呢，昨晚睡得好吗？",

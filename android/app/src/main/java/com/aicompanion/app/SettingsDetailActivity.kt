@@ -33,7 +33,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         private val INTERVAL_MS = AppConfig.INTERVAL_MS
     }
 
-    internal val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
+    internal val prefs by lazy { SecureStorage.getEncryptedPrefs(this, "app_prefs") }
     internal lateinit var contentLayout: LinearLayout
 
     // ── 备份/恢复文件选择器 ──
@@ -146,7 +146,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             .setTitle(getString(R.string.label_api_key))
             .setView(edit)
             .setPositiveButton(getString(R.string.btn_save)) { _, _ ->
-                val key = edit.text.toString().trim()
+                var key = edit.text.toString().trim()
                 AppConfig.setApiKey(this, key)
                 // 使用独立线程同步 Python，避免 recreate() 取消协程
                 Thread {
@@ -157,8 +157,11 @@ class SettingsDetailActivity : AppCompatActivity() {
                         runOnUiThread {
                             Toast.makeText(this@SettingsDetailActivity, getString(R.string.toast_python_sync_failed, e.message), Toast.LENGTH_SHORT).show()
                         }
+                    } finally {
+                        key = ""
                     }
                 }.start()
+                key = ""
                 Toast.makeText(this, getString(R.string.toast_api_key_saved), Toast.LENGTH_SHORT).show()
                 recreate()
             }

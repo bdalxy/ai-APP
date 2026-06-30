@@ -1,6 +1,7 @@
 package com.aicompanion.app
 
-import android.content.Context
+import android.content.DialogInterface
+import androidx.appcompat.app.AlertDialog
 import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
@@ -49,7 +50,15 @@ class SessionDrawerAdapter(
 
         holder.itemView.setOnClickListener { onSelect(session) }
         holder.itemView.setOnLongClickListener {
-            onDelete(session)
+            val ctx = holder.itemView.context
+            AlertDialog.Builder(ctx)
+                .setTitle(ctx.getString(R.string.dialog_delete_session_title))
+                .setMessage(ctx.getString(R.string.dialog_delete_session_message, session.name.ifEmpty { ctx.getString(R.string.session_unnamed) }))
+                .setPositiveButton(ctx.getString(R.string.btn_delete)) { _: DialogInterface, _: Int ->
+                    onDelete(session)
+                }
+                .setNegativeButton(ctx.getString(R.string.btn_cancel), null)
+                .show()
             true
         }
     }

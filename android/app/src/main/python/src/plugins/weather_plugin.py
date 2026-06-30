@@ -25,6 +25,7 @@ class WeatherPlugin(BasePlugin):
     icon = "cloud"
 
     # ── 模拟数据回退 ──
+    # TODO-i18n: 天气描述需支持多语言
     _WEATHER = ["晴", "多云", "阴", "小雨", "阵雨", "雪"]
     _CITIES = {
         "北京": (10, 35), "上海": (15, 35), "广州": (18, 38),
@@ -103,7 +104,7 @@ class WeatherPlugin(BasePlugin):
         humidity = current.get("humidity", "N/A")
         wind_speed = current.get("windspeedKmph", "N/A")
         wind_dir = current.get("winddir16Point", "")
-        weather_desc = current.get("weatherDesc", [{}])[0].get("value", "未知")
+        weather_desc = current.get("weatherDesc", [{}])[0].get("value", "未知")  # TODO-i18n: 天气描述需支持多语言
         feels_like = current.get("FeelsLikeC", "N/A")
         visibility = current.get("visibility", "N/A")
 
@@ -131,9 +132,11 @@ class WeatherPlugin(BasePlugin):
     def _get_simulated_weather(self, city: str) -> str:
         """生成模拟天气数据（回退方案）"""
         if city not in self._CITIES:
+            # TODO-i18n: 天气描述需支持多语言
             return f"[天气插件] 暂不支持查询「{city}」的天气，请尝试：北京、上海、广州等城市。"
         lo, hi = self._CITIES[city]
         temp = random.randint(lo, hi)
         w = random.choice(self._WEATHER)
         humidity = random.randint(30, 90)
+        # TODO-i18n: 天气描述需支持多语言
         return f"[天气插件] {city}今天{w}，{temp}°C，湿度{humidity}%（模拟数据）"

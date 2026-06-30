@@ -24,6 +24,7 @@ object BlurUtils {
     private const val SCALE_FACTOR = 4
 
     // 注意：此方法涉及Bitmap操作，建议在后台线程调用
+    @Synchronized
     fun blurViewBackground(target: View, radius: Float = DEFAULT_RADIUS, rootView: View) {
         val clampedRadius = radius.coerceIn(1f, MAX_RADIUS)
         val location = IntArray(2)
@@ -96,6 +97,7 @@ object BlurUtils {
     @Suppress("DEPRECATION")
     private fun blurWithRenderScriptInternal(context: Context, bitmap: Bitmap, radius: Float): Bitmap? {
         // RenderScript 在 Android 12+ 已废弃，仅用于 API 31 以下的兼容方案
+        // 未来应迁移到 RenderEffect（API 31+），参见 applyRenderEffectBlur()
         val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val rs = RenderScript.create(context)
         val input = Allocation.createFromBitmap(rs, bitmap)

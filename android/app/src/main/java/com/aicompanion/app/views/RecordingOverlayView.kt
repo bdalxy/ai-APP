@@ -68,7 +68,7 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
                 topMargin = 16
                 gravity = Gravity.CENTER
             }
-            text = "0:00"
+            text = context.getString(R.string.recording_initial_duration)
             textSize = 28f
             // 粉色时长文字（对应 R.color.typing_dot #FFB7C5）
             setTextColor(ContextCompat.getColor(context, R.color.typing_dot))
@@ -100,7 +100,7 @@ class RecordingOverlayView(context: Context) : FrameLayout(context) {
     /** 显示录音覆盖层 */
     fun show() {
         visibility = VISIBLE
-        durationText.text = "0:00"
+        durationText.text = context.getString(R.string.recording_initial_duration)
     }
 
     /** 隐藏录音覆盖层 */

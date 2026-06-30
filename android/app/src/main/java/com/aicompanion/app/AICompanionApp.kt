@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * AI Companion 应用入口。
@@ -146,12 +147,14 @@ class AICompanionApp : PyApplication() {
         }
 
         // 非关键初始化移到后台线程，避免阻塞主线程
-        // 注意：DeviceAdaptationHelper.init() 内部涉及 Resources 操作，需确保线程安全
+        // DeviceAdaptationHelper.init() 内部涉及 Resources 操作，需在主线程执行
         appScope.launch {
             try {
-                // 品牌设备 UI 适配（小米 HyperOS / 荣耀 MagicOS 缩放补偿）
-                DeviceAdaptationHelper.init(this@AICompanionApp)
-                Log.d(TAG, "DeviceAdaptationHelper 初始化完成")
+                withContext(Dispatchers.Main) {
+                    // 品牌设备 UI 适配（小米 HyperOS / 荣耀 MagicOS 缩放补偿）
+                    DeviceAdaptationHelper.init(this@AICompanionApp)
+                    Log.d(TAG, "DeviceAdaptationHelper 初始化完成")
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "DeviceAdaptationHelper 初始化失败: ${e.message}")
             }

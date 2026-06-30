@@ -33,7 +33,14 @@ import org.json.JSONObject
  */
 class WorldBookSection(private val activity: SettingsDetailActivity) {
 
-    private fun getModule() = com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+    private fun getModule(): com.chaquo.python.PyObject? {
+        return try {
+            com.chaquo.python.Python.getInstance().getModule("chat_bridge")
+        } catch (e: Exception) {
+            Log.w("SettingsDetail", "Python 模块未就绪: ${e.message}")
+            null
+        }
+    }
 
     fun build() {
         activity.addSectionTitle(activity.getString(R.string.section_world_book))

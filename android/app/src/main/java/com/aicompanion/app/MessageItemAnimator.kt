@@ -33,10 +33,10 @@ class MessageItemAnimator : DefaultItemAnimator() {
             .withEndAction {
                 // 动画结束后关闭硬件层（释放资源）
                 view.setLayerType(View.LAYER_TYPE_NONE, null)
+                // 动画完成时回调，避免 RecyclerView 再做默认动画
+                dispatchAddFinished(holder)
             }
             .start()
-        // 立即通知添加完成，避免 RecyclerView 再做默认动画
-        dispatchAddFinished(holder)
         // 返回 false 表示自己处理了动画
         return false
     }

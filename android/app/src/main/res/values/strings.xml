@@ -294,6 +294,8 @@
     <!-- ===== 主页面 (MainActivity) 运行时文本 ===== -->
     <string name="toast_session_created">已创建会话「%s」</string>
     <string name="toast_session_deleted">会话已删除</string>
+    <string name="dialog_delete_session_title">删除会话</string>
+    <string name="dialog_delete_session_message">确定要删除会话「%s」吗？此操作不可恢复。</string>
     <string name="status_initializing">正在初始化...</string>
     <!-- 冷启动进度步骤 -->
     <string name="splash_loading_engine">正在加载对话引擎...</string>
@@ -845,6 +847,9 @@
         <item>hey星遥</item>
         <item>你好星遥</item>
     </string-array>
+
+    <!-- 录音时长 -->
+    <string name="recording_initial_duration">0:00</string>
 
     <!-- 语音识别错误消息 -->
     <string name="speech_error_audio">音频录制错误</string>

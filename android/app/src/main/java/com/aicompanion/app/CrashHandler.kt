@@ -134,7 +134,7 @@ class CrashHandler private constructor(
     }
 
     /** 系统默认的未捕获异常处理器（由 init() 在构造后设置） */
-    internal var defaultHandler: Thread.UncaughtExceptionHandler? = null
+    private var defaultHandler: Thread.UncaughtExceptionHandler? = null
 
     /**
      * 当未捕获异常发生时调用。

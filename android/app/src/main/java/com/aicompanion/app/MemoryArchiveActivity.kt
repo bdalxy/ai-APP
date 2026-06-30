@@ -330,16 +330,20 @@ class MemoryArchiveActivity : AppCompatActivity() {
 
         val parsedCards = mutableListOf<MemoryCardData>()
         for (i in 0 until itemsArray.length()) {
-            val obj = itemsArray.getJSONObject(i)
-            val memoryItem = MemoryItem(
-                rowid = obj.optInt("rowid", 0),
-                id = obj.optString("id", ""),
-                type = obj.optString("memory_type", "episodic"),
-                content = obj.optString("content", ""),
-                createdAt = obj.optString("created_at", ""),
-                importance = obj.optDouble("importance", 0.0)
-            )
-            parsedCards.add(MemoryCardData.fromMemoryItem(memoryItem, this))
+            try {
+                val obj = itemsArray.getJSONObject(i)
+                val memoryItem = MemoryItem(
+                    rowid = obj.optInt("rowid", 0),
+                    id = obj.optString("id", ""),
+                    type = obj.optString("memory_type", "episodic"),
+                    content = obj.optString("content", ""),
+                    createdAt = obj.optString("created_at", ""),
+                    importance = obj.optDouble("importance", 0.0)
+                )
+                parsedCards.add(MemoryCardData.fromMemoryItem(memoryItem, this))
+            } catch (e: Exception) {
+                Log.w(TAG, "跳过第 $i 条格式异常的记忆数据: ${e.message}")
+            }
         }
 
         adapter.addAll(parsedCards)

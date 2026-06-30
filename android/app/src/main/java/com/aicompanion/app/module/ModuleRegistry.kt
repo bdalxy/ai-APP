@@ -20,6 +20,12 @@ object ModuleRegistry {
 
     fun isRegistered(clazz: Class<*>): Boolean = modules.containsKey(clazz)
 
+    /**
+     * 清空所有已注册模块。
+     *
+     * 注意：此方法应在应用关闭时调用（如 Application.onTerminate()），
+     * 不应在应用运行期间调用，否则会破坏已注册模块的状态。
+     */
     internal fun clear() {
         modules.clear()
     }

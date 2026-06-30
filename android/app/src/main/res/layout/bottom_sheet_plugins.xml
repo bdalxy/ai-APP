@@ -43,6 +43,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
 
+            <!-- TODO-theme: 需替换为樱羽主题图标 -->
             <ImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -72,6 +73,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
 
+            <!-- TODO-theme: 需替换为樱羽主题图标 -->
             <ImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -101,6 +103,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
 
+            <!-- TODO-theme: 需替换为樱羽主题图标 -->
             <ImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -130,6 +133,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
 
+            <!-- TODO-theme: 需替换为樱羽主题图标 -->
             <ImageView
                 android:id="@+id/pluginWebIcon"
                 android:layout_width="48dp"

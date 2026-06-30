@@ -82,7 +82,33 @@ object DataBackupHelper {
      */
     fun verifyPassword(context: Context, password: String): Boolean {
         val stored = getPrefs(context).getString(KEY_BACKUP_PASSWORD, null) ?: return false
-        return hashPassword(password) == stored
+        // 兼容旧格式（纯 SHA-256 hex）和新格式（salt:hash）
+        if (!stored.contains(":")) {
+            // 旧格式：直接 SHA-256 对比
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val oldHash = digest.digest(password.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+            return oldHash == stored
+        }
+        // 新格式：PBKDF2WithHmacSHA256 (salt:hash)
+        val parts = stored.split(":")
+        if (parts.size != 2) return false
+        val salt = hexToBytes(parts[0])
+        val expectedHash = parts[1]
+        val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, AES_KEY_SIZE)
+        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        val hash = factory.generateSecret(spec).encoded
+            .joinToString("") { "%02x".format(it) }
+        return hash == expectedHash
+    }
+
+    /** 将 hex 字符串转为 ByteArray */
+    private fun hexToBytes(hex: String): ByteArray {
+        val bytes = ByteArray(hex.length / 2)
+        for (i in bytes.indices) {
+            bytes[i] = Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16).toByte()
+        }
+        return bytes
     }
 
     /**
@@ -93,9 +119,14 @@ object DataBackupHelper {
     }
 
     private fun hashPassword(password: String): String {
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
-        return digest.digest(password.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+        // 使用 PBKDF2WithHmacSHA256 增强密码哈希强度（带随机盐和高迭代次数）
+        val salt = ByteArray(PBKDF2_SALT_SIZE).apply { SecureRandom().nextBytes(this) }
+        val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, AES_KEY_SIZE)
+        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        val hash = factory.generateSecret(spec).encoded
+        // 格式：salt(hex) + ":" + hash(hex)
+        return salt.joinToString("") { "%02x".format(it) } + ":" +
+               hash.joinToString("") { "%02x".format(it) }
     }
 
     // ── 文件名生成 ──

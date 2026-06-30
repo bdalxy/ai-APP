@@ -28,6 +28,7 @@ class WorldBookAdapter(
 ) : RecyclerView.Adapter<WorldBookAdapter.ViewHolder>() {
 
     private val swipeThreshold = (56 * context.resources.displayMetrics.density).toInt()
+    private var isSwiping = false
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val layoutCard: View = view.findViewById(R.id.layoutCard)
@@ -57,7 +58,12 @@ class WorldBookAdapter(
         holder.layoutCard.translationX = 0f
         holder.btnEdit.setOnClickListener { resetSwipe(holder); onEdit(entry) }
         holder.btnForget.setOnClickListener { resetSwipe(holder); onDelete(entry, holder.bindingAdapterPosition) }
-        holder.layoutCard.setOnClickListener { resetSwipe(holder); onEdit(entry) }
+        holder.layoutCard.setOnClickListener {
+            if (!isSwiping) {
+                resetSwipe(holder); onEdit(entry)
+            }
+            isSwiping = false
+        }
         setupSwipeGesture(holder)
     }
 
@@ -66,24 +72,26 @@ class WorldBookAdapter(
     @SuppressLint("ClickableViewAccessibility")
     private fun setupSwipeGesture(holder: ViewHolder) {
         var startX = 0f
-        var isSwiping = false
+        var isSwipingLocal = false
         var swipeOffset = 0f
         holder.layoutCard.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    startX = event.rawX; isSwiping = false
+                    startX = event.rawX; isSwipingLocal = false
+                    isSwiping = false
                     swipeOffset = holder.layoutCard.translationX; true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val deltaX = event.rawX - startX
                     if (kotlin.math.abs(deltaX) > 10) {
+                        isSwipingLocal = true
                         isSwiping = true
                         val newX = (swipeOffset + deltaX).coerceIn(-swipeThreshold.toFloat() * 2, 0f)
                         holder.layoutCard.translationX = newX; true
                     } else false
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (isSwiping) {
+                    if (isSwipingLocal) {
                         if (holder.layoutCard.translationX < -swipeThreshold) {
                             animateSwipeOpen(holder)
                         } else animateSwipeClose(holder)

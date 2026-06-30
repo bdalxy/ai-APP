@@ -269,7 +269,7 @@ class WorldBookActivity : AppCompatActivity() {
                     val py = com.chaquo.python.Python.getInstance()
                     val module = py.getModule("chat_bridge")
                     val entryJson = JSONObject().apply {
-                        put("id", UUID.randomUUID().toString().take(8))
+                        put("id", UUID.randomUUID().toString())
                         put("content", content); put("keys", JSONArray()); put("comment", category)
                         put("constant", false); put("probability", 100); put("priority", 0)
                     }
@@ -282,7 +282,7 @@ class WorldBookActivity : AppCompatActivity() {
                         val json = JSONObject(result)
                         if (json.optString("status") == "ok") {
                             val now = currentTimeIso()
-                            adapter.addItem(WorldBookEntry(UUID.randomUUID().toString().take(8), category, content, emptyList(), 0, now, now))
+                            adapter.addItem(WorldBookEntry(UUID.randomUUID().toString(), category, content, emptyList(), 0, now, now))
                             updateEntryCount(); showEmpty(false)
                             Toast.makeText(this@WorldBookActivity, R.string.toast_entry_saved, Toast.LENGTH_SHORT).show()
                         }

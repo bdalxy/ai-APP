@@ -32,6 +32,7 @@ class ReminderPlugin(BasePlugin):
         rest = m.group(1).strip()
         tm = re.match(r"(\d+)\s*(分钟|秒|小时|分)\s*后\s*(.+)", rest)
         if not tm:
+            # TODO-i18n: 提醒消息需支持多语言
             return "[提醒插件] 格式：/remind 5分钟后 喝水"
 
         num, unit, msg = int(tm.group(1)), tm.group(2), tm.group(3).strip()
@@ -40,6 +41,7 @@ class ReminderPlugin(BasePlugin):
         def _on_reminder(msg=msg):
             """提醒回调：线程安全地将提醒消息添加到待处理列表。"""
             with self._lock:
+                # TODO-i18n: 提醒消息需支持多语言
                 self._pending.append(f"[提醒插件] ⏰ 提醒时间到：「{msg}」")
 
         t = threading.Timer(delay, _on_reminder)

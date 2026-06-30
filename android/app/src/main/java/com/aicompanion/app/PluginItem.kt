@@ -23,6 +23,7 @@ data class PluginItem(
     val lastCallTime: Long,
     val lastError: String
 ) {
+    @Suppress("unused")
     val activityLevel: Int
         get() = when {
             callCount >= 1000 -> 5

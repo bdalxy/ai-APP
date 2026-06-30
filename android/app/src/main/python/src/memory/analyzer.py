@@ -367,6 +367,7 @@ class MemoryAnalyzer:
 
             if mem_type in ("user_profile", "user_identity", "user_fact"):
                 # 检查是否包含身份相关词
+                # TODO-i18n: 情感标签需支持多语言
                 identity_keywords = ["叫", "是", "名字", "姓名", "年龄", "性别"]
                 if any(kw in entry.content for kw in identity_keywords):
                     identity.append(entry.content)
@@ -382,11 +383,13 @@ class MemoryAnalyzer:
                     attributes.append(entry.content)
 
             if mem_type in ("user_relationship", "user_fact"):
+                # TODO-i18n: 情感标签需支持多语言
                 rel_keywords = ["妈妈", "爸爸", "妹妹", "姐姐", "哥哥", "弟弟", "朋友", "同事", "家人"]
                 if any(kw in entry.content for kw in rel_keywords):
                     relationships.append(entry.content)
 
             if mem_type in ("user_status", "episodic_event"):
+                # TODO-i18n: 情感标签需支持多语言
                 stat_keywords = ["现在", "目前", "正在", "最近", "刚"]
                 if any(kw in entry.content for kw in stat_keywords):
                     status.append(entry.content)
@@ -556,6 +559,7 @@ class MemoryAnalyzer:
             grade = "F"
 
         suggestions: list[str] = []
+        # TODO-i18n: 情感标签需支持多语言
         if completeness < 0.5:
             suggestions.append("记忆类型过于单一，建议启用 LLM 提取模式以增加多样性")
         if freshness < 0.3:
